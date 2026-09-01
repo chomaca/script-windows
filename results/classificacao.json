@@ -1,0 +1,874 @@
+{
+ "26391409": {
+  "tier": "A1",
+  "nota": "CHDS, 14.062 mulheres, 50 anos de seguimento: PE tardia HR 2,0 (IC 95% 1,2–3,5) para morte CV; PE precoce (≤ 34 sem) prediz morte CV prematura (efeito idade-dependente)."
+ },
+ "38563390": {
+  "tier": "A1",
+  "nota": "Coorte nacional francesa CONCEPTION, 2.819.655 mulheres: avalia explicitamente ocorrência, recorrência, TEMPO DE INÍCIO e gravidade das DHEG contra mortalidade e um amplo espectro de desfechos CV."
+ },
+ "38588914": {
+  "tier": "A2",
+  "nota": "ESTUDO-CHAVE. 911 mulheres com PE prévia (139 precoce vs 772 tardia), angio-TC coronariana ~13 anos após o parto: compara diretamente o risco de aterosclerose coronariana entre precoce e tardia."
+ },
+ "28542803": {
+  "tier": "A2",
+  "nota": "EOPE (24) vs LOPE (24) vs normotensas (24), pareadas por idade, 12 anos após o parto: placa carotídea, EMI, VOP aórtica e índice de aumento. O grupo precoce teve os piores valores em todos os desfechos."
+ },
+ "30527125": {
+  "tier": "A2",
+  "nota": "EOPE (31) vs LOPE (22) vs controles (40), mediana de 12 anos: strain longitudinal global do VE significativamente pior na PE precoce do que na tardia e nos controles."
+ },
+ "23045462": {
+  "tier": "A2",
+  "nota": "EOPE (45) vs LOPE (45) vs normotensas (50), 6–13 anos: PA diastólica pós-parto, incremento de PA e PA noturna maiores na PE precoce. Inclui a prole."
+ },
+ "26105355": {
+  "tier": "A2",
+  "nota": "Resumo de congresso (PP032) da mesma coorte de Lazdam: fenótipo CV de longo prazo comparando PE precoce, tardia e gestação normal (lipídios, rigidez arterial, EMI, RM cardíaca)."
+ },
+ "20956209": {
+  "tier": "A2",
+  "nota": "EOPE (15) vs LOPE (9) vs RCIU (9) vs normotensas (16), 6–24 meses pós-parto: dilatação fluxo-mediada reduzida apenas na PE precoce e na RCIU."
+ },
+ "25561694": {
+  "tier": "A3",
+  "nota": "ESTUDO-CHAVE. 448 EOPE vs 76 LOPE vs 224 HIG: glicemia, insulina, triglicérides, colesterol total e prevalência de hipertensão pós-parto significativamente maiores após PE precoce."
+ },
+ "26105237": {
+  "tier": "A3",
+  "nota": "Resumo de congresso (OS023). 81 EOPE vs 76 LOPE vs 229 HIG vs 79 controles: o aumento dos fatores de risco CV foi correlacionado com a gravidade e o tempo de início da doença."
+ },
+ "36148698": {
+  "tier": "A3",
+  "nota": "417 gestantes (55 EO-PE, 63 LO-PE, 30 HIG, 269 controles) e 341 mulheres 1 ou 3 anos pós-parto: cTnT, NT-proBNP e GDF-15. O GDF-15 permanece elevado após PE precoce."
+ },
+ "37481613": {
+  "tier": "A3",
+  "nota": "188 mulheres: hipertensão pós-parto persistente ou recorrente mais frequente após PE precoce ou grave do que após PE tardia ou leve (desfecho de curto prazo)."
+ },
+ "30688668": {
+  "tier": "A3",
+  "nota": "120 EOPE vs 126 LOPE: lactação e pressão arterial na consulta pós-parto inicial, comparadas entre os dois subtipos."
+ },
+ "40058980": {
+  "tier": "B1",
+  "nota": "50 EOPE vs 50 controles pareadas, 3–12 anos após o parto: eventos CV por Kaplan-Meier, aterosclerose subclinica, MAPA 24h, Framingham 10/30 anos. Sem braço de PE tardia."
+ },
+ "29894501": {
+  "tier": "B1",
+  "nota": "131 EOPE vs 56 normotensas, 9–16 anos: disfunção diastólica pre-clínica do VE na quinta decada de vida (precursora de ICFEP)."
+ },
+ "28209494": {
+  "tier": "B1",
+  "nota": "EOPE vs normotensas, 9–16 anos: prevalência de fatores de risco CV e de doença CV já estabelecida na quinta decada de vida."
+ },
+ "32890270": {
+  "tier": "B1",
+  "nota": "Coorte PREVFEM, 177 EOPE vs 162 controles, 9–10 anos: troponina I ultrassensível."
+ },
+ "22749786": {
+  "tier": "B1",
+  "nota": "Coorte PREVFEM, 339 EOPE vs 332 controles, 10 anos: parametros eletrocardiográficos."
+ },
+ "29150171": {
+  "tier": "B1",
+  "nota": "Coorte PREVFEM, 339 EOPE vs 327 controles, 10 anos: pro-neurotensina e pro-relaxina 2."
+ },
+ "31136991": {
+  "tier": "B1",
+  "nota": "Coorte PREVFEM, 485 amostras, 8–11 anos após PE precoce: autoanticorpos anti-GPCR e pressão arterial."
+ },
+ "30825907": {
+  "tier": "B1",
+  "nota": "117 EOPE vs 50 controles, 9–16 anos: creatinoquinase e pressão arterial."
+ },
+ "32085575": {
+  "tier": "B1",
+  "nota": "90 mulheres 10–20 anos após PE precoce: neutrofilos circulantes e doença arterial coronariana subclinica por angio-TC (escore de cálcio)."
+ },
+ "23635741": {
+  "tier": "B1",
+  "nota": "243 primíparas após PE precoce vs 374 controles: fatores de risco CV maiores e risco absoluto de 10 anos (Framingham)."
+ },
+ "26711734": {
+  "tier": "B1",
+  "nota": "44 mulheres após PE precoce grave vs 29 controles, 1,5–3,5 anos: marcadores inflamatórios e resposta de fase aguda."
+ },
+ "25200856": {
+  "tier": "B1",
+  "nota": "17 casos vs 16 controles: EMI carotídea e femoral 4–5 anos após PE precoce grave (seguimento do estudo de 2006)."
+ },
+ "16738162": {
+  "tier": "B1",
+  "nota": "22 EOPE vs 22 gestação normal vs 22 nuliparas: EMI femoral aumentada após PE precoce."
+ },
+ "15738035": {
+  "tier": "B1",
+  "nota": "25 mulheres após PE precoce vs 23 controles, 3–11 meses: reatividade microvascular endotélio-dependente."
+ },
+ "21418159": {
+  "tier": "B1",
+  "nota": "14 casos vs 16 controles: elasticidade arterial radial reduzida após PE precoce."
+ },
+ "22952728": {
+  "tier": "B1",
+  "nota": "16 casos vs 18 controles, ~9,5 anos após PE de início muito precoce (<24 sem): fatores angiogênicos."
+ },
+ "18571828": {
+  "tier": "B1",
+  "nota": "20 mulheres com PE de início muito precoce (<24 sem) e seus parceiros: perfil de risco CV e EMI carotídea."
+ },
+ "21880804": {
+  "tier": "B1",
+  "nota": "16 mulheres após PE precoce grave vs controles: sistema renina-angiotensina pós-parto sob estresse ortostático."
+ },
+ "20551845": {
+  "tier": "B1",
+  "nota": "240 mulheres após PE precoce e 456 com SOP: prevalência de síndrome metabólica e elegibilidade para prevencao CV primária."
+ },
+ "40673014": {
+  "tier": "B1",
+  "nota": "24 puérperas brasileiras: PE precoce com risco 2,36x de hipertensão persistente aos 3 meses pós-parto."
+ },
+ "37470772": {
+  "tier": "B1",
+  "nota": "1.397 mulheres, 6 meses a 30 anos pós-parto: modelo preditivo de remodelamento cardíaco aberrante que inclui PE precoce como preditor."
+ },
+ "20022586": {
+  "tier": "B1",
+  "nota": "75 HELLP precoce vs 40 PE precoce sem HELLP, >=6 meses pós-parto: variáveis metabólicas, hemodinâmicas e hemostáticas."
+ },
+ "41250989": {
+  "tier": "B1",
+  "nota": "FINNPEC (n=1.139) e FinnGen (n=3.603): duração entre diagnóstico de PE e parto associada a DCV composta antes dos 55 anos (HR 1,02/dia). Exposicao e a duração, não o subtipo precoce/tardio."
+ },
+ "18574072": {
+  "tier": "B1",
+  "nota": "28 mulheres após PE grave vs 20 controles, 5–6 anos: sensibilidade a insulina e vasodilatação."
+ },
+ "21606387": {
+  "tier": "B1",
+  "nota": "26 pares mae-filho após PE vs 17 controles, 5–8 anos: função endotelial e biomarcadores; avalia especificamente o início precoce."
+ },
+ "31487630": {
+  "tier": "B1",
+  "nota": "358 mulheres: PE/HIG de início precoce em 28,6% das que precisaram de anti-hipertensivo no pós-parto imediato vs 4,1% das que não precisaram."
+ },
+ "29677687": {
+  "tier": "B2",
+  "nota": "Plasma de mulheres 2,5 anos após PE tardia ou HIG vs normotensas: disfunção da barreira endotelial; IMC elevado como fator determinante. So o braço tardio."
+ },
+ "31864208": {
+  "tier": "B2",
+  "nota": "6 mulheres com PE tardia grave vs 8 controles: RM cardíaca 1–3 dias, 1 semana e 6 meses pós-parto; alterações revertidas em 6 meses. So o braço tardio, amostra muito pequena."
+ },
+ "29111423": {
+  "tier": "B3",
+  "nota": "50 EOPE vs 50 LOPE: geometria do VE, disfunção diastólica global, contratilidade e resistência vascular total significativamente piores na PE precoce."
+ },
+ "26077816": {
+  "tier": "B3",
+  "nota": "43 PE precoce vs 41 PE tardia vs 81 normais: strain 3D (GLS, GCS, GAS, GRS) e massa do VE piores na PE precoce."
+ },
+ "23911383": {
+  "tier": "B3",
+  "nota": "50 PE precoce vs 50 PE tardia vs 100 controles no momento do diagnóstico: EMI carotídea, distensibilidade e colapsabilidade da veia cava inferior."
+ },
+ "31487637": {
+  "tier": "B3",
+  "nota": "Strain longitudinal por camadas (speckle tracking) em mulheres com PE precoce e tardia. Resumo não disponível no PubMed - requer texto completo."
+ },
+ "34464917": {
+  "tier": "B3",
+  "nota": "60 gestantes com PE (precoce vs tardia) vs 30 controles: QT, QTc, Tp-e e razões Tp-e/QT como índices de repolarização ventricular."
+ },
+ "19300330": {
+  "tier": "B3",
+  "nota": "80 mulheres com PE ou HIG vs 80 controles: pressão e índice de aumento significativamente maiores na PE precoce que na tardia."
+ },
+ "33581001": {
+  "tier": "B3",
+  "nota": "NT-proBNP mais alto na PE precoce que na tardia; ecocardiograma antes do parto e 3–5 meses após."
+ },
+ "32336238": {
+  "tier": "B3",
+  "nota": "37 PE precoce vs 29 PE tardia vs 49 controles: painel Olink de 92 biomarcadores CV; 9 marcadores diferem entre precoce e tardia (ST2, MMP1, MMP3, fractalquina)."
+ },
+ "30295110": {
+  "tier": "B3",
+  "nota": "26 PE precoce vs 23 PE tardia vs 23 normais: GDF-15 materno mais alto na PE precoce."
+ },
+ "34486496": {
+  "tier": "B3",
+  "nota": "40 mulheres com PE precoce vs 40 normotensas pareadas por idade gestacional: remodelamento e disfunção diastólica por ecocardiografia. Sem braço de PE tardia."
+ },
+ "40138925": {
+  "tier": "C",
+  "nota": "Revisão dedicada exatamente a pergunta da PICO: nem todas as mulheres após DHEG tem o mesmo risco CV; PE precoce, PE recorrente e PE na última gestação são os subgrupos de maior risco."
+ },
+ "33252700": {
+  "tier": "C",
+  "nota": "Revisão sobre implicações CV de longo prazo da PE: PE mais grave e de início precoce aumenta o risco CV futuro."
+ },
+ "38189425": {
+  "tier": "C",
+  "nota": "Revisão abrangente das consequências CV da PE para mae e prole."
+ },
+ "22018452": {
+  "tier": "C",
+  "nota": "Revisão crítica comparando PE precoce e tardia (patogênese, biomarcadores, desfechos). Referência conceitual para a definição de I e C."
+ },
+ "41210851": {
+  "tier": "C",
+  "nota": "Revisão sistemática e metanálise (12 estudos, 856 mulheres): rigidez arterial após 6 semanas do parto em mulheres com DHEG. Fonte de busca manual de referencias."
+ },
+ "32856716": {
+  "tier": "C",
+  "nota": "Revisão sistemática (16 estudos, 870 mulheres com DHEG): speckle tracking; mulheres com história de PE precoce mostram alterações miocárdicas persistentes."
+ },
+ "27609819": {
+  "tier": "C",
+  "nota": "Revisão sistemática (36 estudos, 815 mulheres com PE): disfunção diastólica e remodelamento do VE mais marcados na PE grave e de início precoce."
+ },
+ "40569067": {
+  "tier": "C",
+  "nota": "Revisão de atualização sobre PE incluindo riscos CV de longo prazo."
+ },
+ "40585732": {
+  "tier": "C",
+  "nota": "Revisão narrativa sobre diagnóstico, tratamento e implicações de longo prazo das DHEG."
+ },
+ "28961633": {
+  "tier": "C",
+  "nota": "Revisão sobre as origens cardiovasculares da PE e a distinção precoce/tardia."
+ },
+ "31343740": {
+  "tier": "C",
+  "nota": "Revisão: PE como síndrome cardiorrenal gestacional; contrasta fisiopatologia da PE precoce e tardia."
+ },
+ "26362531": {
+  "tier": "C",
+  "nota": "Revisão conceitual: PE como síndrome ou doença; placentação deficiente e mais relevante na PE precoce."
+ },
+ "35462351": {
+  "tier": "C",
+  "nota": "Revisão (húngaro): as duas faces da PE - forma precoce hipovolêmica/placentária vs forma tardia com alto débito cardíaco."
+ },
+ "35177225": {
+  "tier": "C",
+  "nota": "Revisão sobre vias hemodinâmicas da HIG e da PE."
+ },
+ "35177220": {
+  "tier": "C",
+  "nota": "Revisão histórica sobre a evolução conceitual da PE/eclampsia."
+ },
+ "27520604": {
+  "tier": "C",
+  "nota": "Revisão clínica (enfermagem) sobre avaliação, manejo e implicações de saúde da PE precoce, incluindo seguimento CV pós-parto."
+ },
+ "34461666": {
+  "tier": "C",
+  "nota": "Revisão integrativa dos achados placentários na PE pre-termo vs a termo."
+ },
+ "30317927": {
+  "tier": "C",
+  "nota": "Revisão sobre PE na adolescência; liga fatores de risco CV a PE precoce."
+ },
+ "32981372": {
+  "tier": "C",
+  "nota": "ESTUDO METODOLÓGICO. Validação da memória materna: PE precoce e recuperada com alta sensibilidade e especificidade por questionário; PE tardia e HIG, não. Relevante para o risco de vies de classificação da exposição."
+ },
+ "42433136": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "41666648": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "41525138": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "41667698": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "41106578": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "41232169": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "41296480": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "39440423": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "40199872": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "39974194": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "39379466": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "39509924": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "35963155": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36443048": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36369889": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "35866241": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "34996340": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "35228109": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "35260099": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "35063900": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33758348": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32971013": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32275184": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "34480133": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "34352849": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33228435": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31622409": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31557190": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31234061": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31055131": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31094790": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31109316": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "30234780": {
+  "tier": "D",
+  "nota": "Compara HELLP vs PE vs controles; não estratifica por início precoce/tardio."
+ },
+ "30825924": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29267172": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "30383796": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29704672": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "27926640": {
+  "tier": "D",
+  "nota": "Desfecho não cardiovascular (doencas retinianas), embora estratificado pelo início da PE - coorte de 1.108.541 mulheres, útil como análogo metodológico."
+ },
+ "27251704": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "27173354": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "27116985": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26844488": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26731265": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26479038": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26333286": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26694356": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26501535": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25626412": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26287789": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26287782": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25946029": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "23452733": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "23993394": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "24091485": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "24165327": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "24351805": {
+  "tier": "D",
+  "nota": "Desfecho e recorrência de PE, não evento cardiovascular."
+ },
+ "24535301": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "24637620": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "24746997": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "24846698": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25634310": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25693057": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25806090": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25877604": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25892082": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "25915203": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26105611": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "26311451": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "27255227": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "27899314": {
+  "tier": "D",
+  "nota": "Desfecho não cardiovascular (extração de catarata), estratificado pelo início da PE - mesma coorte de Quebec."
+ },
+ "27998690": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28012458": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28461601": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28569919": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28858635": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28871576": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28941881": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "28962690": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29172803": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29291358": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29544467": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29707880": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29855344": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29939936": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "29939940": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31130051": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31809427": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "31990902": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32020602": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32075602": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32093926": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32247845": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32338084": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "32889166": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33254097": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33341795": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33453366": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33666502": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "33879252": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "34043700": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "35983848": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36148652": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36227697": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36334725": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36347504": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36403860": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36580212": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "36965061": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37113621": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37211009": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37292200": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37300367": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37369375": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37435795": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37464308": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37591113": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "37801800": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "38189116": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "38253981": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "38842709": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "7485291": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "8803899": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "9814682": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "10854861": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "10975485": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "11165727": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "11248284": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "11857095": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "11969345": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "12634661": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "14998977": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "16678332": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "17065036": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "18259010": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "18949985": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "19318931": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "2187247": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "22311907": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "21673281": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "21415724": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "21252803": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "21792337": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "20537304": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "20214506": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "20587434": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "20502423": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "20357423": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ },
+ "19375795": {
+  "tier": "D",
+  "nota": "Sem comparação PE precoce vs tardia com desfecho cardiovascular materno após a gestação."
+ }
+}
