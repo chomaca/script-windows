@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- page -->
+<title>2 anos de Braula</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Shrikhand&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --blush: #FFE3EE;
+    --blush-2: #FFC9DD;
+    --peach: #FFE1C4;
+    --lilac: #EAD9FF;
+    --berry: #5A0A2E;
+    --raspberry: #C2185B;
+    --cherry: #E0144C;
+    --pink: #FF3D7F;
+    --gold: #FFB627;
+    --violet: #8C52FF;
+    --coral: #FF6B4A;
+    --teal: #12A594;
+    --white: #FFFFFF;
+    --display: "Shrikhand", "Georgia", serif;
+    --round: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    --wheel: min(88vw, 50vh, 440px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  [hidden] { display: none !important; }
+  body {
+    background:
+      radial-gradient(circle at 12% 18%, var(--blush-2) 0 20%, transparent 45%),
+      radial-gradient(circle at 90% 10%, var(--peach) 0 16%, transparent 42%),
+      radial-gradient(circle at 86% 88%, var(--lilac) 0 18%, transparent 46%),
+      radial-gradient(circle at 8% 92%, var(--peach) 0 12%, transparent 38%),
+      var(--blush);
+    background-color: var(--blush);
+    background-attachment: fixed;
+    color: var(--berry);
+    font-family: var(--round);
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---------- hearts in the air ---------- */
+  .sky, .fx {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .sky { z-index: 0; }
+  .fx { z-index: 20; }
+  .float {
+    position: absolute;
+    bottom: -70px;
+    left: var(--x);
+    width: var(--s);
+    height: var(--s);
+    color: var(--c);
+    opacity: var(--o);
+    animation: rise var(--d) linear var(--delay) infinite;
+  }
+  .float svg, .fx svg { width: 100%; height: 100%; fill: currentColor; display: block; }
+  .float svg { animation: sway 3.2s ease-in-out infinite alternate; }
+  @keyframes rise {
+    from { transform: translateY(0) rotate(var(--r)); }
+    to   { transform: translateY(calc(-100vh - 140px)) rotate(calc(var(--r) * -1)); }
+  }
+  @keyframes sway {
+    from { transform: translateX(-16px); }
+    to   { transform: translateX(16px); }
+  }
+  .fx > span { position: absolute; display: block; }
+
+  /* ---------- layout ---------- */
+  main {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(12px, 2.4vh, 24px);
+    padding-inline: 16px;
+    padding-block: 20px 32px;
+    text-align: center;
+  }
+  header { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+  .since {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .72);
+    color: var(--raspberry);
+    font-weight: 600;
+    font-size: .9rem;
+    letter-spacing: .08em;
+    font-variant-numeric: tabular-nums;
+  }
+  .since svg { width: 14px; height: 14px; fill: var(--cherry); }
+
+  h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(2.3rem, 9vw, 4.4rem);
+    line-height: 1;
+    color: var(--cherry);
+    text-wrap: balance;
+    text-shadow: 3px 3px 0 var(--white), 6px 6px 0 rgba(90, 10, 46, .16);
+  }
+  h1 .l1 { color: var(--pink); }
+  h1 .l2 { color: var(--gold); }
+  h1 .l3 { color: var(--violet); }
+  h1 .l4 { color: var(--coral); }
+  h1 .l5 { color: var(--teal); }
+  h1 .l6 { color: var(--cherry); }
+
+  .ask {
+    margin: 0;
+    font-weight: 600;
+    font-size: clamp(1.05rem, 3.6vw, 1.3rem);
+  }
+
+  /* ---------- roulette ---------- */
+  .wheel-wrap {
+    position: relative;
+    width: var(--wheel);
+    height: var(--wheel);
+    margin-top: calc(var(--wheel) * .06);
+    --blink: 1.2s;
+  }
+  .wheel-wrap.spinning { --blink: .28s; }
+  .wheel {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 10px 0 rgba(90, 10, 46, .18)) drop-shadow(0 22px 28px rgba(194, 24, 91, .28));
+  }
+  .ring { fill: var(--raspberry); }
+  .rim { fill: none; stroke: var(--gold); stroke-width: 4; }
+  .slice { stroke: var(--white); stroke-width: 3; stroke-linejoin: round; }
+  .seg { transition: opacity .45s ease; }
+  .wheel.has-win .seg:not(.win) { opacity: .4; }
+  .lbl {
+    font-family: var(--round);
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: .02em;
+  }
+  .lbl-light {
+    paint-order: stroke;
+    stroke: rgba(90, 10, 46, .35);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+  .bulb {
+    fill: var(--white);
+    animation: blink var(--blink) steps(1) infinite;
+  }
+  .bulb.odd { animation-delay: calc(var(--blink) / -2); }
+  @keyframes blink {
+    0%  { fill: var(--white); }
+    50% { fill: var(--gold); }
+  }
+  .hub { cursor: pointer; }
+  .hub-bg { fill: var(--white); stroke: var(--raspberry); stroke-width: 5; }
+  .hub-heart { fill: var(--cherry); }
+  .hub-two { font-family: var(--display); font-size: 21px; fill: var(--white); }
+
+  .pointer {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 17%;
+    height: 17%;
+    z-index: 2;
+    overflow: visible;
+    transform: translate(-50%, -42%);
+    transform-origin: 50% 20%;
+    fill: var(--cherry);
+    stroke: var(--white);
+    stroke-width: 1.6;
+    filter: drop-shadow(0 4px 0 rgba(90, 10, 46, .28));
+  }
+
+  /* ---------- big button ---------- */
+  .spin {
+    width: min(100%, 340px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45em;
+    margin-top: 6px;
+    padding: .62em 1.2em;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pink);
+    color: var(--white);
+    font-family: var(--round);
+    font-weight: 700;
+    font-size: clamp(1.6rem, 6vw, 2.1rem);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 8px 0 var(--raspberry), 0 16px 26px rgba(194, 24, 91, .35);
+    transition: transform .1s ease, box-shadow .1s ease, background .2s ease;
+  }
+  .spin svg { width: 1.05em; height: 1.05em; fill: var(--white); animation: beat 1.4s ease-in-out infinite; }
+  .spin:hover { background: #FF2A70; }
+  .spin:active:not(:disabled) {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 var(--raspberry), 0 6px 12px rgba(194, 24, 91, .3);
+  }
+  .spin:disabled { cursor: progress; background: var(--raspberry); box-shadow: 0 8px 0 var(--berry), 0 16px 26px rgba(90, 10, 46, .3); }
+  .spin:disabled svg { animation-duration: .45s; }
+  .spin:focus-visible, .ok:focus-visible { outline: 4px solid var(--violet); outline-offset: 6px; }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    15% { transform: scale(1.22); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.14); }
+  }
+
+  /* ---------- result ---------- */
+  .result {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    padding-inline: 16px;
+    background: rgba(90, 10, 46, .4);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+  }
+  .card {
+    position: relative;
+    width: min(100%, 380px);
+    padding: 46px 24px 26px;
+    border-radius: 28px;
+    background: var(--white);
+    text-align: center;
+    box-shadow: 0 10px 0 var(--raspberry), 0 30px 60px rgba(90, 10, 46, .35);
+    animation: pop .55s cubic-bezier(.2, 1.5, .4, 1);
+  }
+  .card-heart {
+    position: absolute;
+    left: calc(50% - 38px);
+    top: -40px;
+    width: 76px;
+    height: 76px;
+    fill: var(--cherry);
+    stroke: var(--white);
+    stroke-width: 1.4;
+    overflow: visible;
+    filter: drop-shadow(0 5px 0 rgba(90, 10, 46, .22));
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  .kicker {
+    margin: 0;
+    color: var(--raspberry);
+    font-weight: 600;
+    font-size: .82rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+  .winner {
+    margin: .22em 0 .3em;
+    font-family: var(--display);
+    font-size: clamp(2.3rem, 11vw, 3.2rem);
+    line-height: 1.05;
+    color: var(--cherry);
+    text-wrap: balance;
+    text-shadow: 3px 3px 0 var(--seg, var(--gold));
+  }
+  .row-hearts { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+  .row-hearts svg { width: 20px; height: 20px; }
+  .ok {
+    padding: .55em 1.6em;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pink);
+    color: var(--white);
+    font-family: var(--round);
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: .04em;
+    cursor: pointer;
+    box-shadow: 0 5px 0 var(--raspberry);
+  }
+  .ok:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--raspberry); }
+  @keyframes pop {
+    from { transform: scale(.4) rotate(-6deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0); opacity: 1; }
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .float { animation: none; bottom: auto; top: var(--y); }
+    .float svg, .spin svg, .card-heart, .card { animation: none; }
+    .bulb { animation: none; }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="heart" viewBox="0 0 24 24">
+    <path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.9 4 7 4c2.2 0 3.8 1.2 5 3 1.2-1.8 2.8-3 5-3 4.1 0 6.1 4.4 4.6 7.8C19.5 16.4 12 21 12 21z"/>
+  </symbol>
+</svg>
+
+<div class="sky" id="sky" aria-hidden="true"></div>
+
+<main>
+  <header>
+    <p class="since">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
+      23.09.2024 · 23.09.2026
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
+    </p>
+    <h1 aria-label="2 anos de Braula">2 anos de <span aria-hidden="true"><span class="l1">B</span><span class="l2">r</span><span class="l3">a</span><span class="l4">u</span><span class="l5">l</span><span class="l6">a</span></span></h1>
+    <p class="ask">onde vamos jantar amanhã?</p>
+  </header>
+
+  <div class="wheel-wrap" id="wheelWrap">
+    <svg class="pointer" id="pointer" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
+    <svg class="wheel" id="wheel" viewBox="0 0 400 400" role="img" aria-label="Roleta com Mocellin, San, Babbo Osteria, Yusha e Malta">
+      <circle class="ring" cx="200" cy="200" r="199"/>
+      <g id="disc"></g>
+      <circle class="rim" cx="200" cy="200" r="173"/>
+      <g id="bulbs"></g>
+      <g class="hub" id="hub">
+        <circle class="hub-bg" cx="200" cy="200" r="40"/>
+        <use class="hub-heart" href="#heart" x="177" y="176" width="46" height="46"/>
+        <text class="hub-two" x="200" y="198" dy=".35em" text-anchor="middle">2</text>
+      </g>
+    </svg>
+  </div>
+
+  <button class="spin" id="spin" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
+    <span id="spinLabel">Girar</span>
+  </button>
+
+  <p class="sr-only" id="live" aria-live="polite"></p>
+</main>
+
+<div class="result" id="result" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="resultName">
+    <svg class="card-heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
+    <p class="kicker">nosso jantar de 2 anos</p>
+    <p class="winner" id="resultName">Mocellin</p>
+    <div class="row-hearts" aria-hidden="true">
+      <svg viewBox="0 0 24 24" style="fill:#FF3D7F"><use href="#heart"/></svg>
+      <svg viewBox="0 0 24 24" style="fill:#FFB627"><use href="#heart"/></svg>
+      <svg viewBox="0 0 24 24" style="fill:#8C52FF"><use href="#heart"/></svg>
+      <svg viewBox="0 0 24 24" style="fill:#FF6B4A"><use href="#heart"/></svg>
+      <svg viewBox="0 0 24 24" style="fill:#12A594"><use href="#heart"/></svg>
+    </div>
+    <button class="ok" id="ok" type="button">Combinado!</button>
+  </div>
+</div>
+
+<div class="fx" id="fx" aria-hidden="true"></div>
+
+<script>
+(() => {
+  const RESTAURANTS = [
+    { name: "Mocellin",      lines: ["Mocellin"],         color: "#FF3D7F", ink: "#FFFFFF" },
+    { name: "San",           lines: ["San"],              color: "#FFB627", ink: "#5A0A2E" },
+    { name: "Babbo Osteria", lines: ["Babbo", "Osteria"], color: "#8C52FF", ink: "#FFFFFF" },
+    { name: "Yusha",         lines: ["Yusha"],            color: "#FF6B4A", ink: "#FFFFFF" },
+    { name: "Malta",         lines: ["Malta"],            color: "#12A594", ink: "#FFFFFF" },
+  ];
+  const HEART_COLORS = ["#FF3D7F", "#E0144C", "#FFB627", "#8C52FF", "#FF6B4A", "#12A594", "#FFFFFF", "#FF3D7F", "#C2185B", "#E0144C"];
+
+  const NS = "http://www.w3.org/2000/svg";
+  const N = RESTAURANTS.length;
+  const SLICE = 360 / N;
+  const C = 200;
+  const R_SEG = 172;
+  const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  const $ = (id) => document.getElementById(id);
+  const disc = $("disc"), bulbs = $("bulbs"), wheel = $("wheel"), wrap = $("wheelWrap");
+  const pointer = $("pointer"), spinBtn = $("spin"), spinLabel = $("spinLabel"), hub = $("hub");
+  const result = $("result"), resultName = $("resultName"), ok = $("ok"), live = $("live");
+  const sky = $("sky"), fx = $("fx");
+
+  // ---------- helpers ----------
+  function rand() {
+    try {
+      const a = new Uint32Array(1);
+      crypto.getRandomValues(a);
+      return a[0] / 4294967296;
+    } catch (e) {
+      return Math.random();
+    }
+  }
+  const randInt = (n) => Math.floor(rand() * n);
+  const pick = (arr) => arr[randInt(arr.length)];
+  const mod = (a, n) => ((a % n) + n) % n;
+
+  function svgEl(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function heartSvg() {
+    const s = svgEl("svg", { viewBox: "0 0 24 24" });
+    svgEl("use", { href: "#heart" }, s);
+    return s;
+  }
+  // angle in degrees, clockwise from 12 o'clock
+  function pt(r, deg) {
+    const a = deg * Math.PI / 180;
+    return [C + r * Math.sin(a), C - r * Math.cos(a)];
+  }
+
+  // ---------- build the wheel ----------
+  const segs = RESTAURANTS.map((r, i) => {
+    const g = svgEl("g", { class: "seg" }, disc);
+    const [x1, y1] = pt(R_SEG, i * SLICE);
+    const [x2, y2] = pt(R_SEG, (i + 1) * SLICE);
+    svgEl("path", {
+      class: "slice",
+      fill: r.color,
+      d: `M${C} ${C} L${x1.toFixed(2)} ${y1.toFixed(2)} A${R_SEG} ${R_SEG} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`,
+    }, g);
+    const mid = i * SLICE + SLICE / 2;
+    const t = svgEl("g", { transform: `rotate(${mid - 90} ${C} ${C})` }, g);
+    r.lines.forEach((line, j) => {
+      const y = C + (j - (r.lines.length - 1) / 2) * 21;
+      const text = svgEl("text", {
+        x: C + 156, y, dy: ".35em",
+        "text-anchor": "end",
+        fill: r.ink,
+        class: r.ink === "#FFFFFF" ? "lbl lbl-light" : "lbl",
+      }, t);
+      text.textContent = line;
+    });
+    return g;
+  });
+
+  const BULBS = 20;
+  for (let i = 0; i < BULBS; i++) {
+    const g = svgEl("g", { transform: `rotate(${i * 360 / BULBS} ${C} ${C})` }, bulbs);
+    svgEl("use", { href: "#heart", x: 193, y: 8, width: 14, height: 14, class: i % 2 ? "bulb odd" : "bulb" }, g);
+  }
+
+  // ---------- hearts floating in the background ----------
+  const FLOATS = window.innerWidth < 600 ? 28 : 44;
+  for (let i = 0; i < FLOATS; i++) {
+    const span = document.createElement("span");
+    span.className = "float";
+    const d = 9 + rand() * 11;
+    span.style.setProperty("--x", (rand() * 100).toFixed(1) + "%");
+    span.style.setProperty("--y", (rand() * 100).toFixed(1) + "%");
+    span.style.setProperty("--s", Math.round(12 + rand() * 34) + "px");
+    span.style.setProperty("--c", pick(HEART_COLORS));
+    span.style.setProperty("--o", (0.4 + rand() * 0.5).toFixed(2));
+    span.style.setProperty("--d", d.toFixed(1) + "s");
+    span.style.setProperty("--delay", (-rand() * d).toFixed(1) + "s");
+    span.style.setProperty("--r", Math.round(-25 + rand() * 50) + "deg");
+    span.appendChild(heartSvg());
+    sky.appendChild(span);
+  }
+
+  // ---------- effects ----------
+  function flyHeart(x, y, size, color, dx, dy, rot, duration, easing) {
+    const span = document.createElement("span");
+    span.style.cssText = `left:${x - size / 2}px;top:${y - size / 2}px;width:${size}px;height:${size}px;color:${color}`;
+    span.appendChild(heartSvg());
+    fx.appendChild(span);
+    if (!span.animate) { setTimeout(() => span.remove(), 600); return; }
+    const a = span.animate([
+      { transform: "translate(0,0) scale(.2) rotate(0deg)", opacity: 1 },
+      { transform: `translate(${dx}px,${dy}px) scale(1) rotate(${rot}deg)`, opacity: 1, offset: .7 },
+      { transform: `translate(${dx}px,${dy + 70}px) scale(.85) rotate(${rot * 1.4}deg)`, opacity: 0 },
+    ], { duration, easing });
+    a.onfinish = () => span.remove();
+  }
+
+  function burst(count) {
+    const x = window.innerWidth / 2, y = window.innerHeight / 2;
+    const reach = Math.max(window.innerWidth, window.innerHeight) * 0.55;
+    for (let i = 0; i < count; i++) {
+      const ang = rand() * Math.PI * 2;
+      const dist = 80 + rand() * reach;
+      flyHeart(x, y, 14 + rand() * 30, pick(HEART_COLORS),
+        Math.cos(ang) * dist, Math.sin(ang) * dist, (rand() - .5) * 140,
+        1500 + rand() * 1000, "cubic-bezier(.12,.8,.3,1)");
+    }
+  }
+
+  function tapHearts(x, y) {
+    for (let i = 0; i < 3; i++) {
+      flyHeart(x, y, 12 + rand() * 12, pick(HEART_COLORS),
+        (rand() - .5) * 70, -50 - rand() * 60, (rand() - .5) * 60,
+        900 + rand() * 400, "ease-out");
+    }
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target.closest && e.target.closest(".card")) return;
+    tapHearts(e.clientX, e.clientY);
+  });
+
+  // ---------- sound ----------
+  let ac = null;
+  function audio() {
+    try {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) ac = new AC();
+      }
+      if (ac && ac.state === "suspended") ac.resume();
+    } catch (e) { ac = null; }
+    return ac;
+  }
+  function tone(freq, dur, vol, type, when) {
+    if (!ac) return;
+    try {
+      const t = ac.currentTime + (when || 0);
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || "triangle";
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g);
+      g.connect(ac.destination);
+      o.start(t);
+      o.stop(t + dur + 0.03);
+    } catch (e) { /* no sound, no problem */ }
+  }
+  const tickSound = () => tone(1600, 0.04, 0.05, "triangle");
+  const winSound = () => [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.55, 0.12, "sine", i * 0.12));
+
+  // ---------- spin ----------
+  let rotation = 0;
+  let spinning = false;
+
+  function setRotation(deg) {
+    disc.setAttribute("transform", `rotate(${deg.toFixed(3)} ${C} ${C})`);
+  }
+
+  function tick() {
+    tickSound();
+    if (pointer.animate && !reduce) {
+      pointer.animate([
+        { transform: "translate(-50%,-42%) rotate(-18deg)" },
+        { transform: "translate(-50%,-42%) rotate(0deg)" },
+      ], { duration: 160, easing: "ease-out" });
+    }
+  }
+
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    audio();
+    closeResult(false);
+    wheel.classList.remove("has-win");
+    segs.forEach((s) => s.classList.remove("win"));
+    wrap.classList.add("spinning");
+    spinBtn.disabled = true;
+    spinLabel.textContent = "Girando…";
+    live.textContent = "";
+
+    const k = randInt(N);
+    const landing = k * SLICE + SLICE * (0.15 + 0.7 * rand()); // spot inside slice k that ends under the pointer
+    const turns = reduce ? 2 : 6 + randInt(3);
+    const from = rotation;
+    const to = from - mod(from, 360) + turns * 360 + mod(360 - landing, 360);
+    const duration = reduce ? 2200 : 6200 + rand() * 1200;
+    const start = performance.now();
+    let lastSlot = Math.floor(from / SLICE);
+
+    function frame(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 4);
+      rotation = from + (to - from) * eased;
+      setRotation(rotation);
+      const slot = Math.floor(rotation / SLICE);
+      if (slot !== lastSlot) { lastSlot = slot; tick(); }
+      if (t < 1) requestAnimationFrame(frame);
+      else finish(k);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(k) {
+    const r = RESTAURANTS[k];
+    spinning = false;
+    wrap.classList.remove("spinning");
+    segs[k].classList.add("win");
+    wheel.classList.add("has-win");
+    spinBtn.disabled = false;
+    spinLabel.textContent = "Girar";
+    live.textContent = "Nosso jantar de 2 anos: " + r.name;
+
+    setTimeout(() => {
+      resultName.textContent = r.name;
+      resultName.style.setProperty("--seg", r.color);
+      result.hidden = false;
+      ok.focus();
+      winSound();
+      burst(reduce ? 18 : 70);
+      if (!reduce) setTimeout(() => burst(40), 450);
+    }, 380);
+  }
+
+  function closeResult(refocus) {
+    if (result.hidden) return;
+    result.hidden = true;
+    if (refocus) spinBtn.focus();
+  }
+
+  spinBtn.addEventListener("click", spin);
+  hub.addEventListener("click", spin);
+  ok.addEventListener("click", () => { closeResult(true); burst(reduce ? 10 : 30); });
+  result.addEventListener("click", (e) => { if (e.target === result) closeResult(true); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeResult(true); });
+})();
+</script>
