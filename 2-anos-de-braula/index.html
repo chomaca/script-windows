@@ -24,6 +24,8 @@
     --coral: #FF6B4A;
     --teal: #12A594;
     --white: #FFFFFF;
+    --paper: #FFFDF7;
+    --undeveloped: #4B535C;
     --display: "Shrikhand", "Georgia", serif;
     --round: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
     --wheel: min(88vw, 50vh, 440px);
@@ -46,15 +48,64 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* ---------- hearts in the air ---------- */
-  .sky, .fx {
+  /* ---------- background: polaroids + hearts ---------- */
+  .gallery, .sky, .fx, .dim {
     position: fixed;
     inset: 0;
     pointer-events: none;
     overflow: hidden;
   }
-  .sky { z-index: 0; }
+  .gallery, .sky { z-index: 0; }
+  .dim { z-index: 1; }
   .fx { z-index: 20; }
+
+  .polaroid {
+    position: absolute;
+    top: 0;
+    left: var(--x);
+    width: var(--w);
+    padding: calc(var(--w) * .06) calc(var(--w) * .06) calc(var(--w) * .2);
+    background: var(--paper);
+    box-shadow: 0 2px 3px rgba(90, 10, 46, .14), 0 16px 30px rgba(90, 10, 46, .24);
+    animation: fall var(--d) linear var(--delay) infinite;
+    will-change: transform;
+  }
+  .polaroid .pic {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--undeveloped);
+  }
+  .polaroid img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* the photo "develops" as it enters the screen, like a real polaroid */
+  .polaroid .pic::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--undeveloped);
+    opacity: 0;
+    animation: develop var(--d) linear var(--delay) infinite;
+  }
+  .polaroid > svg {
+    position: absolute;
+    left: 50%;
+    bottom: calc(var(--w) * .045);
+    width: calc(var(--w) * .11);
+    height: calc(var(--w) * .11);
+    transform: translateX(-50%);
+    fill: var(--c);
+  }
+  @keyframes fall {
+    0%   { transform: translate(-50%, -115%) rotate(var(--r1)); }
+    50%  { transform: translate(calc(-50% + var(--drift)), calc(50vh - 50%)) rotate(var(--r2)); }
+    100% { transform: translate(-50%, 100vh) rotate(var(--r1)); }
+  }
+  @keyframes develop {
+    0%, 5% { opacity: .96; }
+    24%    { opacity: 0; }
+    100%   { opacity: 0; }
+  }
+
   .float {
     position: absolute;
     bottom: -70px;
@@ -76,11 +127,20 @@
     to   { transform: translateX(16px); }
   }
   .fx > span { position: absolute; display: block; }
+  .fx > .flash { inset: 0; background: var(--white); }
+
+  /* spotlight while the wheel spins */
+  .dim {
+    opacity: 0;
+    transition: opacity 1.2s ease;
+    background: radial-gradient(circle at 50% 56%, rgba(90, 10, 46, 0) 0 24%, rgba(90, 10, 46, .6) 78%);
+  }
+  body.suspense .dim { opacity: 1; }
 
   /* ---------- layout ---------- */
   main {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     min-height: 100vh;
     min-height: 100svh;
     display: flex;
@@ -92,16 +152,19 @@
     padding-block: 20px 32px;
     text-align: center;
   }
-  header { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  header { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
-  .since {
+  .since, .ask {
     margin: 0;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 14px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, .72);
+    background: rgba(255, 255, 255, .8);
+    box-shadow: 0 4px 14px rgba(90, 10, 46, .12);
+  }
+  .since {
+    padding: 5px 14px;
     color: var(--raspberry);
     font-weight: 600;
     font-size: .9rem;
@@ -109,6 +172,11 @@
     font-variant-numeric: tabular-nums;
   }
   .since svg { width: 14px; height: 14px; fill: var(--cherry); }
+  .ask {
+    padding: 6px 18px;
+    font-weight: 600;
+    font-size: clamp(1.05rem, 3.6vw, 1.3rem);
+  }
 
   h1 {
     margin: 0;
@@ -127,21 +195,17 @@
   h1 .l5 { color: var(--teal); }
   h1 .l6 { color: var(--cherry); }
 
-  .ask {
-    margin: 0;
-    font-weight: 600;
-    font-size: clamp(1.05rem, 3.6vw, 1.3rem);
-  }
-
   /* ---------- roulette ---------- */
   .wheel-wrap {
     position: relative;
     width: var(--wheel);
     height: var(--wheel);
     margin-top: calc(var(--wheel) * .06);
+    transition: transform 1s cubic-bezier(.3, 1.4, .5, 1);
     --blink: 1.2s;
   }
-  .wheel-wrap.spinning { --blink: .28s; }
+  body.suspense .wheel-wrap { transform: scale(1.06); --blink: .28s; }
+  body.crawl .wheel-wrap { --blink: .8s; }
   .wheel {
     display: block;
     width: 100%;
@@ -177,8 +241,9 @@
   }
   .hub { cursor: pointer; }
   .hub-bg { fill: var(--white); stroke: var(--raspberry); stroke-width: 5; }
-  .hub-heart { fill: var(--cherry); }
-  .hub-two { font-family: var(--display); font-size: 21px; fill: var(--white); }
+  .hub-heart { fill: var(--cherry); transform-box: fill-box; transform-origin: center; }
+  body.crawl .hub-heart { animation: beat .85s ease-in-out infinite; }
+  .hub-two { font-family: var(--display); font-size: 21px; fill: var(--white); pointer-events: none; }
 
   .pointer {
     position: absolute;
@@ -226,7 +291,7 @@
     box-shadow: 0 2px 0 var(--raspberry), 0 6px 12px rgba(194, 24, 91, .3);
   }
   .spin:disabled { cursor: progress; background: var(--raspberry); box-shadow: 0 8px 0 var(--berry), 0 16px 26px rgba(90, 10, 46, .3); }
-  .spin:disabled svg { animation-duration: .45s; }
+  .spin:disabled svg { animation-duration: .85s; }
   .spin:focus-visible, .ok:focus-visible { outline: 4px solid var(--violet); outline-offset: 6px; }
   @keyframes beat {
     0%, 100% { transform: scale(1); }
@@ -319,8 +384,11 @@
 
   @media (prefers-reduced-motion: reduce) {
     .float { animation: none; bottom: auto; top: var(--y); }
-    .float svg, .spin svg, .card-heart, .card { animation: none; }
+    .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
+    .polaroid .pic::after { display: none; }
+    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart { animation: none; }
     .bulb { animation: none; }
+    .wheel-wrap, .dim { transition: none; }
   }
 </style>
 
@@ -330,7 +398,9 @@
   </symbol>
 </svg>
 
+<div class="gallery" id="gallery" aria-hidden="true"></div>
 <div class="sky" id="sky" aria-hidden="true"></div>
+<div class="dim" aria-hidden="true"></div>
 
 <main>
   <header>
@@ -393,34 +463,49 @@
     { name: "Yusha",         lines: ["Yusha"],            color: "#FF6B4A", ink: "#FFFFFF" },
     { name: "Malta",         lines: ["Malta"],            color: "#12A594", ink: "#FFFFFF" },
   ];
+  const PHOTOS = ["fotos/1.jpg", "fotos/2.jpg", "fotos/3.jpg", "fotos/4.jpg", "fotos/5.jpg"];
   const HEART_COLORS = ["#FF3D7F", "#E0144C", "#FFB627", "#8C52FF", "#FF6B4A", "#12A594", "#FFFFFF", "#FF3D7F", "#C2185B", "#E0144C"];
 
   const NS = "http://www.w3.org/2000/svg";
   const N = RESTAURANTS.length;
-  const SLICE = 360 / N;
+  const SLICE = 360 / N;     // 72° per restaurant: every slice is the same size
+  const PEG = SLICE / 4;     // a soft click every 18°, a louder one on each divider
   const C = 200;
   const R_SEG = 172;
   const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   const $ = (id) => document.getElementById(id);
-  const disc = $("disc"), bulbs = $("bulbs"), wheel = $("wheel"), wrap = $("wheelWrap");
+  const disc = $("disc"), bulbs = $("bulbs"), wheel = $("wheel");
   const pointer = $("pointer"), spinBtn = $("spin"), spinLabel = $("spinLabel"), hub = $("hub");
   const result = $("result"), resultName = $("resultName"), ok = $("ok"), live = $("live");
-  const sky = $("sky"), fx = $("fx");
+  const gallery = $("gallery"), sky = $("sky"), fx = $("fx");
 
-  // ---------- helpers ----------
+  // ---------- randomness ----------
+  // Uniform integer in [0, n): rejection sampling removes the tiny modulo bias,
+  // so each restaurant has exactly 1 in 5.
+  function randInt(n) {
+    try {
+      const buf = new Uint32Array(1);
+      const limit = Math.floor(4294967296 / n) * n;
+      do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
+      return buf[0] % n;
+    } catch (e) {
+      return Math.floor(Math.random() * n);
+    }
+  }
   function rand() {
     try {
-      const a = new Uint32Array(1);
-      crypto.getRandomValues(a);
-      return a[0] / 4294967296;
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      return buf[0] / 4294967296;
     } catch (e) {
       return Math.random();
     }
   }
-  const randInt = (n) => Math.floor(rand() * n);
   const pick = (arr) => arr[randInt(arr.length)];
   const mod = (a, n) => ((a % n) + n) % n;
+  const easeInOutSine = (u) => -(Math.cos(Math.PI * u) - 1) / 2;
+  const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
 
   function svgEl(tag, attrs, parent) {
     const e = document.createElementNS(NS, tag);
@@ -470,8 +555,60 @@
     svgEl("use", { href: "#heart", x: 193, y: 8, width: 14, height: 14, class: i % 2 ? "bulb odd" : "bulb" }, g);
   }
 
+  // ---------- polaroids falling in the background ----------
+  const POLAROID_COLORS = ["#FF3D7F", "#FFB627", "#8C52FF", "#FF6B4A", "#12A594"];
+  const DURATIONS = [34, 41, 30, 38, 45];
+  const polaroids = PHOTOS.map((src, i) => {
+    const card = document.createElement("div");
+    card.className = "polaroid";
+    const d = DURATIONS[i];
+    card.style.setProperty("--d", d + "s");
+    card.style.setProperty("--delay", (-((i * 0.2 + 0.08 + rand() * 0.1) % 1) * d).toFixed(1) + "s");
+    card.style.setProperty("--r1", Math.round(-14 + rand() * 28) + "deg");
+    card.style.setProperty("--r2", Math.round(-14 + rand() * 28) + "deg");
+    card.style.setProperty("--drift", Math.round(-30 + rand() * 60) + "px");
+    card.style.setProperty("--y", Math.round(4 + (i / PHOTOS.length) * 70 + rand() * 8) + "vh");
+    card.style.setProperty("--c", POLAROID_COLORS[i]);
+    const pic = document.createElement("div");
+    pic.className = "pic";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    img.decoding = "async";
+    pic.appendChild(img);
+    card.appendChild(pic);
+    card.appendChild(heartSvg());
+    gallery.appendChild(card);
+    return card;
+  });
+
+  // Wide screens: keep the photos in the side margins, clear of the wheel.
+  // Narrow screens: spread them out and let them pass behind everything.
+  function layoutPolaroids() {
+    const W = window.innerWidth;
+    let lanes, w;
+    if (W >= 900) {
+      const side = (W - 520) / 2;
+      w = Math.min(200, Math.max(130, side * 0.42));
+      lanes = [side * 0.28, W - side * 0.3, side * 0.74, W - side * 0.76, side * 0.5];
+    } else {
+      w = Math.min(130, Math.max(96, W * 0.28));
+      lanes = [0.13, 0.87, 0.32, 0.7, 0.5].map((f) => f * W);
+    }
+    polaroids.forEach((card, i) => {
+      card.style.setProperty("--x", Math.round(lanes[i]) + "px");
+      card.style.setProperty("--w", Math.round(w) + "px");
+    });
+  }
+  layoutPolaroids();
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(layoutPolaroids, 150);
+  });
+
   // ---------- hearts floating in the background ----------
-  const FLOATS = window.innerWidth < 600 ? 28 : 44;
+  const FLOATS = window.innerWidth < 600 ? 26 : 40;
   for (let i = 0; i < FLOATS; i++) {
     const span = document.createElement("span");
     span.className = "float";
@@ -515,6 +652,15 @@
     }
   }
 
+  function flash() {
+    const f = document.createElement("span");
+    f.className = "flash";
+    fx.appendChild(f);
+    if (!f.animate || reduce) { f.remove(); return; }
+    f.animate([{ opacity: 0 }, { opacity: .85, offset: .15 }, { opacity: 0 }], { duration: 700, easing: "ease-out" })
+      .onfinish = () => f.remove();
+  }
+
   function tapHearts(x, y) {
     for (let i = 0; i < 3; i++) {
       flyHeart(x, y, 12 + rand() * 12, pick(HEART_COLORS),
@@ -539,13 +685,14 @@
     } catch (e) { ac = null; }
     return ac;
   }
-  function tone(freq, dur, vol, type, when) {
+  function tone(freq, dur, vol, type, when, endFreq) {
     if (!ac) return;
     try {
       const t = ac.currentTime + (when || 0);
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = type || "triangle";
       o.frequency.setValueAtTime(freq, t);
+      if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -555,25 +702,47 @@
       o.stop(t + dur + 0.03);
     } catch (e) { /* no sound, no problem */ }
   }
-  const tickSound = () => tone(1600, 0.04, 0.05, "triangle");
-  const winSound = () => [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.55, 0.12, "sine", i * 0.12));
+  const clickSound = (loud) => tone(loud ? 1500 : 2300, loud ? 0.05 : 0.025, loud ? 0.07 : 0.025, "triangle");
+  const heartbeatSound = () => {
+    tone(120, 0.16, 0.35, "sine", 0, 55);
+    tone(110, 0.16, 0.25, "sine", 0.2, 50);
+  };
+  const winSound = () => [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.6, 0.12, "sine", i * 0.13));
 
   // ---------- spin ----------
   let rotation = 0;
   let spinning = false;
+  let heartbeatTimer = null;
 
   function setRotation(deg) {
     disc.setAttribute("transform", `rotate(${deg.toFixed(3)} ${C} ${C})`);
   }
+  function restaurantUnderPointer(deg) {
+    return Math.floor(mod(-deg, 360) / SLICE);
+  }
 
-  function tick() {
-    tickSound();
-    if (pointer.animate && !reduce) {
-      pointer.animate([
-        { transform: "translate(-50%,-42%) rotate(-18deg)" },
-        { transform: "translate(-50%,-42%) rotate(0deg)" },
-      ], { duration: 160, easing: "ease-out" });
-    }
+  function flickPointer() {
+    if (!pointer.animate || reduce) return;
+    pointer.animate([
+      { transform: "translate(-50%,-42%) rotate(-18deg)" },
+      { transform: "translate(-50%,-42%) rotate(0deg)" },
+    ], { duration: 180, easing: "ease-out" });
+  }
+
+  // Choose the winner first (1 in 5 each), then pick where inside its slice the
+  // pointer stops. Most spins end close to a divider, so it keeps you guessing
+  // until the very last moment - without changing anyone's odds.
+  function plan(from) {
+    const k = randInt(N);
+    const roll = rand();
+    let f;
+    if (roll < 0.4) f = 0.15 + 0.12 * rand();       // almost slips into the next one
+    else if (roll < 0.8) f = 0.73 + 0.12 * rand();  // only just made it in
+    else f = 0.35 + 0.3 * rand();
+    const landing = k * SLICE + f * SLICE;
+    const turns = reduce ? 2 : 7 + randInt(2);
+    const to = from - mod(from, 360) + turns * 360 + mod(360 - landing, 360);
+    return { k, to };
   }
 
   function spin() {
@@ -583,52 +752,84 @@
     closeResult(false);
     wheel.classList.remove("has-win");
     segs.forEach((s) => s.classList.remove("win"));
-    wrap.classList.add("spinning");
+    document.body.classList.add("suspense");
     spinBtn.disabled = true;
     spinLabel.textContent = "Girando…";
     live.textContent = "";
 
-    const k = randInt(N);
-    const landing = k * SLICE + SLICE * (0.15 + 0.7 * rand()); // spot inside slice k that ends under the pointer
-    const turns = reduce ? 2 : 6 + randInt(3);
+    const { to } = plan(rotation);
     const from = rotation;
-    const to = from - mod(from, 360) + turns * 360 + mod(360 - landing, 360);
-    const duration = reduce ? 2200 : 6200 + rand() * 1200;
+    const BACK = reduce ? 0 : 12;                       // wind-up before the launch
+    const WIND = reduce ? 0 : 900;
+    const MAIN = reduce ? 3000 : 11000 + rand() * 2000;  // long, slow deceleration
+    const OVER = reduce ? 0 : 2.5 + rand() * 1.5;       // tiny overshoot, stays inside the slice
+    const SETTLE = reduce ? 0 : 1100;
+    const TOTAL = WIND + MAIN + SETTLE;
     const start = performance.now();
-    let lastSlot = Math.floor(from / SLICE);
+    let prevRot = from, prevNow = start, crawling = false;
+
+    function position(t) {
+      if (t < WIND) return from - BACK * easeInOutSine(t / WIND);
+      t -= WIND;
+      if (t < MAIN) return (from - BACK) + (to + OVER - from + BACK) * easeOutCubic(t / MAIN);
+      t -= MAIN;
+      if (t < SETTLE) return to + OVER - OVER * easeInOutSine(t / SETTLE);
+      return to;
+    }
 
     function frame(now) {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 4);
-      rotation = from + (to - from) * eased;
+      const t = Math.min(TOTAL, now - start);
+      rotation = position(t);
       setRotation(rotation);
-      const slot = Math.floor(rotation / SLICE);
-      if (slot !== lastSlot) { lastSlot = slot; tick(); }
-      if (t < 1) requestAnimationFrame(frame);
-      else finish(k);
+
+      if (Math.floor(rotation / PEG) !== Math.floor(prevRot / PEG)) {
+        const divider = Math.floor(rotation / SLICE) !== Math.floor(prevRot / SLICE);
+        clickSound(divider);
+        if (divider) flickPointer();
+      }
+      const speed = Math.abs(rotation - prevRot) / Math.max(1, now - prevNow) * 1000;
+      if (!crawling && t > WIND + 1500 && speed < 70) {
+        crawling = true;
+        document.body.classList.add("crawl");
+        spinLabel.textContent = "Será…?";
+        heartbeatSound();
+        heartbeatTimer = setInterval(heartbeatSound, 850);
+      }
+      prevRot = rotation;
+      prevNow = now;
+
+      if (t < TOTAL) requestAnimationFrame(frame);
+      else finish();
     }
     requestAnimationFrame(frame);
   }
 
-  function finish(k) {
-    const r = RESTAURANTS[k];
-    spinning = false;
-    wrap.classList.remove("spinning");
-    segs[k].classList.add("win");
-    wheel.classList.add("has-win");
-    spinBtn.disabled = false;
-    spinLabel.textContent = "Girar";
-    live.textContent = "Nosso jantar de 2 anos: " + r.name;
+  function finish() {
+    rotation = rotation % 360;
+    setRotation(rotation);
+    const idx = restaurantUnderPointer(rotation);
+    const r = RESTAURANTS[idx];
 
+    // one last breath before the reveal
     setTimeout(() => {
+      clearInterval(heartbeatTimer);
+      document.body.classList.remove("crawl", "suspense");
+      segs[idx].classList.add("win");
+      wheel.classList.add("has-win");
+      spinning = false;
+      spinBtn.disabled = false;
+      spinLabel.textContent = "Girar";
+      live.textContent = "Nosso jantar de 2 anos: " + r.name;
+
+      flash();
       resultName.textContent = r.name;
       resultName.style.setProperty("--seg", r.color);
       result.hidden = false;
       ok.focus();
       winSound();
-      burst(reduce ? 18 : 70);
-      if (!reduce) setTimeout(() => burst(40), 450);
-    }, 380);
+      burst(reduce ? 18 : 80);
+      if (!reduce) setTimeout(() => burst(45), 450);
+    }, reduce ? 300 : 1000);
   }
 
   function closeResult(refocus) {
