@@ -195,52 +195,31 @@
   h1 .l5 { color: var(--teal); }
   h1 .l6 { color: var(--cherry); }
 
-  /* ---------- the five options ---------- */
-  .picks { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .picks-label {
-    margin: 0;
-    color: var(--raspberry);
-    font-weight: 600;
-    font-size: .8rem;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    text-shadow: 0 0 6px var(--white), 0 0 2px var(--white);
-  }
+  /* ---------- the five restaurants, same colours as the wheel ---------- */
   .chips {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 8px 6px;
     max-width: 560px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
   .chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 6px 12px 6px 9px;
-    border: 2px solid var(--chip);
+    padding: 6px 13px 6px 10px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, .92);
-    color: var(--berry);
-    font-family: var(--round);
+    background: var(--chip);
+    color: var(--chip-ink);
     font-weight: 700;
     font-size: .95rem;
     white-space: nowrap;
-    cursor: pointer;
-    box-shadow: 0 3px 0 var(--chip);
-    transition: transform .15s ease, background .2s ease, color .2s ease, opacity .2s ease;
+    box-shadow: 0 4px 12px rgba(90, 10, 46, .18);
   }
-  .chip svg { width: 15px; height: 15px; fill: var(--chip); }
-  .chip[aria-pressed="true"] {
-    background: var(--chip);
-    color: var(--chip-ink);
-    transform: translateY(-2px) scale(1.06);
-    box-shadow: 0 4px 0 var(--berry);
-  }
-  .chip[aria-pressed="true"] svg { fill: currentColor; animation: beat 1.2s ease-in-out infinite; }
-  .chip:disabled { cursor: default; }
-  .chip:disabled:not([aria-pressed="true"]) { opacity: .55; }
-  .chip:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
+  .chip svg { width: 14px; height: 14px; fill: currentColor; }
 
   /* ---------- roulette ---------- */
   .wheel-wrap {
@@ -399,19 +378,6 @@
     text-wrap: balance;
     text-shadow: 3px 3px 0 var(--seg, var(--gold));
   }
-  .lucky {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 0 14px;
-    padding: 5px 14px;
-    border-radius: 999px;
-    background: var(--pink);
-    color: var(--white);
-    font-weight: 700;
-    font-size: 1rem;
-  }
-  .lucky svg { width: 16px; height: 16px; fill: var(--white); }
   .row-hearts { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
   .row-hearts svg { width: 20px; height: 20px; }
   .ok {
@@ -433,37 +399,6 @@
     to   { transform: scale(1) rotate(0); opacity: 1; }
   }
 
-  /* ---------- music ---------- */
-  .music {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 4px;
-    padding: 7px 16px 7px 13px;
-    border: 0;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .8);
-    box-shadow: 0 4px 14px rgba(90, 10, 46, .12);
-    color: var(--berry);
-    font-family: var(--round);
-    font-weight: 600;
-    font-size: .95rem;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .music:focus-visible { outline: 3px solid var(--violet); outline-offset: 4px; }
-  .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
-  .eq i { width: 3px; height: 40%; border-radius: 2px; background: var(--pink); }
-  .eq i:nth-child(2) { height: 100%; background: var(--violet); }
-  .eq i:nth-child(3) { height: 65%; background: var(--gold); }
-  .music.playing .eq i { animation: eq .9s ease-in-out infinite alternate; }
-  .music.playing .eq i:nth-child(2) { animation-duration: .6s; }
-  .music.playing .eq i:nth-child(3) { animation-duration: .75s; }
-  @keyframes eq {
-    from { height: 20%; }
-    to   { height: 100%; }
-  }
-
   .sr-only {
     position: absolute;
     width: 1px;
@@ -477,8 +412,8 @@
     .float { animation: none; bottom: auto; top: var(--y); }
     .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
     .polaroid .pic::after { display: none; }
-    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart, .chip[aria-pressed="true"] svg { animation: none; }
-    .bulb, .music.playing .eq i { animation: none; }
+    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart { animation: none; }
+    .bulb { animation: none; }
     .wheel-wrap, .dim { transition: none; }
   }
 </style>
@@ -501,13 +436,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
     </p>
     <h1 aria-label="2 anos de Braula">2 anos de <span aria-hidden="true"><span class="l1">B</span><span class="l2">r</span><span class="l3">a</span><span class="l4">u</span><span class="l5">l</span><span class="l6">a</span></span></h1>
-    <p class="ask">janta dos pichu</p>
+    <p class="ask">Janta dos pichu</p>
   </header>
 
-  <div class="picks">
-    <p class="picks-label" id="picksLabel">pra qual você torce?</p>
-    <div class="chips" id="chips" role="group" aria-labelledby="picksLabel"></div>
-  </div>
+  <ul class="chips" id="chips" aria-label="Restaurantes na roleta"></ul>
 
   <div class="wheel-wrap" id="wheelWrap">
     <svg class="pointer" id="pointer" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
@@ -530,14 +462,6 @@
   </button>
 
   <audio id="music" src="musica.mp3" loop preload="auto"></audio>
-  <button class="music" id="musicBtn" type="button" aria-pressed="false" hidden>
-    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
-    No. 1 Party Anthem
-  </button>
-  <a class="music" id="musicLink" href="https://open.spotify.com/search/No.%201%20Party%20Anthem%20Arctic%20Monkeys" target="_blank" rel="noopener" hidden>
-    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
-    No. 1 Party Anthem
-  </a>
 
   <p class="sr-only" id="live" aria-live="polite"></p>
 </main>
@@ -547,7 +471,6 @@
     <svg class="card-heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
     <p class="kicker">nosso jantar de 2 anos</p>
     <p class="winner" id="resultName">Mocellin</p>
-    <p class="lucky" id="lucky" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg> deu o seu!</p>
     <div class="row-hearts" aria-hidden="true">
       <svg viewBox="0 0 24 24" style="fill:#8A5A34"><use href="#heart"/></svg>
       <svg viewBox="0 0 24 24" style="fill:#FF7A1A"><use href="#heart"/></svg>
@@ -662,28 +585,18 @@
     svgEl("use", { href: "#heart", x: 193, y: 8, width: 14, height: 14, class: i % 2 ? "bulb odd" : "bulb" }, g);
   }
 
-  // ---------- pick one to root for ----------
-  const chipsBox = $("chips"), picksLabel = $("picksLabel"), lucky = $("lucky");
-  const PICK_PROMPT = picksLabel.textContent;
-  let favorite = null;
-  const chips = RESTAURANTS.map((r, i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "chip";
-    b.setAttribute("aria-pressed", "false");
-    b.style.setProperty("--chip", r.color);
-    b.style.setProperty("--chip-ink", r.ink);
+  // ---------- the names, readable before spinning ----------
+  const chipsBox = $("chips");
+  RESTAURANTS.forEach((r) => {
+    const li = document.createElement("li");
+    li.className = "chip";
+    li.style.setProperty("--chip", r.color);
+    li.style.setProperty("--chip-ink", r.ink);
     const icon = heartSvg();
     icon.setAttribute("aria-hidden", "true");
-    b.appendChild(icon);
-    b.appendChild(document.createTextNode(r.name));
-    b.addEventListener("click", () => {
-      favorite = favorite === i ? null : i;
-      chips.forEach((c, j) => c.setAttribute("aria-pressed", String(j === favorite)));
-      picksLabel.textContent = favorite === null ? PICK_PROMPT : "torcendo pro " + RESTAURANTS[favorite].name;
-    });
-    chipsBox.appendChild(b);
-    return b;
+    li.appendChild(icon);
+    li.appendChild(document.createTextNode(r.name));
+    chipsBox.appendChild(li);
   });
 
   // ---------- polaroids falling in the background ----------
@@ -841,34 +754,10 @@
   const winSound = () => [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.6, 0.12, "sine", i * 0.13));
 
   // ---------- music ----------
-  const music = $("music"), musicBtn = $("musicBtn"), musicLink = $("musicLink");
-  let musicReady = false, musicStarted = false, musicGain = null;
-
-  // Plays musica.mp3 when it is next to the page; otherwise the chip opens the song on Spotify.
-  function musicAvailable() {
-    if (musicReady) return;
-    musicReady = true;
-    musicLink.hidden = true;
-    musicBtn.hidden = false;
-  }
-  function musicMissing() {
-    if (!musicReady) musicLink.hidden = false;
-  }
-  music.addEventListener("loadedmetadata", musicAvailable);
-  music.addEventListener("error", musicMissing);
-  if (music.readyState >= 1) musicAvailable();   // already loaded (e.g. from cache)
-  try {
-    const src = music.getAttribute("src");
-    fetch(src, { method: "HEAD" })
-      .then((r) => {
-        if (r.ok) return musicAvailable();
-        if (r.status === 404) return musicMissing();
-        return fetch(src, { headers: { Range: "bytes=0-1" } })
-          .then((g) => (g.ok ? musicAvailable() : musicMissing()));
-      })
-      .catch(() => {});
-  } catch (e) { /* checked by the audio events instead */ }
-  setTimeout(musicMissing, 4000);
+  // No. 1 Party Anthem plays in the background from her first touch
+  // (browsers only allow sound after a tap).
+  const music = $("music");
+  let musicOn = false, musicGain = null;
 
   // Route the song through Web Audio so it can be faded (iPhones ignore audio.volume).
   function connectMusic() {
@@ -890,28 +779,15 @@
       try { music.volume = level; } catch (e) { /* read-only on some phones */ }
     }
   }
-  function playMusic() {
-    if (!musicReady) return;
+  function startMusic() {
+    if (musicOn) return;
     audio();
     connectMusic();
     const p = music.play();
-    if (p && p.catch) p.catch(() => {});
+    if (p && p.catch) p.catch(() => { /* not allowed yet: the next tap tries again */ });
   }
-  music.addEventListener("play", () => { musicBtn.classList.add("playing"); musicBtn.setAttribute("aria-pressed", "true"); });
-  music.addEventListener("pause", () => { musicBtn.classList.remove("playing"); musicBtn.setAttribute("aria-pressed", "false"); });
-  musicBtn.addEventListener("click", () => {
-    musicStarted = true;
-    if (music.paused) playMusic();
-    else music.pause();
-  });
-  // Browsers only allow sound after a tap, so the song starts on her first touch.
-  function firstTouch(e) {
-    if (musicStarted || !musicReady) return;
-    if (e.target.closest && e.target.closest(".music")) return;
-    musicStarted = true;
-    playMusic();
-  }
-  ["pointerup", "touchend", "keydown"].forEach((type) => document.addEventListener(type, firstTouch, true));
+  music.addEventListener("playing", () => { musicOn = true; });
+  ["pointerup", "touchend", "keydown"].forEach((type) => document.addEventListener(type, startMusic, true));
 
   // ---------- spin ----------
   let rotation = 0;
@@ -957,10 +833,9 @@
     wheel.classList.remove("has-win");
     segs.forEach((s) => s.classList.remove("win"));
     document.body.classList.add("suspense");
-    if (!musicStarted) { musicStarted = true; playMusic(); }
+    startMusic();
     musicLevel(0.3, 1);
     spinBtn.disabled = true;
-    chips.forEach((c) => { c.disabled = true; });
     spinLabel.textContent = "Girando…";
     live.textContent = "";
 
@@ -1026,11 +901,8 @@
       wheel.classList.add("has-win");
       spinning = false;
       spinBtn.disabled = false;
-      chips.forEach((c) => { c.disabled = false; });
       spinLabel.textContent = "Girar";
-      const gotIt = favorite === idx;
-      lucky.hidden = !gotIt;
-      live.textContent = "Nosso jantar de 2 anos: " + r.name + (gotIt ? ". Deu o seu!" : "");
+      live.textContent = "Nosso jantar de 2 anos: " + r.name;
 
       flash();
       musicLevel(1, 1.2);
@@ -1040,7 +912,7 @@
       ok.focus();
       winSound();
       burst(reduce ? 18 : 80);
-      if (!reduce) setTimeout(() => burst(gotIt ? 90 : 45), 450);
+      if (!reduce) setTimeout(() => burst(45), 450);
     }, reduce ? 300 : 1000);
   }
 
