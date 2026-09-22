@@ -553,7 +553,7 @@
   .ask-title {
     margin: 0;
     font-family: var(--display);
-    font-size: clamp(1.9rem, 8.4vw, 2.5rem);
+    font-size: clamp(2.4rem, 11vw, 3.1rem);
     line-height: 1.1;
     color: var(--cherry);
     text-wrap: balance;
@@ -561,10 +561,8 @@
   }
   .ask-title .w { display: inline-block; animation: word-pop .6s cubic-bezier(.3, 1.7, .5, 1) both; }
   .ask-title .w:nth-child(1) { animation-delay: .35s; }
-  .ask-title .w:nth-child(2) { animation-delay: .47s; }
-  .ask-title .w:nth-child(3) { animation-delay: .59s; }
-  .ask-title .w:nth-child(4) { animation-delay: .71s; color: var(--pink); }
-  .ask-title.pop { animation: word-pop .6s cubic-bezier(.3, 1.7, .5, 1); }
+  .ask-title .w:nth-child(2) { animation-delay: .5s; color: var(--pink); }
+  .ask-title.pop { animation: word-pop .6s cubic-bezier(.3, 1.7, .5, 1); font-size: clamp(1.8rem, 8vw, 2.4rem); }
   @keyframes word-pop { from { transform: translateY(14px) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
   .ask-sub {
     min-height: 1.4em;
@@ -631,7 +629,7 @@
     .ask-card { padding: 42px 20px 18px; }
     .splash { padding-block: 52px 8px; }
     .ask-photo { width: 92px; height: 92px; left: calc(50% - 46px); top: -54px; }
-    .ask-title { font-size: 1.75rem; }
+    .ask-title, .ask-title.pop { font-size: 1.75rem; }
     .ask-sub { margin-top: 4px; }
     .ask-buttons { margin-top: 8px; }
     .yes, .no { font-size: 1.2rem; min-width: 100px; }
@@ -851,7 +849,7 @@
       <image href="fotos/coracao.jpg" x="1" y="2.6" width="22" height="22" preserveAspectRatio="xMidYMid slice" clip-path="url(#heartClip)"/>
       <use class="rim" href="#heart"/>
     </svg>
-    <p class="ask-title" id="askTitle"><span class="w">Você</span> <span class="w">ama</span> <span class="w">o</span> <span class="w">pichu?</span></p>
+    <p class="ask-title" id="askTitle"><span class="w">Ama</span> <span class="w">pichu?</span></p>
     <p class="ask-sub" id="askSub" aria-live="polite"></p>
     <div class="ask-buttons">
       <button class="yes" id="yes" type="button">Sim</button>
@@ -1453,7 +1451,7 @@
     if (refocus) spinBtn.focus();
   }
 
-  // ---------- opening question: "Você ama o pichu?" ----------
+  // ---------- opening question: "Ama pichu?" ----------
   const splash = $("splash"), askCard = $("askCard"), askTitle = $("askTitle"), askSub = $("askSub");
   const yesBtn = $("yes"), noBtn = $("no"), splashFx = $("splashFx"), askPhoto = $("askPhoto");
   const NO_LABELS = ["Tem certeza?", "Pensa bem…", "Sério?", "O pichu vai chorar", "Última chance!", "Não vale!"];
@@ -1531,12 +1529,13 @@
     musicAllowed = true;
     unlockAudio();                               // this "Sim" is the tap that lets the song play
     const yb = yesBtn.getBoundingClientRect();
-    askTitle.textContent = "Eu sabia!";
+    askTitle.textContent = "Ah pichalã delícia";
     askTitle.classList.add("pop");
     askSub.textContent = "";
     askPhoto.style.setProperty("--sad", "0");   // colour comes back
     askCard.classList.add("said-yes");
-    noBtn.classList.add("gone");
+    if (noBtn.classList.contains("running")) noBtn.classList.add("gone");
+    else noBtn.hidden = true;                    // still in the row: drop it so "Sim" sits centred
     yesBtn.disabled = true;
     buzz([30, 50, 30]);
     burst(reduce ? 16 : 70, splashFx, null, { x: yb.left + yb.width / 2, y: yb.top + yb.height / 2 });
