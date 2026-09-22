@@ -766,6 +766,7 @@
   }
   music.addEventListener("loadedmetadata", musicAvailable);
   music.addEventListener("error", musicMissing);
+  if (music.readyState >= 1) musicAvailable();   // already loaded (e.g. from cache)
   try {
     const src = music.getAttribute("src");
     fetch(src, { method: "HEAD" })
