@@ -29,9 +29,11 @@
     --display: "Shrikhand", "Georgia", serif;
     --round: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
     --wheel: min(86vw, 44vh, 440px);
+    --wheel: min(86vw, 44svh, 440px);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
+  html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   [hidden] { display: none !important; }
   body {
     background:
@@ -41,7 +43,6 @@
       radial-gradient(circle at 8% 92%, var(--peach) 0 12%, transparent 38%),
       var(--blush);
     background-color: var(--blush);
-    background-attachment: fixed;
     color: var(--berry);
     font-family: var(--round);
     overflow-x: hidden;
@@ -148,9 +149,12 @@
     align-items: center;
     justify-content: center;
     gap: clamp(10px, 2vh, 22px);
+    gap: clamp(8px, 1.8svh, 22px);
     padding-inline: 16px;
     padding-block: 20px 32px;
     text-align: center;
+    -webkit-user-select: none;
+    user-select: none;
   }
   header { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
@@ -232,22 +236,28 @@
   }
   body.suspense .wheel-wrap { transform: scale(1.06); --blink: .28s; }
   body.crawl .wheel-wrap { --blink: .8s; }
-  .wheel {
+  .wheel-layer {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
     overflow: visible;
-    filter: drop-shadow(0 10px 0 rgba(90, 10, 46, .18)) drop-shadow(0 22px 28px rgba(194, 24, 91, .28));
   }
+  /* the shadow sits on a layer that never moves, so it is drawn once */
+  .wheel-base { filter: drop-shadow(0 10px 0 rgba(90, 10, 46, .18)) drop-shadow(0 22px 28px rgba(194, 24, 91, .28)); }
+  .wheel-disc { will-change: transform; }
+  .wheel-top { pointer-events: none; }
+  .wheel-top .hub { pointer-events: auto; }
   .ring { fill: var(--raspberry); }
   .rim { fill: none; stroke: var(--gold); stroke-width: 4; }
   .slice { stroke: var(--white); stroke-width: 3; stroke-linejoin: round; }
   .seg { transition: opacity .45s ease; }
-  .wheel.has-win .seg:not(.win) { opacity: .4; }
+  .wheel-disc.has-win .seg:not(.win) { opacity: .4; }
   .lbl {
     font-family: var(--round);
     font-weight: 700;
-    font-size: 19px;
+    font-size: 21px;
     letter-spacing: .02em;
   }
   .lbl-light {
@@ -408,6 +418,38 @@
     white-space: nowrap;
   }
 
+  /* ---------- phones ---------- */
+  @media (max-height: 720px), (max-width: 380px) {
+    main { padding-block: 14px 26px; }
+    header { gap: 7px; }
+    .since { padding: 4px 12px; font-size: .78rem; }
+    .since svg { width: 12px; height: 12px; }
+    h1 { font-size: clamp(2rem, 8.6vw, 3.4rem); }
+    .ask { padding: 5px 16px; font-size: 1.02rem; }
+    .chips { gap: 6px 5px; }
+    .chip { padding: 5px 11px 5px 8px; font-size: .86rem; gap: 4px; }
+    .chip svg { width: 12px; height: 12px; }
+    .spin { font-size: 1.5rem; padding: .55em 1.1em; }
+  }
+  @media (orientation: landscape) and (max-height: 500px) {
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, auto) auto;
+      grid-template-areas: "head wheel" "chips wheel" "btn wheel";
+      align-content: center;
+      justify-content: center;
+      align-items: center;
+      justify-items: center;
+      gap: 12px clamp(24px, 6vw, 64px);
+      padding-block: 12px;
+    }
+    header { grid-area: head; }
+    .chips { grid-area: chips; max-width: 360px; }
+    .spin { grid-area: btn; width: min(100%, 300px); }
+    .wheel-wrap { grid-area: wheel; }
+    h1 { font-size: clamp(1.8rem, 4.6vw, 2.6rem); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .float { animation: none; bottom: auto; top: var(--y); }
     .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
@@ -443,9 +485,13 @@
 
   <div class="wheel-wrap" id="wheelWrap">
     <svg class="pointer" id="pointer" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
-    <svg class="wheel" id="wheel" viewBox="0 0 400 400" role="img" aria-label="Roleta com Mocellin, San, Don Burizin, Yusha e Malta">
+    <svg class="wheel-layer wheel-base" viewBox="0 0 400 400" aria-hidden="true">
       <circle class="ring" cx="200" cy="200" r="199"/>
+    </svg>
+    <svg class="wheel-layer wheel-disc" id="wheel" viewBox="0 0 400 400" role="img" aria-label="Roleta com Mocellin, San, Don Burizin, Yusha e Malta">
       <g id="disc"></g>
+    </svg>
+    <svg class="wheel-layer wheel-top" viewBox="0 0 400 400" aria-hidden="true">
       <circle class="rim" cx="200" cy="200" r="173"/>
       <g id="bulbs"></g>
       <g class="hub" id="hub">
@@ -565,12 +611,13 @@
       d: `M${C} ${C} L${x1.toFixed(2)} ${y1.toFixed(2)} A${R_SEG} ${R_SEG} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`,
     }, g);
     const mid = i * SLICE + SLICE / 2;
-    const t = svgEl("g", { transform: `rotate(${mid - 90} ${C} ${C})` }, g);
+    const flip = mid > 180;   // left half: read from the rim inwards so the name isn't upside down
+    const t = svgEl("g", { transform: `rotate(${flip ? mid + 90 : mid - 90} ${C} ${C})` }, g);
     r.lines.forEach((line, j) => {
-      const y = C + (j - (r.lines.length - 1) / 2) * 21;
+      const y = C + (j - (r.lines.length - 1) / 2) * 23;
       const text = svgEl("text", {
-        x: C + 156, y, dy: ".35em",
-        "text-anchor": "end",
+        x: flip ? C - 158 : C + 158, y, dy: ".35em",
+        "text-anchor": flip ? "start" : "end",
         fill: r.ink,
         class: r.ink === "#FFFFFF" ? "lbl lbl-light" : "lbl",
       }, t);
@@ -651,8 +698,37 @@
     resizeTimer = setTimeout(layoutPolaroids, 150);
   });
 
+  // ---------- fit everything on one phone screen ----------
+  const main = document.querySelector("main");
+  const wheelWrap = $("wheelWrap");
+  const sideways = window.matchMedia("(orientation: landscape) and (max-height: 500px)");
+  function fitWheel() {
+    const rootCss = getComputedStyle(document.documentElement);
+    const H = window.innerHeight - parseFloat(rootCss.paddingTop) - parseFloat(rootCss.paddingBottom);
+    const W = document.documentElement.clientWidth;
+    let size;
+    if (sideways.matches) {
+      size = Math.min((H - 30) / 1.06, W * 0.46, 440);
+    } else {
+      // everything except the wheel: header, names, button, gaps and padding
+      const kids = [...main.children].filter((el) => el.offsetParent !== null && getComputedStyle(el).position !== "absolute");
+      const used = kids[kids.length - 1].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top;
+      const mainCss = getComputedStyle(main);
+      const others = used - wheelWrap.offsetWidth * 1.06 + parseFloat(mainCss.paddingTop) + parseFloat(mainCss.paddingBottom);
+      size = Math.min((H - others) / 1.06, W * 0.88, 440);
+    }
+    document.documentElement.style.setProperty("--wheel", Math.floor(Math.max(210, size)) + "px");
+  }
+  fitWheel();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitWheel);
+  let fitTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitWheel, 120);
+  });
+
   // ---------- hearts floating in the background ----------
-  const FLOATS = window.innerWidth < 600 ? 26 : 40;
+  const FLOATS = window.innerWidth < 600 ? 18 : 40;
   for (let i = 0; i < FLOATS; i++) {
     const span = document.createElement("span");
     span.className = "float";
@@ -795,7 +871,7 @@
   let heartbeatTimer = null;
 
   function setRotation(deg) {
-    disc.setAttribute("transform", `rotate(${deg.toFixed(3)} ${C} ${C})`);
+    wheel.style.transform = `rotate(${deg.toFixed(3)}deg)`;
   }
   function restaurantUnderPointer(deg) {
     return Math.floor(mod(-deg, 360) / SLICE);
