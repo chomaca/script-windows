@@ -487,6 +487,59 @@
     to   { transform: scale(1) rotate(0); opacity: 1; }
   }
 
+  /* ---------- opening screen: the tap that opens it is the tap that lets the music play ---------- */
+  .splash {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding-inline: 16px;
+    background:
+      radial-gradient(circle at 50% 44%, #FFF3F7 0 16%, transparent 55%),
+      radial-gradient(circle at 12% 18%, var(--blush-2) 0 20%, transparent 45%),
+      radial-gradient(circle at 86% 88%, var(--lilac) 0 18%, transparent 46%),
+      var(--blush);
+    cursor: pointer;
+    transition: opacity .65s ease;
+  }
+  .splash.opening { opacity: 0; pointer-events: none; }
+  body:not(.open) .sky { z-index: 41; }   /* hearts drift over the opening screen too */
+  .gift {
+    width: min(58vw, 34svh, 260px);
+    height: min(58vw, 34svh, 260px);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    animation: beat 1.4s ease-in-out infinite;
+    transition: scale .65s cubic-bezier(.3, 1.4, .5, 1);
+    filter: drop-shadow(0 10px 0 rgba(90, 10, 46, .18)) drop-shadow(0 24px 30px rgba(194, 24, 91, .3));
+    -webkit-tap-highlight-color: transparent;
+  }
+  .gift svg { display: block; width: 100%; height: 100%; overflow: visible; fill: var(--cherry); stroke: var(--white); stroke-width: .9; }
+  .gift text { font-family: var(--display); font-size: 8px; fill: var(--white); stroke: none; }
+  .gift:focus-visible { outline: 4px solid var(--violet); outline-offset: 8px; border-radius: 24px; }
+  .splash.opening .gift { scale: 1.45; }
+  .splash-hint {
+    margin: 0;
+    padding: 8px 20px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .8);
+    box-shadow: 0 4px 14px rgba(90, 10, 46, .12);
+    color: var(--berry);
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: .03em;
+  }
+  /* the page's own entrance waits until she opens it */
+  body:not(.open) .wheel-wrap, body:not(.open) .chip, body:not(.open) header > *, body:not(.open) .spin,
+  body:not(.open) h1 .l1, body:not(.open) h1 .l2, body:not(.open) h1 .l3,
+  body:not(.open) h1 .l4, body:not(.open) h1 .l5, body:not(.open) h1 .l6 { animation-play-state: paused; }
+
   /* ---------- secret panel ---------- */
   .secret {
     position: fixed;
@@ -605,7 +658,8 @@
     .float { animation: none; bottom: auto; top: var(--y); }
     .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
     .polaroid .pic::after { display: none; }
-    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart { animation: none; }
+    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart, .gift { animation: none; }
+    .splash { transition-duration: .05s; }
     .bulb { animation: none; }
     .wheel-wrap, .dim { transition: none; }
   }
@@ -680,6 +734,16 @@
     <div class="row-hearts" id="rowHearts" aria-hidden="true"></div>
     <button class="ok" id="ok" type="button">Combinado!</button>
   </div>
+</div>
+
+<div class="splash" id="splash">
+  <button class="gift" id="gift" type="button" aria-label="Abrir">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <use href="#heart"/>
+      <text x="12" y="12.4" dy=".35em" text-anchor="middle">2</text>
+    </svg>
+  </button>
+  <p class="splash-hint">Toque para abrir</p>
 </div>
 
 <div class="secret" id="secret" hidden>
@@ -1104,6 +1168,11 @@
     startMusic();
   }
   ["pointerup", "touchend", "keydown"].forEach((type) => document.addEventListener(type, unlockAudio, true));
+  // Where the browser allows sound without a tap, the song starts the moment the page opens.
+  try {
+    const p = music.play();
+    if (p && p.catch) p.catch(() => { /* blocked until the first tap (phones always ask for one) */ });
+  } catch (e) { /* same: the first tap starts it */ }
   let resumeOnReturn = false;
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -1263,6 +1332,21 @@
     resultFx.textContent = "";
     if (refocus) spinBtn.focus();
   }
+
+  // ---------- opening screen ----------
+  const splash = $("splash");
+  let opened = false;
+  function openGift() {
+    if (opened) return;
+    opened = true;
+    unlockAudio();                              // this tap is what lets the song play
+    splash.classList.add("opening");
+    document.body.classList.add("open");        // starts the page's entrance
+    buzz(20);
+    if (!reduce) setTimeout(() => burst(36), 150);
+    setTimeout(() => { splash.hidden = true; }, reduce ? 60 : 700);
+  }
+  splash.addEventListener("click", openGift);
 
   // ---------- secret panel: press and hold the date for 1.5 s ----------
   const secret = $("secret"), secretList = $("secretList"), secretNote = $("secretNote"), secretDone = $("secretDone");
