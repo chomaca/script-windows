@@ -48,6 +48,7 @@
     --wheel: min(86vw, 44svh, 440px);
   }
   * { box-sizing: border-box; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   html, body { margin: 0; min-height: 100%; }
   html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   [hidden] { display: none !important; }
@@ -196,6 +197,8 @@
     font-variant-numeric: tabular-nums;
   }
   .since svg { width: 14px; height: 14px; fill: var(--cherry); }
+  /* the date doubles as the secret handle (press and hold) */
+  .since { touch-action: none; -webkit-touch-callout: none; }
   .ask {
     padding: 6px 18px;
     font-weight: 600;
@@ -484,6 +487,77 @@
     to   { transform: scale(1) rotate(0); opacity: 1; }
   }
 
+  /* ---------- secret panel ---------- */
+  .secret {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding-inline: 16px;
+    background: rgba(59, 10, 31, .55);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  .sheet {
+    width: min(100%, 360px);
+    padding: 22px 20px 20px;
+    border-radius: 24px;
+    background: var(--white);
+    box-shadow: 0 8px 0 var(--berry), 0 30px 60px rgba(59, 10, 31, .4);
+    text-align: center;
+    animation: pop .45s cubic-bezier(.2, 1.5, .4, 1);
+  }
+  .secret-title { margin: 0; font-family: var(--display); font-size: 1.7rem; color: var(--berry); }
+  .secret-sub { margin: 2px 0 14px; font-weight: 600; color: var(--raspberry); }
+  .secret-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+  .secret-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 14px;
+    background: var(--blush);
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-align: left;
+    cursor: pointer;
+    transition: opacity .2s ease;
+  }
+  .secret-row svg { width: 18px; height: 18px; fill: var(--c); flex: none; }
+  .secret-row span { flex: 1; }
+  .secret-row.off { opacity: .45; }
+  .secret-row.off span { text-decoration: line-through; }
+  .sw {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: none;
+    width: 46px;
+    height: 28px;
+    margin: 0;
+    border-radius: 999px;
+    background: #D9C7CF;
+    position: relative;
+    cursor: pointer;
+    transition: background .2s ease;
+  }
+  .sw::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--white);
+    box-shadow: 0 2px 4px rgba(59, 10, 31, .25);
+    transition: transform .2s cubic-bezier(.3, 1.4, .5, 1);
+  }
+  .sw:checked { background: var(--pink); }
+  .sw:checked::after { transform: translateX(18px); }
+  .sw:focus-visible { outline: 3px solid var(--violet); outline-offset: 2px; }
+  .secret-note { min-height: 1.3em; margin: 0 0 12px; font-size: .9rem; font-weight: 600; color: var(--raspberry); }
+
   .sr-only {
     position: absolute;
     width: 1px;
@@ -603,18 +677,25 @@
     <svg class="card-heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
     <p class="kicker">nosso jantar de 2 anos</p>
     <p class="winner" id="resultName">Mocellin</p>
-    <div class="row-hearts" id="rowHearts" aria-hidden="true">
-      <svg viewBox="0 0 24 24" style="fill:#8A5A34"><use href="#heart"/></svg>
-      <svg viewBox="0 0 24 24" style="fill:#FF7A1A"><use href="#heart"/></svg>
-      <svg viewBox="0 0 24 24" style="fill:#7C3AED"><use href="#heart"/></svg>
-      <svg viewBox="0 0 24 24" style="fill:#15803D"><use href="#heart"/></svg>
-      <svg viewBox="0 0 24 24" style="fill:#1F1A1C"><use href="#heart"/></svg>
-    </div>
+    <div class="row-hearts" id="rowHearts" aria-hidden="true"></div>
     <button class="ok" id="ok" type="button">Combinado!</button>
   </div>
 </div>
 
+<div class="secret" id="secret" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="secretTitle">
+    <p class="secret-title" id="secretTitle">Modo secreto</p>
+    <p class="secret-sub">Quem entra na roleta?</p>
+    <ul class="secret-list" id="secretList"></ul>
+    <p class="secret-note" id="secretNote" aria-live="polite"></p>
+    <button class="ok" id="secretDone" type="button">Pronto</button>
+  </div>
+</div>
+
 <div class="fx" id="fx" aria-hidden="true"></div>
+
+<!-- Which restaurants are on the wheel. The secret panel rewrites this block when it saves for everyone. -->
+<script type="application/json" id="wheelConfig">{"removed":[],"ts":0}</script>
 
 <script>
 (() => {
@@ -629,9 +710,12 @@
   const HEART_COLORS = ["#FF3D7F", "#E0144C", "#FFB627", "#8C52FF", "#FF6B4A", "#12A594", "#FFFFFF", "#FF3D7F", "#C2185B", "#E0144C"];
 
   const NS = "http://www.w3.org/2000/svg";
-  const N = RESTAURANTS.length;
-  const SLICE = 360 / N;     // 72° per restaurant: every slice is the same size
-  const PEG = SLICE / 4;     // a soft click every 18°, a louder one on each divider
+  // The restaurants on the wheel right now (the secret panel can take some out).
+  // Every slice is always the same size, so each one has exactly 1 in N.
+  let active = RESTAURANTS.slice();
+  let N = active.length;
+  let SLICE = 360 / N;
+  let PEG = SLICE / 4;       // a soft click every quarter slice, a louder one on each divider
   const C = 200;
   const R_SEG = 172;
   const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -644,7 +728,7 @@
 
   // ---------- randomness ----------
   // Uniform integer in [0, n): rejection sampling removes the tiny modulo bias,
-  // so each restaurant has exactly 1 in 5.
+  // so each restaurant has exactly 1 in n.
   function randInt(n) {
     try {
       const buf = new Uint32Array(1);
@@ -687,7 +771,40 @@
   }
 
   // ---------- build the wheel ----------
-  const segs = RESTAURANTS.map((r, i) => {
+  const chipsBox = $("chips"), rowHearts = $("rowHearts");
+  let segs = [], chipEls = [];
+  function buildWheel() {
+    N = active.length;
+    SLICE = 360 / N;
+    PEG = SLICE / 4;
+    disc.textContent = "";
+    chipsBox.textContent = "";
+    rowHearts.textContent = "";
+    wheel.classList.remove("has-win");
+    chipsBox.classList.remove("has-win");
+    wheel.setAttribute("aria-label", "Roleta com " + active.map((r) => r.name).join(", ").replace(/, ([^,]*)$/, " e $1"));
+    segs = active.map(buildSlice);
+    // the names, readable before spinning
+    chipEls = active.map((r) => {
+      const li = document.createElement("li");
+      li.className = "chip";
+      li.style.setProperty("--chip", r.color);
+      li.style.setProperty("--chip-ink", r.ink);
+      const icon = heartSvg();
+      icon.setAttribute("aria-hidden", "true");
+      li.appendChild(icon);
+      li.appendChild(document.createTextNode(r.name));
+      chipsBox.appendChild(li);
+      return li;
+    });
+    // one small heart per restaurant on the result card
+    active.forEach((r) => {
+      const h = heartSvg();
+      h.style.fill = r.color;
+      rowHearts.appendChild(h);
+    });
+  }
+  function buildSlice(r, i) {
     const g = svgEl("g", { class: "seg" }, disc);
     const [x1, y1] = pt(R_SEG, i * SLICE);
     const [x2, y2] = pt(R_SEG, (i + 1) * SLICE);
@@ -710,7 +827,7 @@
       text.textContent = line;
     });
     return g;
-  });
+  }
 
   const BULBS = 20;
   for (let i = 0; i < BULBS; i++) {
@@ -718,20 +835,24 @@
     svgEl("use", { href: "#heart", x: 193, y: 8, width: 14, height: 14, class: i % 2 ? "bulb odd" : "bulb" }, g);
   }
 
-  // ---------- the names, readable before spinning ----------
-  const chipsBox = $("chips");
-  const chipEls = RESTAURANTS.map((r) => {
-    const li = document.createElement("li");
-    li.className = "chip";
-    li.style.setProperty("--chip", r.color);
-    li.style.setProperty("--chip-ink", r.ink);
-    const icon = heartSvg();
-    icon.setAttribute("aria-hidden", "true");
-    li.appendChild(icon);
-    li.appendChild(document.createTextNode(r.name));
-    chipsBox.appendChild(li);
-    return li;
-  });
+  // ---------- which restaurants are in (page config, or this device's own choice) ----------
+  const STORE_KEY = "braula-roleta";
+  function readConfig() {
+    let cfg = { removed: [], ts: 0 };
+    try { cfg = JSON.parse($("wheelConfig").textContent) || cfg; } catch (e) { /* keep defaults */ }
+    try {
+      const local = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+      if (local && local.ts > (cfg.ts || 0)) cfg = local;
+    } catch (e) { /* storage blocked: the page config alone decides */ }
+    return cfg;
+  }
+  function applyConfig(cfg) {
+    const removed = Array.isArray(cfg.removed) ? cfg.removed : [];
+    const next = RESTAURANTS.filter((r) => !removed.includes(r.name));
+    active = next.length >= 2 ? next : RESTAURANTS.slice();
+    buildWheel();
+  }
+  applyConfig(readConfig());
 
   // ---------- polaroids falling in the background ----------
   const POLAROID_COLORS = ["#FF3D7F", "#FFB627", "#8C52FF", "#FF6B4A", "#12A594"];
@@ -876,7 +997,7 @@
     }
   }
   document.addEventListener("pointerdown", (e) => {
-    if (e.target.closest && e.target.closest(".card")) return;
+    if (e.target.closest && e.target.closest(".card, .sheet")) return;
     tapHearts(e.clientX, e.clientY);
   });
 
@@ -1100,7 +1221,7 @@
     rotation = rotation % 360;
     setRotation(rotation);
     const idx = restaurantUnderPointer(rotation);
-    const r = RESTAURANTS[idx];
+    const r = active[idx];
 
     // one last breath before the reveal
     setTimeout(() => {
@@ -1143,11 +1264,115 @@
     if (refocus) spinBtn.focus();
   }
 
+  // ---------- secret panel: press and hold the date for 1.5 s ----------
+  const secret = $("secret"), secretList = $("secretList"), secretNote = $("secretNote"), secretDone = $("secretDone");
+  const since = document.querySelector(".since");
+  let holdTimer = null, holdFrom = null, switches = [];
+
+  function renderSecret() {
+    secretList.textContent = "";
+    const on = new Set(active.map((r) => r.name));
+    switches = RESTAURANTS.map((r, i) => {
+      const li = document.createElement("li");
+      const row = document.createElement("label");
+      row.className = "secret-row" + (on.has(r.name) ? "" : " off");
+      row.setAttribute("for", "sw-" + i);
+      row.style.setProperty("--c", r.color);
+      row.appendChild(heartSvg());
+      const name = document.createElement("span");
+      name.textContent = r.name;
+      row.appendChild(name);
+      const sw = document.createElement("input");
+      sw.type = "checkbox";
+      sw.className = "sw";
+      sw.id = "sw-" + i;
+      sw.checked = on.has(r.name);
+      sw.addEventListener("change", () => {
+        if (switches.filter((x) => x.checked).length < 2) {
+          sw.checked = true;
+          secretNote.textContent = "A roleta precisa de pelo menos 2.";
+        } else {
+          secretNote.textContent = "";
+        }
+        row.classList.toggle("off", !sw.checked);
+      });
+      row.appendChild(sw);
+      li.appendChild(row);
+      secretList.appendChild(li);
+      return sw;
+    });
+  }
+  function openSecret() {
+    if (spinning) return;
+    closeResult(false);
+    renderSecret();
+    secretNote.textContent = "";
+    secretDone.disabled = false;
+    secret.hidden = false;
+    buzz(30);
+    secretDone.focus();
+  }
+  function closeSecret() {
+    secret.hidden = true;
+    spinBtn.focus();
+  }
+
+  // Save for everyone: republish this page with the new list (works for the owner in claude.ai).
+  async function publishForEveryone(cfg) {
+    try {
+      if (!window.claude || typeof window.claude.use !== "function") return false;
+      const art = await window.claude.use("artifact");
+      if (!art) return false;
+      const res = await fetch("pagina.txt", { cache: "no-store" });
+      if (!res.ok) return false;
+      let src = await res.text();
+      const block = /(<script type="application\/json" id="wheelConfig">)[\s\S]*?(<\/script>)/;
+      if (!/^\s*<!doctype html/i.test(src) || !block.test(src)) return false;
+      src = src.replace(block, (m, open, close) => open + JSON.stringify(cfg) + close);
+      await art.publish(src);   // every open view, this one too, reloads with the new list
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  secretDone.addEventListener("click", async () => {
+    const removed = RESTAURANTS.filter((r, i) => !switches[i].checked).map((r) => r.name);
+    const before = RESTAURANTS.filter((r) => !active.includes(r)).map((r) => r.name);
+    if (removed.join() === before.join()) { closeSecret(); return; }
+    const cfg = { removed, ts: Date.now() };
+    applyConfig(cfg);
+    fitWheel();
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch (e) { /* this view only */ }
+    secretDone.disabled = true;
+    secretNote.textContent = "Salvando…";
+    const everyone = await publishForEveryone(cfg);
+    secretNote.textContent = everyone ? "Pronto! Vale para quem abrir o link." : "Pronto! Salvo neste aparelho.";
+    setTimeout(closeSecret, everyone ? 2500 : 1200);
+  });
+  secret.addEventListener("click", (e) => { if (e.target === secret) closeSecret(); });
+
+  since.addEventListener("pointerdown", (e) => {
+    holdFrom = { x: e.clientX, y: e.clientY };
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(openSecret, 1500);
+  });
+  const cancelHold = () => { clearTimeout(holdTimer); holdFrom = null; };
+  ["pointerup", "pointerleave", "pointercancel"].forEach((type) => since.addEventListener(type, cancelHold));
+  since.addEventListener("pointermove", (e) => {
+    if (holdFrom && Math.hypot(e.clientX - holdFrom.x, e.clientY - holdFrom.y) > 12) cancelHold();
+  });
+  since.addEventListener("contextmenu", (e) => e.preventDefault());
+
   spinBtn.addEventListener("click", spin);
   wheelWrap.addEventListener("click", spin);
   ok.addEventListener("click", () => { closeResult(true); burst(reduce ? 10 : 30); });
   result.addEventListener("click", (e) => { if (e.target === result) closeResult(true); });
   document.addEventListener("keydown", (e) => {
+    if (!secret.hidden) {
+      if (e.key === "Escape") closeSecret();
+      return;
+    }
     if (result.hidden) return;
     if (e.key === "Escape") closeResult(true);
     if (e.key === "Tab") { e.preventDefault(); ok.focus(); }   // keep focus inside the card
