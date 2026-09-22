@@ -373,6 +373,37 @@
     to   { transform: scale(1) rotate(0); opacity: 1; }
   }
 
+  /* ---------- music ---------- */
+  .music {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 7px 16px 7px 13px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .8);
+    box-shadow: 0 4px 14px rgba(90, 10, 46, .12);
+    color: var(--berry);
+    font-family: var(--round);
+    font-weight: 600;
+    font-size: .95rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .music:focus-visible { outline: 3px solid var(--violet); outline-offset: 4px; }
+  .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+  .eq i { width: 3px; height: 40%; border-radius: 2px; background: var(--pink); }
+  .eq i:nth-child(2) { height: 100%; background: var(--violet); }
+  .eq i:nth-child(3) { height: 65%; background: var(--gold); }
+  .music.playing .eq i { animation: eq .9s ease-in-out infinite alternate; }
+  .music.playing .eq i:nth-child(2) { animation-duration: .6s; }
+  .music.playing .eq i:nth-child(3) { animation-duration: .75s; }
+  @keyframes eq {
+    from { height: 20%; }
+    to   { height: 100%; }
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;
@@ -387,7 +418,7 @@
     .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
     .polaroid .pic::after { display: none; }
     .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart { animation: none; }
-    .bulb { animation: none; }
+    .bulb, .music.playing .eq i { animation: none; }
     .wheel-wrap, .dim { transition: none; }
   }
 </style>
@@ -415,7 +446,7 @@
 
   <div class="wheel-wrap" id="wheelWrap">
     <svg class="pointer" id="pointer" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
-    <svg class="wheel" id="wheel" viewBox="0 0 400 400" role="img" aria-label="Roleta com Mocellin, San, Babbo Osteria, Yusha e Malta">
+    <svg class="wheel" id="wheel" viewBox="0 0 400 400" role="img" aria-label="Roleta com Mocellin, San, Don Burizin, Yusha e Malta">
       <circle class="ring" cx="200" cy="200" r="199"/>
       <g id="disc"></g>
       <circle class="rim" cx="200" cy="200" r="173"/>
@@ -432,6 +463,16 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
     <span id="spinLabel">Girar</span>
   </button>
+
+  <audio id="music" src="musica.mp3" loop preload="auto"></audio>
+  <button class="music" id="musicBtn" type="button" aria-pressed="false" hidden>
+    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+    No. 1 Party Anthem
+  </button>
+  <a class="music" id="musicLink" href="https://open.spotify.com/search/No.%201%20Party%20Anthem%20Arctic%20Monkeys" target="_blank" rel="noopener" hidden>
+    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+    No. 1 Party Anthem
+  </a>
 
   <p class="sr-only" id="live" aria-live="polite"></p>
 </main>
@@ -459,7 +500,7 @@
   const RESTAURANTS = [
     { name: "Mocellin",      lines: ["Mocellin"],         color: "#FF3D7F", ink: "#FFFFFF" },
     { name: "San",           lines: ["San"],              color: "#FFB627", ink: "#5A0A2E" },
-    { name: "Babbo Osteria", lines: ["Babbo", "Osteria"], color: "#8C52FF", ink: "#FFFFFF" },
+    { name: "Don Burizin",   lines: ["Don", "Burizin"],   color: "#8C52FF", ink: "#FFFFFF" },
     { name: "Yusha",         lines: ["Yusha"],            color: "#FF6B4A", ink: "#FFFFFF" },
     { name: "Malta",         lines: ["Malta"],            color: "#12A594", ink: "#FFFFFF" },
   ];
@@ -709,6 +750,78 @@
   };
   const winSound = () => [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.6, 0.12, "sine", i * 0.13));
 
+  // ---------- music ----------
+  const music = $("music"), musicBtn = $("musicBtn"), musicLink = $("musicLink");
+  let musicReady = false, musicStarted = false, musicGain = null;
+
+  // Plays musica.mp3 when it is next to the page; otherwise the chip opens the song on Spotify.
+  function musicAvailable() {
+    if (musicReady) return;
+    musicReady = true;
+    musicLink.hidden = true;
+    musicBtn.hidden = false;
+  }
+  function musicMissing() {
+    if (!musicReady) musicLink.hidden = false;
+  }
+  music.addEventListener("loadedmetadata", musicAvailable);
+  music.addEventListener("error", musicMissing);
+  try {
+    const src = music.getAttribute("src");
+    fetch(src, { method: "HEAD" })
+      .then((r) => {
+        if (r.ok) return musicAvailable();
+        if (r.status === 404) return musicMissing();
+        return fetch(src, { headers: { Range: "bytes=0-1" } })
+          .then((g) => (g.ok ? musicAvailable() : musicMissing()));
+      })
+      .catch(() => {});
+  } catch (e) { /* checked by the audio events instead */ }
+  setTimeout(musicMissing, 4000);
+
+  // Route the song through Web Audio so it can be faded (iPhones ignore audio.volume).
+  function connectMusic() {
+    if (musicGain || !ac || location.protocol === "file:") return;
+    try {
+      const source = ac.createMediaElementSource(music);
+      musicGain = ac.createGain();
+      source.connect(musicGain);
+      musicGain.connect(ac.destination);
+    } catch (e) { musicGain = null; }
+  }
+  function musicLevel(level, seconds) {
+    if (musicGain) {
+      const t = ac.currentTime;
+      musicGain.gain.cancelScheduledValues(t);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, t);
+      musicGain.gain.linearRampToValueAtTime(level, t + seconds);
+    } else {
+      try { music.volume = level; } catch (e) { /* read-only on some phones */ }
+    }
+  }
+  function playMusic() {
+    if (!musicReady) return;
+    audio();
+    connectMusic();
+    const p = music.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  music.addEventListener("play", () => { musicBtn.classList.add("playing"); musicBtn.setAttribute("aria-pressed", "true"); });
+  music.addEventListener("pause", () => { musicBtn.classList.remove("playing"); musicBtn.setAttribute("aria-pressed", "false"); });
+  musicBtn.addEventListener("click", () => {
+    musicStarted = true;
+    if (music.paused) playMusic();
+    else music.pause();
+  });
+  // Browsers only allow sound after a tap, so the song starts on her first touch.
+  function firstTouch(e) {
+    if (musicStarted || !musicReady) return;
+    if (e.target.closest && e.target.closest(".music")) return;
+    musicStarted = true;
+    playMusic();
+  }
+  ["pointerup", "touchend", "keydown"].forEach((type) => document.addEventListener(type, firstTouch, true));
+
   // ---------- spin ----------
   let rotation = 0;
   let spinning = false;
@@ -753,6 +866,8 @@
     wheel.classList.remove("has-win");
     segs.forEach((s) => s.classList.remove("win"));
     document.body.classList.add("suspense");
+    if (!musicStarted) { musicStarted = true; playMusic(); }
+    musicLevel(0.3, 1);
     spinBtn.disabled = true;
     spinLabel.textContent = "Girando…";
     live.textContent = "";
@@ -792,6 +907,7 @@
         crawling = true;
         document.body.classList.add("crawl");
         spinLabel.textContent = "Será…?";
+        musicLevel(0.1, 1.5);
         heartbeatSound();
         heartbeatTimer = setInterval(heartbeatSound, 850);
       }
@@ -822,6 +938,7 @@
       live.textContent = "Nosso jantar de 2 anos: " + r.name;
 
       flash();
+      musicLevel(1, 1.2);
       resultName.textContent = r.name;
       resultName.style.setProperty("--seg", r.color);
       result.hidden = false;
