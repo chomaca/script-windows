@@ -28,7 +28,7 @@
     --undeveloped: #4B535C;
     --display: "Shrikhand", "Georgia", serif;
     --round: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
-    --wheel: min(88vw, 50vh, 440px);
+    --wheel: min(86vw, 44vh, 440px);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
@@ -147,7 +147,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: clamp(12px, 2.4vh, 24px);
+    gap: clamp(10px, 2vh, 22px);
     padding-inline: 16px;
     padding-block: 20px 32px;
     text-align: center;
@@ -194,6 +194,53 @@
   h1 .l4 { color: var(--coral); }
   h1 .l5 { color: var(--teal); }
   h1 .l6 { color: var(--cherry); }
+
+  /* ---------- the five options ---------- */
+  .picks { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .picks-label {
+    margin: 0;
+    color: var(--raspberry);
+    font-weight: 600;
+    font-size: .8rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    text-shadow: 0 0 6px var(--white), 0 0 2px var(--white);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 6px;
+    max-width: 560px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px 6px 9px;
+    border: 2px solid var(--chip);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .92);
+    color: var(--berry);
+    font-family: var(--round);
+    font-weight: 700;
+    font-size: .95rem;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 3px 0 var(--chip);
+    transition: transform .15s ease, background .2s ease, color .2s ease, opacity .2s ease;
+  }
+  .chip svg { width: 15px; height: 15px; fill: var(--chip); }
+  .chip[aria-pressed="true"] {
+    background: var(--chip);
+    color: var(--chip-ink);
+    transform: translateY(-2px) scale(1.06);
+    box-shadow: 0 4px 0 var(--berry);
+  }
+  .chip[aria-pressed="true"] svg { fill: currentColor; animation: beat 1.2s ease-in-out infinite; }
+  .chip:disabled { cursor: default; }
+  .chip:disabled:not([aria-pressed="true"]) { opacity: .55; }
+  .chip:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
 
   /* ---------- roulette ---------- */
   .wheel-wrap {
@@ -352,6 +399,19 @@
     text-wrap: balance;
     text-shadow: 3px 3px 0 var(--seg, var(--gold));
   }
+  .lucky {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 14px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: var(--pink);
+    color: var(--white);
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .lucky svg { width: 16px; height: 16px; fill: var(--white); }
   .row-hearts { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
   .row-hearts svg { width: 20px; height: 20px; }
   .ok {
@@ -417,7 +477,7 @@
     .float { animation: none; bottom: auto; top: var(--y); }
     .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
     .polaroid .pic::after { display: none; }
-    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart { animation: none; }
+    .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart, .chip[aria-pressed="true"] svg { animation: none; }
     .bulb, .music.playing .eq i { animation: none; }
     .wheel-wrap, .dim { transition: none; }
   }
@@ -443,6 +503,11 @@
     <h1 aria-label="2 anos de Braula">2 anos de <span aria-hidden="true"><span class="l1">B</span><span class="l2">r</span><span class="l3">a</span><span class="l4">u</span><span class="l5">l</span><span class="l6">a</span></span></h1>
     <p class="ask">janta dos pichu</p>
   </header>
+
+  <div class="picks">
+    <p class="picks-label" id="picksLabel">pra qual você torce?</p>
+    <div class="chips" id="chips" role="group" aria-labelledby="picksLabel"></div>
+  </div>
 
   <div class="wheel-wrap" id="wheelWrap">
     <svg class="pointer" id="pointer" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
@@ -482,6 +547,7 @@
     <svg class="card-heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
     <p class="kicker">nosso jantar de 2 anos</p>
     <p class="winner" id="resultName">Mocellin</p>
+    <p class="lucky" id="lucky" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg> deu o seu!</p>
     <div class="row-hearts" aria-hidden="true">
       <svg viewBox="0 0 24 24" style="fill:#FF3D7F"><use href="#heart"/></svg>
       <svg viewBox="0 0 24 24" style="fill:#FFB627"><use href="#heart"/></svg>
@@ -595,6 +661,30 @@
     const g = svgEl("g", { transform: `rotate(${i * 360 / BULBS} ${C} ${C})` }, bulbs);
     svgEl("use", { href: "#heart", x: 193, y: 8, width: 14, height: 14, class: i % 2 ? "bulb odd" : "bulb" }, g);
   }
+
+  // ---------- pick one to root for ----------
+  const chipsBox = $("chips"), picksLabel = $("picksLabel"), lucky = $("lucky");
+  const PICK_PROMPT = picksLabel.textContent;
+  let favorite = null;
+  const chips = RESTAURANTS.map((r, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.setAttribute("aria-pressed", "false");
+    b.style.setProperty("--chip", r.color);
+    b.style.setProperty("--chip-ink", r.ink);
+    const icon = heartSvg();
+    icon.setAttribute("aria-hidden", "true");
+    b.appendChild(icon);
+    b.appendChild(document.createTextNode(r.name));
+    b.addEventListener("click", () => {
+      favorite = favorite === i ? null : i;
+      chips.forEach((c, j) => c.setAttribute("aria-pressed", String(j === favorite)));
+      picksLabel.textContent = favorite === null ? PICK_PROMPT : "torcendo pro " + RESTAURANTS[favorite].name;
+    });
+    chipsBox.appendChild(b);
+    return b;
+  });
 
   // ---------- polaroids falling in the background ----------
   const POLAROID_COLORS = ["#FF3D7F", "#FFB627", "#8C52FF", "#FF6B4A", "#12A594"];
@@ -870,6 +960,7 @@
     if (!musicStarted) { musicStarted = true; playMusic(); }
     musicLevel(0.3, 1);
     spinBtn.disabled = true;
+    chips.forEach((c) => { c.disabled = true; });
     spinLabel.textContent = "Girando…";
     live.textContent = "";
 
@@ -935,8 +1026,11 @@
       wheel.classList.add("has-win");
       spinning = false;
       spinBtn.disabled = false;
+      chips.forEach((c) => { c.disabled = false; });
       spinLabel.textContent = "Girar";
-      live.textContent = "Nosso jantar de 2 anos: " + r.name;
+      const gotIt = favorite === idx;
+      lucky.hidden = !gotIt;
+      live.textContent = "Nosso jantar de 2 anos: " + r.name + (gotIt ? ". Deu o seu!" : "");
 
       flash();
       musicLevel(1, 1.2);
@@ -946,7 +1040,7 @@
       ok.focus();
       winSound();
       burst(reduce ? 18 : 80);
-      if (!reduce) setTimeout(() => burst(45), 450);
+      if (!reduce) setTimeout(() => burst(gotIt ? 90 : 45), 450);
     }, reduce ? 300 : 1000);
   }
 
