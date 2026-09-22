@@ -499,17 +499,13 @@
     justify-content: center;
     gap: 22px;
     padding-inline: 16px;
-    padding-block: 46px 12px;   /* room for the heart that sits on top of the card */
-    background:
-      radial-gradient(circle at 50% 44%, #FFF3F7 0 16%, transparent 55%),
-      radial-gradient(circle at 12% 18%, var(--blush-2) 0 20%, transparent 45%),
-      radial-gradient(circle at 86% 88%, var(--lilac) 0 18%, transparent 46%),
-      var(--blush);
-    cursor: pointer;
+    padding-block: 70px 12px;   /* room for the photo heart that sits on top of the card */
+    background: radial-gradient(circle at 50% 50%, rgba(255, 243, 247, .75) 0 30%, rgba(255, 243, 247, 0) 70%);
     transition: opacity .65s ease;
   }
+  main { transition: opacity .7s ease; }
+  body:not(.open) main { opacity: 0; pointer-events: none; }
   .splash.opening { opacity: 0; pointer-events: none; }
-  body:not(.open) .sky { z-index: 41; }   /* hearts drift over the opening screen too */
 
   .ask-card {
     position: relative;
@@ -522,26 +518,38 @@
     animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) .15s both;
   }
   .ask-card.said-yes { animation: yay .7s cubic-bezier(.3, 1.6, .5, 1); }
+  .ask-card.leaving { animation: leave .65s cubic-bezier(.5, 0, .75, 0) forwards; }
+  @keyframes leave { to { transform: translateY(-30px) scale(1.12); opacity: 0; } }
   @keyframes yay {
     0%   { transform: scale(1); }
     35%  { transform: scale(1.08) translateY(-10px) rotate(-2deg); }
     65%  { transform: scale(.97) rotate(1deg); }
     100% { transform: scale(1); }
   }
-  .ask-heart {
+  /* the two of them, inside a heart; it gets sadder with every "Não" */
+  .ask-photo {
     position: absolute;
-    left: calc(50% - 46px);
-    top: -48px;
-    width: 92px;
-    height: 92px;
+    left: calc(50% - 62px);
+    top: -74px;
+    width: 124px;
+    height: 124px;
     overflow: visible;
-    fill: var(--cherry);
-    stroke: var(--white);
-    stroke-width: 1.3;
-    filter: drop-shadow(0 6px 0 rgba(90, 10, 46, .22));
+    --sad: 0;
+    filter: grayscale(var(--sad)) drop-shadow(0 6px 0 rgba(90, 10, 46, .22)) drop-shadow(0 12px 18px rgba(90, 10, 46, .18));
+    transition: filter .5s ease;
     animation: beat 1.3s ease-in-out infinite;
   }
-  .ask-card.said-yes .ask-heart { animation-duration: .5s; }
+  .ask-photo .rim { fill: none; stroke: var(--white); stroke-width: 1.5; }
+  .ask-photo .blush { fill: var(--blush-2); }
+  .ask-photo.shake { animation: no-no .5s ease-in-out, beat 1.3s ease-in-out .5s infinite; }
+  @keyframes no-no {
+    0%, 100% { transform: rotate(0); }
+    20% { transform: rotate(-9deg) scale(.94); }
+    40% { transform: rotate(8deg) scale(.94); }
+    60% { transform: rotate(-6deg) scale(.96); }
+    80% { transform: rotate(4deg); }
+  }
+  .ask-card.said-yes .ask-photo { --sad: 0; animation: beat .55s ease-in-out infinite; scale: 1.12; transition: filter .3s ease, scale .5s cubic-bezier(.3, 1.6, .5, 1); }
   .ask-title {
     margin: 0;
     font-family: var(--display);
@@ -550,8 +558,14 @@
     color: var(--cherry);
     text-wrap: balance;
     text-shadow: 3px 3px 0 rgba(224, 20, 76, .14);
-    animation: drop-in .8s cubic-bezier(.25, 1.4, .45, 1) .35s both;
   }
+  .ask-title .w { display: inline-block; animation: word-pop .6s cubic-bezier(.3, 1.7, .5, 1) both; }
+  .ask-title .w:nth-child(1) { animation-delay: .35s; }
+  .ask-title .w:nth-child(2) { animation-delay: .47s; }
+  .ask-title .w:nth-child(3) { animation-delay: .59s; }
+  .ask-title .w:nth-child(4) { animation-delay: .71s; color: var(--pink); }
+  .ask-title.pop { animation: word-pop .6s cubic-bezier(.3, 1.7, .5, 1); }
+  @keyframes word-pop { from { transform: translateY(14px) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
   .ask-sub {
     min-height: 1.4em;
     margin: 8px 0 0;
@@ -565,7 +579,7 @@
     align-items: center;
     gap: 14px;
     margin-top: 16px;
-    animation: rise-in .8s cubic-bezier(.25, 1.4, .45, 1) .5s both;
+    animation: rise-in .8s cubic-bezier(.25, 1.4, .45, 1) .85s both;
   }
   .yes, .no {
     min-width: 116px;
@@ -615,7 +629,8 @@
   @media (max-height: 520px) {
     .splash { padding-block: 36px 8px; }
     .ask-card { padding: 42px 20px 18px; }
-    .ask-heart { width: 70px; height: 70px; left: calc(50% - 35px); top: -36px; }
+    .splash { padding-block: 52px 8px; }
+    .ask-photo { width: 92px; height: 92px; left: calc(50% - 46px); top: -54px; }
     .ask-title { font-size: 1.75rem; }
     .ask-sub { margin-top: 4px; }
     .ask-buttons { margin-top: 8px; }
@@ -746,7 +761,8 @@
     .polaroid { animation: none; top: var(--y); transform: translateX(-50%) rotate(var(--r1)); }
     .polaroid .pic::after { display: none; }
     .float svg, .spin svg, .card-heart, .card, body.crawl .hub-heart,
-    .ask-card, .ask-heart, .ask-title, .ask-buttons, .yes { animation: none; }
+    .ask-card, .ask-photo, .ask-photo.shake, .ask-title .w, .ask-title.pop, .ask-buttons, .yes { animation: none; }
+    .ask-card.leaving { animation: none; opacity: 0; }
     .no.running { transition-duration: .01s; }
     .splash { transition-duration: .05s; }
     .bulb { animation: none; }
@@ -827,8 +843,15 @@
 
 <div class="splash" id="splash">
   <div class="ask-card" id="askCard" role="dialog" aria-modal="true" aria-labelledby="askTitle">
-    <svg class="ask-heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#heart"/></svg>
-    <p class="ask-title" id="askTitle">Você ama o pichu?</p>
+    <svg class="ask-photo" id="askPhoto" viewBox="0 0 24 24" aria-hidden="true">
+      <clipPath id="heartClip">
+        <path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.9 4 7 4c2.2 0 3.8 1.2 5 3 1.2-1.8 2.8-3 5-3 4.1 0 6.1 4.4 4.6 7.8C19.5 16.4 12 21 12 21z"/>
+      </clipPath>
+      <use class="blush" href="#heart"/>
+      <image href="fotos/coracao.jpg" x="1" y="2.6" width="22" height="22" preserveAspectRatio="xMidYMid slice" clip-path="url(#heartClip)"/>
+      <use class="rim" href="#heart"/>
+    </svg>
+    <p class="ask-title" id="askTitle"><span class="w">Você</span> <span class="w">ama</span> <span class="w">o</span> <span class="w">pichu?</span></p>
     <p class="ask-sub" id="askSub" aria-live="polite"></p>
     <div class="ask-buttons">
       <button class="yes" id="yes" type="button">Sim</button>
@@ -1124,8 +1147,8 @@
     a.onfinish = () => span.remove();
   }
 
-  function burst(count, layer, accent) {
-    const x = window.innerWidth / 2, y = window.innerHeight / 2;
+  function burst(count, layer, accent, from) {
+    const x = from ? from.x : window.innerWidth / 2, y = from ? from.y : window.innerHeight / 2;
     const reach = Math.max(window.innerWidth, window.innerHeight) * 0.55;
     for (let i = 0; i < count; i++) {
       const ang = rand() * Math.PI * 2;
@@ -1145,6 +1168,13 @@
       .onfinish = () => f.remove();
   }
 
+  function puff(x, y, layer) {                  // a little "poof" where "Não" used to be
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + rand() * .5;
+      flyHeart(x, y, 9 + rand() * 9, pick(HEART_COLORS), Math.cos(a) * (30 + rand() * 25), Math.sin(a) * (30 + rand() * 25),
+        (rand() - .5) * 80, 650 + rand() * 250, "cubic-bezier(.2,.8,.3,1)", layer);
+    }
+  }
   function tapHearts(x, y) {
     const layer = splash.hidden ? fx : splashFx;   // over the question screen while it is up
     for (let i = 0; i < 3; i++) {
@@ -1219,6 +1249,7 @@
   function buzz(pattern) {
     try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* not available */ }
   }
+  const boing = () => { tone(620, .16, .07, "triangle", 0, 240); tone(900, .08, .03, "sine", .02, 500); };
   const winSound = () => [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.6, 0.12, "sine", i * 0.13));
 
   // ---------- music ----------
@@ -1424,7 +1455,7 @@
 
   // ---------- opening question: "Você ama o pichu?" ----------
   const splash = $("splash"), askCard = $("askCard"), askTitle = $("askTitle"), askSub = $("askSub");
-  const yesBtn = $("yes"), noBtn = $("no"), splashFx = $("splashFx");
+  const yesBtn = $("yes"), noBtn = $("no"), splashFx = $("splashFx"), askPhoto = $("askPhoto");
   const NO_LABELS = ["Tem certeza?", "Pensa bem…", "Sério?", "O pichu vai chorar", "Última chance!", "Não vale!"];
   let answered = false, tries = 0, noX = 0, noY = 0, lastDodge = 0;
   main.inert = true;                           // keyboard focus stays on the question until she answers
@@ -1442,12 +1473,17 @@
     if (now - lastDodge < 250) return;       // one tap fires several events: move once
     lastDodge = now;
     tries++;
+    const from = noBtn.getBoundingClientRect();
     if (!noBtn.classList.contains("running")) {
-      const r = noBtn.getBoundingClientRect();
       noBtn.classList.add("running");
       splash.appendChild(noBtn);               // out of the card, so it can go anywhere
-      placeNo(r.left, r.top, false);
+      placeNo(from.left, from.top, false);
     }
+    puff(from.left + from.width / 2, from.top + from.height / 2, splashFx);
+    audio();                                   // a tap: sound effects are allowed (the song still waits)
+    boing();
+    askPhoto.style.setProperty("--sad", String(Math.min(.9, tries * .2)));
+    askPhoto.classList.remove("shake"); void askPhoto.getBoundingClientRect(); askPhoto.classList.add("shake");
     if (tries > NO_LABELS.length) {
       noBtn.classList.add("gone");
       askSub.textContent = "Só sobrou uma resposta!";
@@ -1459,17 +1495,19 @@
     yesBtn.style.scale = String(Math.min(1.55, 1 + tries * 0.1));
     const W = window.innerWidth, H = window.innerHeight, m = 14;
     const nb = { w: noBtn.offsetWidth, h: noBtn.offsetHeight };
-    const yb = yesBtn.getBoundingClientRect();
-    let best = null;
-    for (let i = 0; i < 40; i++) {
+    const yb = yesBtn.getBoundingClientRect(), cb = askCard.getBoundingClientRect();
+    const clear = (x, y, r, pad) => x + nb.w < r.left - pad || x > r.right + pad || y + nb.h < r.top - pad || y > r.bottom + pad;
+    let best = null, fallback = null;
+    for (let i = 0; i < 60; i++) {
       const x = m + rand() * Math.max(0, W - nb.w - 2 * m);
       const y = m + rand() * Math.max(0, H - nb.h - 2 * m);
-      const clearOfYes = x + nb.w < yb.left - 16 || x > yb.right + 16 || y + nb.h < yb.top - 16 || y > yb.bottom + 16;
+      if (!clear(x, y, yb, 16)) continue;                      // never on top of "Sim"
       const farFromFinger = Math.hypot(x + nb.w / 2 - px, y + nb.h / 2 - py) > 120;
       const farFromLast = Math.hypot(x - noX, y - noY) > 80;
-      if (clearOfYes && farFromFinger && farFromLast) { best = { x, y }; break; }
-      if (!best && clearOfYes) best = { x, y };
+      if (clear(x, y, cb, 6) && farFromFinger && farFromLast) { best = { x, y }; break; }   // outside the card: tidy
+      if (!fallback && farFromFinger) fallback = { x, y };
     }
+    best = best || fallback;
     if (best) placeNo(best.x, best.y, true);
     buzz(15);
   }
@@ -1492,14 +1530,19 @@
     answered = true;
     musicAllowed = true;
     unlockAudio();                               // this "Sim" is the tap that lets the song play
+    const yb = yesBtn.getBoundingClientRect();
     askTitle.textContent = "Eu sabia!";
+    askTitle.classList.add("pop");
     askSub.textContent = "";
+    askPhoto.style.setProperty("--sad", "0");   // colour comes back
     askCard.classList.add("said-yes");
     noBtn.classList.add("gone");
     yesBtn.disabled = true;
     buzz([30, 50, 30]);
-    burst(reduce ? 16 : 70, splashFx);
+    burst(reduce ? 16 : 70, splashFx, null, { x: yb.left + yb.width / 2, y: yb.top + yb.height / 2 });
+    if (!reduce) setTimeout(() => burst(30, splashFx), 250);
     setTimeout(() => {
+      askCard.classList.add("leaving");
       splash.classList.add("opening");
       document.body.classList.add("open");       // starts the page's entrance
       main.inert = false;
