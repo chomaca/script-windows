@@ -24,7 +24,7 @@ window.PCBApp = (function () {
   let reconstruirPendente = false;
   let iniciou = false;
 
-  const E = { build: null, vis: null, aba: 'pecas', sel: null };
+  const E = { build: null, vis: null, aba: 'pecas', sel: null, ocultas: new Set() };
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
@@ -163,7 +163,7 @@ window.PCBApp = (function () {
   function reconstruir() {
     if (atual) { cena.remove(atual.raiz); MONT.descartar(atual.raiz); }
     try {
-      atual = MONT.montar(E.build, CAT, { rgb: E.vis.rgb });
+      atual = MONT.montar(E.build, CAT, { rgb: E.vis.rgb, fotos });
     } catch (err) {
       console.error(err);
       atual = null;
@@ -204,6 +204,9 @@ window.PCBApp = (function () {
   function aplicarVisibilidade() {
     if (!atual) return;
     for (const p of atual.paineis) p.obj.visible = E.vis.paineis && (p.tipo !== 'vidro' || E.vis.vidro);
+    for (const p of atual.partes) if (p.obj && p.id !== 'gabinete') p.obj.visible = !E.ocultas.has(p.id) && !(p.id === 'riser' && E.ocultas.has('gpu')) && !(p.id === 'conectorRiser' && E.ocultas.has('gpu'));
+    const mt = $('#mostrar-tudo');
+    if (mt) mt.hidden = !E.ocultas.size;
     atual.raiz.traverse((o) => { if (o.userData.fluxo) o.visible = E.vis.fluxo; });
     grupoCotas.visible = E.vis.cotas;
     $('#legenda-fluxo').hidden = !E.vis.fluxo;
@@ -391,6 +394,71 @@ window.PCBApp = (function () {
     }
   }
 
+  /* ---------- foto real do topo da placa-mãe (guardada no navegador) ---------- */
+  const fotos = {};
+  function abrirBanco() {
+    return new Promise((ok, erro) => {
+      try {
+        const req = indexedDB.open('bancada3d', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('fotos');
+        req.onsuccess = () => ok(req.result);
+        req.onerror = () => erro(req.error);
+      } catch (e) { erro(e); }
+    });
+  }
+  async function bancoOp(modo, fn) {
+    const db = await abrirBanco();
+    return new Promise((ok, erro) => {
+      const tx = db.transaction('fotos', modo);
+      const req = fn(tx.objectStore('fotos'));
+      tx.oncomplete = () => ok(req && req.result);
+      tx.onerror = () => erro(tx.error);
+    });
+  }
+  const fotoLer = (id) => bancoOp('readonly', (st) => st.get(id)).catch(() => null);
+  const fotoGravar = (id, blob) => bancoOp('readwrite', (st) => st.put(blob, id)).catch(() => null);
+  const fotoApagar = (id) => bancoOp('readwrite', (st) => st.delete(id)).catch(() => null);
+  function carregarImagem(blob) {
+    return new Promise((ok, erro) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = () => { URL.revokeObjectURL(url); erro(new Error('Não consegui abrir essa imagem.')); };
+      img.src = url;
+    });
+  }
+  async function prepararFoto(id) {
+    if (!id || id in fotos) return false;
+    fotos[id] = null;
+    const blob = await fotoLer(id);
+    if (!blob) return false;
+    try { fotos[id] = await carregarImagem(blob); return true; } catch (e) { return false; }
+  }
+  function aoPrepararFoto(id) {
+    prepararFoto(id).then((achou) => { if (achou) { reconstruir(); renderAba(); } });
+  }
+
+  /* Aproxima a câmera de uma peça, mantendo o ângulo pelo lado do vidro. */
+  function enquadrar(id) {
+    const p = atual && atual.partes.find((x) => x.id === id);
+    if (!p) return;
+    if (p.id === 'gabinete') { irVista('iso'); return; }
+    const caixa = new THREE.Box3();
+    for (const c of p.caixas) caixa.union(c);
+    if (caixa.isEmpty()) return;
+    const centro = caixa.getCenter(new THREE.Vector3());
+    const tam = caixa.getSize(new THREE.Vector3()).length();
+    const PREF = { placaMae: [-1, 0.14, 0.18], gpu: [-0.86, 0.3, 0.4], radiador: [-0.7, -0.45, 0.55], fonte: [-0.75, 0.3, 0.6] };
+    let dir = camera.position.clone().sub(controles.target).normalize();
+    if (p.id.startsWith('memoria-')) dir.set(-0.72, 0.28, 0.62);
+    else if (PREF[p.id]) dir.set(...PREF[p.id]);
+    else if (dir.x > -0.25) dir.set(-0.82, 0.36, 0.45);
+    dir.normalize();
+    const dist = Math.max(200, (tam * 0.62) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    tween = { t0: performance.now(), dur: 700, p0: camera.position.clone(), p1: centro.clone().addScaledVector(dir, dist), a0: controles.target.clone(), a1: centro };
+    for (const b of $$('[data-vista]')) b.setAttribute('aria-pressed', 'false');
+  }
+
   /* ============================== interface ============================== */
   function opcoes(colecao, sel, filtro) {
     return Object.entries(colecao)
@@ -455,6 +523,20 @@ window.PCBApp = (function () {
       '</details>';
   }
 
+  function blocoFoto(id, spec) {
+    const tem = !!fotos[id];
+    const nota = tem
+      ? 'Usando a sua foto no topo da placa e de cada dissipador.'
+      : (spec.estilo === 'maxsun-terminator'
+        ? 'Desenho baseado na MAXSUN branca: PCB preto e armadura prata-branca jateada e escovada com linhas vermelho-escuras.'
+        : 'Desenho genérico.') + ' Para ficar idêntica, envie a foto oficial de cima da placa, reta e recortada rente às bordas.';
+    return '<div class="campo"><span class="rotulo">Acabamento do topo</span><div class="acoes">' +
+      '<label class="botao" for="foto-mb">' + (tem ? 'Trocar foto' : 'Usar foto da placa') + '</label>' +
+      '<input type="file" id="foto-mb" accept="image/*" hidden>' +
+      (tem ? '<button type="button" class="botao" id="foto-mb-remover">Voltar ao desenho</button>' : '') +
+      '</div><p class="nota" id="foto-mb-msg">' + esc(nota) + '</p></div>';
+  }
+
   function cabecalhoCartao(titulo, dim, parte) {
     return '<header><h3>' + esc(titulo) + '</h3>' +
       (parte ? '<button type="button" class="link-3d" data-localizar="' + parte + '">Mostrar no 3D</button>' : '') + '</header>' +
@@ -488,6 +570,7 @@ window.PCBApp = (function () {
       '<section class="cartao">', cabecalhoCartao('Placa-mãe', R.placaMae.formato + ' · ' + R.placaMae.largura + ' × ' + R.placaMae.altura + ' mm', 'placaMae'),
       campoSelect('s-mb', 'placaMae.modelo', 'Modelo', opcoes(CAT.placasMae, b.placaMae.modelo)),
       campoSelect('s-cpu', 'cpu.modelo', 'Processador (para estimar o consumo)', opcoes(CAT.cpus, b.cpu.modelo)),
+      blocoFoto(R.ids.placaMae, R.placaMae),
       blocoMedidas('placaMae', R.ids.placaMae), '</section>',
 
       '<section class="cartao">', cabecalhoCartao('Memória', R.memoria.capacidade * (b.memoria.quantidade || 2) + ' GB · ' + fmt(R.memoria.altura) + ' mm', 'memoria-0'),
@@ -669,7 +752,9 @@ window.PCBApp = (function () {
     f.innerHTML = '<header><span class="cat">' + esc(p.categoria) + '</span><button type="button" class="fechar" data-fechar-ficha aria-label="Fechar">×</button><h3>' + esc(p.nome) + '</h3></header>' +
       (conflitos.length ? '<p class="nota" style="color:var(--erro)">Encosta em: ' + esc(conflitos.map((c) => (c.a.id === p.id ? c.b.nome : c.a.nome)).join(', ')) + '</p>' : '') +
       (med ? '<dl>' + med + '</dl>' : '') + (info.notas ? '<p class="nota">' + esc(info.notas) + '</p>' : '') + est +
-      (fontes ? '<ul class="fontes-lista">' + fontes + '</ul>' : '');
+      (fontes ? '<ul class="fontes-lista">' + fontes + '</ul>' : '') +
+      '<div class="acoes"><button type="button" class="botao" data-enquadrar="' + esc(p.id) + '">Aproximar</button>' +
+      (p.id !== 'gabinete' ? '<button type="button" class="botao" data-ocultar="' + esc(p.id) + '">Ocultar</button>' : '') + '</div>';
     f.hidden = false;
   }
 
@@ -706,6 +791,7 @@ window.PCBApp = (function () {
         if (el.dataset.bind === 'gabinete.modelo') aoMudarGabinete();
         if (el.dataset.bind === 'refrigeracao.local') E.build.refrigeracao.deslocamento = 0;
         aplicar();
+        if (el.dataset.bind === 'placaMae.modelo') aoPrepararFoto(E.build.placaMae.modelo);
       } else if (el.matches('input[type="range"][data-bind]')) {
         salvar();
         renderAba();
@@ -732,6 +818,16 @@ window.PCBApp = (function () {
         cfg.vagas[Number(el.dataset.vaga)] = el.value || null;
         E.build.fans[zid] = cfg;
         aplicar();
+      } else if (el.id === 'foto-mb' && el.files && el.files[0]) {
+        const arq = el.files[0];
+        const id = E.build.placaMae.modelo;
+        carregarImagem(arq).then((img) => {
+          fotos[id] = img;
+          fotoGravar(id, arq);
+          aplicar();
+          selecionar('placaMae');
+          enquadrar('placaMae');
+        }, (err) => { const m = $('#foto-mb-msg'); if (m) m.textContent = err.message; });
       } else if (el.id === 'b-arquivo' && el.files && el.files[0]) {
         const leitor = new FileReader();
         leitor.onload = () => { $('#json-build').value = String(leitor.result); carregarTexto(); };
@@ -779,6 +875,12 @@ window.PCBApp = (function () {
         aplicar();
       } else if (el.dataset.localizar) {
         selecionar(el.dataset.localizar);
+        enquadrar(el.dataset.localizar);
+      } else if (el.id === 'foto-mb-remover') {
+        const id = E.build.placaMae.modelo;
+        fotos[id] = null;
+        fotoApagar(id);
+        aplicar();
       } else if (el.dataset.restaurar) {
         if (E.build.medidas) delete E.build.medidas[el.dataset.restaurar];
         aplicar();
@@ -824,6 +926,11 @@ window.PCBApp = (function () {
       const ir = e.target.closest('[data-ir-aba]');
       if (ir) { E.aba = ir.dataset.irAba; salvar(); renderAba(); }
       if (e.target.closest('[data-fechar-ficha]')) selecionar(null);
+      const enq = e.target.closest('[data-enquadrar]');
+      if (enq) enquadrar(enq.dataset.enquadrar);
+      const oc = e.target.closest('[data-ocultar]');
+      if (oc) { E.ocultas.add(oc.dataset.ocultar); selecionar(null); aplicarVisibilidade(); }
+      if (e.target.closest('#mostrar-tudo')) { E.ocultas.clear(); aplicarVisibilidade(); }
       if (e.target.closest('[data-fechar-modal]') || e.target.id === 'modal-imagem') $('#modal-imagem').hidden = true;
     });
     document.addEventListener('keydown', (e) => {
@@ -941,6 +1048,7 @@ window.PCBApp = (function () {
     reconstruir();
     renderAba();
     irVista('iso', true);
+    aoPrepararFoto(E.build.placaMae.modelo);
     $('#carregando').hidden = true;
     requestAnimationFrame(animar);
   }

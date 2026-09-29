@@ -184,9 +184,11 @@ window.PCB_CATALOGO = {
       largura: 245,
       altura: 245,
       espessura: 1.6,
-      corPCB: '#e4e6e9',
-      corArmadura: '#f5f6f8',
-      corDetalhe: '#aab1bb',
+      estilo: 'maxsun-terminator',
+      corPCB: '#16181b',
+      corArmadura: '#e6e7e9',
+      corAcento: '#7a1d26',
+      corDetalhe: '#b9bdc3',
       soquete: { x: 110, y: 80 },
       dimm: { x: [152, 160, 168, 176], y: 78 },
       pcie: [
@@ -194,9 +196,11 @@ window.PCB_CATALOGO = {
         { x: 46, y: 212, nome: 'PCIe 4.0 x4 (físico x16)', reforcado: false }
       ],
       estimado: ['soquete', 'dimm', 'pcie'],
-      notas: 'Formato Micro-ATX 245 × 245 mm (oficial). Posição do soquete, memórias e slots segue o padrão mATX e fotos do produto.',
+      notas: 'Formato Micro-ATX 245 × 245 mm (oficial). PCB preto com armadura prata-branca jateada e escovada e linhas vermelho-escuras; 4 slots DDR5, 3 M.2, 2 PCIe x16, 2 SATA e 2 EPS 8 pinos. Posições internas seguem o padrão mATX. Para ficar idêntica ao produto, use a opção de foto do topo.',
       fontes: [
-        { rotulo: 'MAXSUN — Terminator B850M PRO WIFI', url: 'https://www.maxsun.com/products/terminator-b850m-pro-wifi' }
+        { rotulo: 'MAXSUN — Terminator B850M PRO WIFI', url: 'https://www.maxsun.com/products/terminator-b850m-pro-wifi' },
+        { rotulo: 'ZOL — fotos da placa (chinês)', url: 'https://diy.zol.com.cn/1011/10111686.html' },
+        { rotulo: 'Sina — PCB preto e armadura (chinês)', url: 'https://finance.sina.com.cn/tech/roll/2025-07-09/doc-infewcvp4850620.shtml' }
       ]
     },
     'generica-atx': {
@@ -207,6 +211,7 @@ window.PCB_CATALOGO = {
       espessura: 1.6,
       corPCB: '#1d2024',
       corArmadura: '#3a3f46',
+      corAcento: '#5b6068',
       corDetalhe: '#9aa1ab',
       soquete: { x: 110, y: 80 },
       dimm: { x: [152, 160, 168, 176], y: 78 },
@@ -227,6 +232,7 @@ window.PCB_CATALOGO = {
       espessura: 1.6,
       corPCB: '#1d2024',
       corArmadura: '#3a3f46',
+      corAcento: '#5b6068',
       corDetalhe: '#9aa1ab',
       soquete: { x: 95, y: 72 },
       dimm: { x: [140, 148], y: 76 },
@@ -255,6 +261,7 @@ window.PCB_CATALOGO = {
   memorias: {
     'kingston-fury-beast-ddr5-32': {
       nome: 'Kingston FURY Beast DDR5 32 GB',
+      estilo: 'fury-beast',
       capacidade: 32,
       altura: 34.9,
       comprimento: 133.35,
@@ -266,6 +273,7 @@ window.PCB_CATALOGO = {
     },
     'kingston-fury-beast-ddr5-rgb-32': {
       nome: 'Kingston FURY Beast DDR5 RGB 32 GB',
+      estilo: 'fury-beast',
       capacidade: 32,
       altura: 42.23,
       comprimento: 133.35,
@@ -277,6 +285,7 @@ window.PCB_CATALOGO = {
     },
     'kingston-fury-beast-ddr5-rgb-32-branca': {
       nome: 'Kingston FURY Beast DDR5 RGB 32 GB (branca)',
+      estilo: 'fury-beast',
       capacidade: 32,
       altura: 42.23,
       comprimento: 133.35,
@@ -390,11 +399,13 @@ window.PCB_CATALOGO = {
       espessura: 69.6,
       slots: 3.5,
       tgp: 575,
+      estilo: 'zotac-amp-extreme',
       cor: '#2a2d31',
-      corBackplate: '#2f3237',
+      corPCB: '#0f1113',
+      corBackplate: '#34373c',
       deshroud: { comprimento: 325, altura: 128, espessura: 52 },
       estimado: ['deshroud'],
-      notas: 'Medidas com shroud são oficiais. As do dissipador sem shroud são estimadas: meça o seu e ajuste em “Editar medidas”.',
+      notas: 'Medidas com shroud são oficiais. Sem shroud: PCB preto, estrutura intermediária preta, aletas de alumínio prateadas sobre câmara de vapor, heatpipes niquelados e backplate de metal fundido. As medidas do dissipador sem shroud são estimadas: meça o seu e ajuste em “Editar medidas”.',
       fontes: [
         { rotulo: 'ZOTAC — página do produto', url: 'https://www.zotac.com/us/product/graphics_card/zotac-gaming-geforce-rtx-5090-amp-extreme-infinity' },
         { rotulo: 'ZOTAC — ficha técnica (PDF)', url: 'https://www.zotac.com/download/mediadrivers/External/GraphicsCard/5090/Brochure/ZT-B50900B-10P-brochure.pdf' }
@@ -421,6 +432,7 @@ window.PCB_CATALOGO = {
   fans: {
     'gf-squama-2503-140': {
       nome: 'Geometric Future Squama 2503 140 mm (do gabinete)',
+      estilo: 'squama',
       tamanho: 140,
       espessura: 25,
       cor: '#16171a',
@@ -431,16 +443,21 @@ window.PCB_CATALOGO = {
     },
     'arctic-p14-pro': {
       nome: 'ARCTIC P14 Pro',
+      estilo: 'arctic-p14-pro',
       tamanho: 140,
       espessura: 27,
-      cor: '#121314',
-      corPas: '#18191b',
+      cor: '#141517',
+      corPas: '#1a1b1e',
       rgb: false,
       pas: 7,
-      fontes: [{ rotulo: 'ARCTIC — P14 Pro (140 × 140 × 27 mm)', url: 'https://www.arctic.de/us/P14-Pro/ACFAN00313A' }]
+      fontes: [
+        { rotulo: 'ARCTIC — P14 Pro (140 × 140 × 27 mm)', url: 'https://www.arctic.de/us/P14-Pro/ACFAN00313A' },
+        { rotulo: 'HWCooling — P14 Pro (7 pás)', url: 'https://www.hwcooling.net/en/arctic-p14-pro-pst-the-best-price-to-performance-ratio-review/' }
+      ]
     },
     'aorus-120-ice': {
       nome: 'Fan AORUS 120 mm ARGB (branco, do watercooler)',
+      estilo: 'aorus',
       tamanho: 120,
       espessura: 25,
       cor: '#eef0f2',

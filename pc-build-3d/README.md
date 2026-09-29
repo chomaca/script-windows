@@ -43,6 +43,30 @@ O Model 5 Vent aceita fonte de **até 160 mm**. A RM1200e (150 mm) cabe. Se a su
 Corsair 1200 W for a **RM1200x SHIFT (180 mm)**, ela não cabe — escolha esse modelo
 no site para ver o aviso.
 
+## Aparência das peças
+
+As texturas são desenhadas pelo próprio site (não dependem de imagens baixadas):
+
+- **MAXSUN B850M PRO WIFI (branca):** PCB preto com trilhas e serigrafia; armadura
+  prata-branca jateada e escovada com linhas vermelho-escuras e “TERMINATOR” gravado
+  (I/O, VRM, dois dissipadores M.2 e chipset); slot PCIe 5.0 reforçado, 4 slots DDR5,
+  2 conectores EPS de 8 pinos, 24 pinos, SATA, headers e o painel traseiro com as
+  portas (USB, HDMI, DP, LAN 2.5G, áudio e antenas Wi-Fi).
+- **ZOTAC RTX 5090 AMP Extreme INFINITY sem shroud:** PCB preto, estrutura
+  intermediária preta, aletas de alumínio prateadas, heatpipes niquelados aparecendo
+  nas bordas, backplate de metal com “ZOTAC GAMING” e passagem de ar vazada na ponta,
+  suporte com 3 DisplayPort e 1 HDMI.
+- **ARCTIC P14 Pro:** moldura preta de 27 mm, 7 pás, amortecedores de borracha nos
+  cantos, braços traseiros curvados e adesivo ARCTIC no cubo.
+- **Kingston FURY Beast DDR5:** alumínio preto anodizado com “FURY” em alumínio
+  exposto, textos brancos, relevos e furos de ventilação.
+
+Para a placa-mãe ficar **idêntica** ao produto, use **Peças → Placa-mãe → Usar foto
+da placa**: envie a foto oficial de cima (vista reta, recortada rente às bordas). Ela é
+aplicada no topo da placa e de cada dissipador e fica salva no navegador.
+Na ficha de cada peça há **Aproximar** e **Ocultar** (ex.: ocultar a GPU para ver a
+placa-mãe inteira).
+
 ## Usando o site
 
 - **Peças:** troque cada componente, ajuste a posição da GPU vertical, a posição
@@ -100,6 +124,7 @@ pc-build-3d/
 ├── data/catalogo.js      peças e medidas (edite aqui)
 ├── data/build-padrao.js  a montagem que abre por padrão
 └── js/
+    ├── texturas.js       texturas desenhadas (placa-mãe, GPU, memória, fans)
     ├── modelos3d.js      desenho 3D de cada peça
     ├── montagem.js       posiciona as peças no gabinete
     ├── verificacao.js    colisões, limites, energia e fluxo de ar

@@ -161,7 +161,7 @@ window.PCBMontagem = function (THREE, M) {
     const bandejaX = Q.X(G.bandeja.x);
     const faceX = Q.X(G.bandeja.x + G.placaMae.standoff + MB.espessura);
     const topoY = G.placaMae.topoY;
-    const mb = M.placaMae(MB);
+    const mb = M.placaMae(MB, { foto: opts.fotos ? opts.fotos[R.ids.placaMae] : null });
     orientar(mb, vdir('frente'), vdir('cima'), vdir('esquerda'), new THREE.Vector3(faceX, topoY, Q.Z(G.placaMae.traseira)));
     const mbPonto = (x, y, z) => mb.localToWorld(new THREE.Vector3(x, -y, z));
     registrar('placaMae', MB.nome, 'Placa-mãe', mb, {
