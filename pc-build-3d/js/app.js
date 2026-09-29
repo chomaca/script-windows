@@ -841,6 +841,7 @@ window.PCBApp = (function () {
     }
     $('#explodir').addEventListener('input', (e) => { explodirAlvo = Number(e.target.value); });
     $('#capturar').addEventListener('click', capturar);
+    $('#modal-imagem-baixar').addEventListener('click', baixarImagem);
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     if (mq.addEventListener) mq.addEventListener('change', aplicarTema);
@@ -856,18 +857,35 @@ window.PCBApp = (function () {
       navigator.clipboard.writeText(texto).then(() => msgJSON('Copiado.'), fallback);
     } catch (e) { fallback(); }
   }
-  function baixarJSON() {
-    try {
-      const url = URL.createObjectURL(new Blob([JSON.stringify(E.build, null, 2)], { type: 'application/json' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'minha-build.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      msgJSON('Se o download não começar, use o botão Copiar.');
-    } catch (e) { msgJSON('Não deu para baixar aqui. Use o botão Copiar.'); }
+  /* Salva um arquivo: dentro do Claude usa a capacidade "downloads"
+     (o visualizador pede confirmação); fora dele, o download do navegador. */
+  async function salvarArquivo(nome, dados) {
+    const c = window.claude;
+    if (c && typeof c.use === 'function') {
+      const dl = await c.use('downloads').catch(() => null);
+      if (dl) {
+        try {
+          await dl.save({ filename: nome, data: dados });
+          return 'Arquivo salvo.';
+        } catch (e) {
+          if (e && e.code === 'declined') return 'Download cancelado.';
+          if (e && e.code === 'rate_limited') return 'Já existe um pedido de download aberto. Tente de novo em instantes.';
+          return 'Não deu para baixar aqui. Use o botão Copiar.';
+        }
+      }
+    }
+    const url = URL.createObjectURL(dados instanceof Blob ? dados : new Blob([dados]));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return 'Download iniciado.';
+  }
+  async function baixarJSON() {
+    msgJSON(await salvarArquivo('minha-build.json', JSON.stringify(E.build, null, 2)));
   }
   function carregarTexto() {
     let obj;
@@ -879,12 +897,18 @@ window.PCBApp = (function () {
     msgJSON('Montagem carregada.');
   }
 
+  let imagemAtual = null;
   function capturar() {
     renderer.render(cena, camera);
-    const url = renderer.domElement.toDataURL('image/png');
-    $('#modal-imagem-img').src = url;
-    $('#modal-imagem-baixar').href = url;
+    const cv = renderer.domElement;
+    $('#modal-imagem-img').src = cv.toDataURL('image/png');
+    cv.toBlob((b) => { imagemAtual = b; }, 'image/png');
+    $('#modal-imagem-msg').textContent = 'Você também pode clicar com o botão direito na imagem e salvar.';
     $('#modal-imagem').hidden = false;
+  }
+  async function baixarImagem() {
+    if (!imagemAtual) return;
+    $('#modal-imagem-msg').textContent = await salvarArquivo('bancada-3d.png', imagemAtual);
   }
 
   function mostrarFalha(msg) {
