@@ -62,7 +62,7 @@ window.PCB_CATALOGO = {
       },
       gpuVertical: { suporteZ: 4, alturaMin: 55, alturaPadrao: 81, distanciaMin: 25, distanciaMax: 150, distanciaPadrao: 70 },
       montagens: {
-        topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 222 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
+        topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         frente: { nome: 'Frente', centro: { x: 123, y: 225, z: 490 }, normal: 'frente', eixo: 'cima', vagas: { 120: 3, 140: 2 }, radiador: 360 },
         traseira: { nome: 'Traseira', centro: { x: 162, y: 290, z: 2 }, normal: 'traseira', eixo: 'cima', vagas: { 120: 1, 140: 1 }, radiador: 140 },
         fundo: { nome: 'Fundo', centro: { x: 140, y: 25, z: 237 }, normal: 'baixo', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 360 },
@@ -115,7 +115,7 @@ window.PCB_CATALOGO = {
       traseira: { slots: 7, slot1Y: 211, rearIO: true },
       gpuVertical: { suporteZ: 4, alturaMin: 55, alturaPadrao: 81, distanciaMin: 25, distanciaMax: 150, distanciaPadrao: 70 },
       montagens: {
-        topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 222 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
+        topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         traseira: { nome: 'Traseira', centro: { x: 162, y: 290, z: 2 }, normal: 'traseira', eixo: 'cima', vagas: { 120: 1, 140: 1 }, radiador: 140 },
         fundo: { nome: 'Fundo', centro: { x: 140, y: 25, z: 237 }, normal: 'baixo', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 360 },
         lateral: { nome: 'Lateral (sob a fonte)', centro: { x: 42, y: 135, z: 377 }, normal: 'direita', eixo: 'frente', vagas: { 120: 1, 140: 1, 160: 1 }, radiador: 0, montagem: 'fora' },

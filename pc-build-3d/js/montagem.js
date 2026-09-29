@@ -358,7 +358,12 @@ window.PCBMontagem = function (THREE, M) {
     const cfgFans = build.fans || {};
     for (const [zid, zf] of Object.entries(cfgFans)) {
       const zona = G.montagens[zid];
-      if (!zona || !zf) continue;
+      if (!zf) continue;
+      if (!zona) {
+        const n = (zf.vagas || []).filter(Boolean).length;
+        if (n) avisos.push('Este gabinete não tem a posição “' + zid + '”; ' + n + ' fan(s) dessa posição ficaram de fora.');
+        continue;
+      }
       const vagasCfg = (zf.vagas || []).filter(Boolean);
       if (radInfo && zid === radInfo.zona) {
         if (vagasCfg.length) avisos.push('Os fans em “' + zona.nome + '” foram ignorados: a posição está ocupada pelo radiador.');

@@ -312,7 +312,7 @@ window.PCBModelos = function (THREE) {
       portas.push({ pos: new THREE.Vector3(L / 2 + 13, y, 0), dir: new THREE.Vector3(1, 0, 0) });
     }
     g.userData.portas = portas;
-    g.userData.colisores = [box3(-L / 2, L / 2 + 14, -W / 2, W / 2, -T / 2, T / 2)];
+    g.userData.colisores = [box3(-L / 2, L / 2, -W / 2, W / 2, -T / 2, T / 2)];
     return g;
   }
 
