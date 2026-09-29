@@ -47,6 +47,9 @@ no site para ver o aviso.
 
 As texturas são desenhadas pelo próprio site (não dependem de imagens baixadas):
 
+- **Gabinete Model 5 Vent:** aço preto com pintura eletrostática fosca, telas com furos
+  redondos em grade, faixa sólida no meio do painel direito e rodapé frontal com
+  “GEOMETRIC FUTURE”, vidro com borda serigrafada, pés de borracha.
 - **MAXSUN B850M PRO WIFI (branca):** PCB preto com trilhas e serigrafia; armadura
   prata-branca jateada e escovada com linhas vermelho-escuras e “TERMINATOR” gravado
   (I/O, VRM, dois dissipadores M.2 e chipset); slot PCIe 5.0 reforçado, 4 slots DDR5,
@@ -56,10 +59,22 @@ As texturas são desenhadas pelo próprio site (não dependem de imagens baixada
   intermediária preta, aletas de alumínio prateadas, heatpipes niquelados aparecendo
   nas bordas, backplate de metal com “ZOTAC GAMING” e passagem de ar vazada na ponta,
   suporte com 3 DisplayPort e 1 HDMI.
-- **ARCTIC P14 Pro:** moldura preta de 27 mm, 7 pás, amortecedores de borracha nos
-  cantos, braços traseiros curvados e adesivo ARCTIC no cubo.
-- **Kingston FURY Beast DDR5:** alumínio preto anodizado com “FURY” em alumínio
-  exposto, textos brancos, relevos e furos de ventilação.
+- **ARCTIC P14 Pro:** 7 pás curtas unidas por um anel nas pontas, cubo grande com
+  adesivo ARCTIC, moldura preta de 27 mm, amortecedores de borracha nos cantos e
+  4 braços traseiros.
+- **AORUS WATERFORCE II 360 ICE:** bomba branca com face espelhada (anéis de luz em
+  efeito infinito) e emblema AORUS, friso cromado, conexões giratórias; radiador
+  branco com tanques com AORUS em relevo; mangueiras com malha trançada; fans brancos ARGB.
+- **Kingston FURY Beast DDR5:** de um lado “FURY” em alumínio exposto e “Beast”;
+  do outro, a etiqueta de especificações.
+- **Corsair RM1200e:** preta fosca, grade da ventoinha com o padrão triangular da
+  Corsair e logo no centro, lateral “CORSAIR RM1200e”, etiqueta de especificações e
+  painel modular com os rótulos. Ao clicar em “Mostrar no 3D” da fonte, a tampa
+  perfurada do gabinete é ocultada para ela aparecer.
+
+**Realismo:** em “Qualidade: alta” o site calcula sombras de contato entre as peças
+(oclusão de ambiente), faz o RGB brilhar (bloom) e usa sombras mais nítidas. Se o PC
+ficar lento, clique para mudar para “Qualidade: leve”.
 
 Para a placa-mãe ficar **idêntica** ao produto, use **Peças → Placa-mãe → Usar foto
 da placa**: envie a foto oficial de cima (vista reta, recortada rente às bordas). Ela é

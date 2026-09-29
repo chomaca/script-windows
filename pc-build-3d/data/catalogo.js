@@ -32,8 +32,8 @@ window.PCB_CATALOGO = {
       pes: 20,
       paineis: {
         esquerdo: { tipo: 'vidro', espessura: 4 },
-        direito: { tipo: 'tela', espessura: 3 },
-        frente: { tipo: 'tela', espessura: 14 },
+        direito: { tipo: 'tela', espessura: 3, faixa: [0.43, 0.56], logo: 'GEOMETRIC FUTURE' },
+        frente: { tipo: 'tela', espessura: 14, rodape: 0.13, logo: 'GEOMETRIC FUTURE' },
         topo: { tipo: 'tela', espessura: 12 },
         traseira: { tipo: 'metal', espessura: 2 },
         fundo: { tipo: 'tela', espessura: 5 }
@@ -89,7 +89,7 @@ window.PCB_CATALOGO = {
       pes: 20,
       paineis: {
         esquerdo: { tipo: 'vidro', espessura: 4 },
-        direito: { tipo: 'tela', espessura: 3 },
+        direito: { tipo: 'tela', espessura: 3, faixa: [0.43, 0.56], logo: 'GEOMETRIC FUTURE' },
         frente: { tipo: 'vidro', espessura: 4 },
         topo: { tipo: 'tela', espessura: 12 },
         traseira: { tipo: 'metal', espessura: 2 },
@@ -303,6 +303,7 @@ window.PCB_CATALOGO = {
   coolers: {
     'aorus-waterforce-ii-360-ice': {
       nome: 'GIGABYTE AORUS WATERFORCE II 360 ICE',
+      estilo: 'aorus-waterforce',
       cor: '#f1f2f4',
       radiador: { comprimento: 394, largura: 119, espessura: 27 },
       bomba: { largura: 72.8, profundidade: 72.8, altura: 65.1, tela: false },
@@ -313,6 +314,7 @@ window.PCB_CATALOGO = {
     },
     'aorus-waterforce-x-ii-360-ice': {
       nome: 'GIGABYTE AORUS WATERFORCE X II 360 ICE (tela LCD)',
+      estilo: 'aorus-waterforce',
       cor: '#f1f2f4',
       radiador: { comprimento: 394, largura: 119, espessura: 27 },
       bomba: { largura: 87.6, profundidade: 87.6, altura: 77.7, tela: true },
@@ -348,13 +350,14 @@ window.PCB_CATALOGO = {
   fontes: {
     'corsair-rm1200e': {
       nome: 'Corsair RM1200e (2023)',
+      estilo: 'corsair-rme',
       potencia: 1200,
       largura: 150,
       altura: 86,
       comprimento: 150,
       cor: '#141517',
       conectoresNaLateral: false,
-      notas: 'Fonte ATX 3.1 compacta, 150 mm de comprimento.',
+      notas: 'Fonte ATX 3.1 compacta, 150 mm de comprimento. Toda preta fosca, grade da ventoinha com o padrão triangular da Corsair e logo no centro, laterais com CORSAIR e RM1200e.',
       fontes: [
         { rotulo: 'Corsair — RM1200e', url: 'https://www.corsair.com/us/en/p/psu/cp-9020258-na/rme-series-rm1200e-fully-modular-low-noise-atx-power-supply-cp-9020258-na' },
         { rotulo: 'Hardware Busters — review', url: 'https://hwbusters.com/psus/corsair-rm1200e-atx-v3-1-psu-review/' }
@@ -362,6 +365,7 @@ window.PCB_CATALOGO = {
     },
     'corsair-rm1200x-shift': {
       nome: 'Corsair RM1200x SHIFT',
+      estilo: 'corsair-rme',
       potencia: 1200,
       largura: 150,
       altura: 86,

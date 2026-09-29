@@ -28,6 +28,7 @@
         <button type="button" data-vis="cotas" aria-pressed="true">Cotas</button>
         <button type="button" data-vis="girar" aria-pressed="true">Girar fans</button>
         <label class="explodir"><span>Explodir</span><input type="range" id="explodir" min="0" max="1" step="0.01" value="0"></label>
+        <button type="button" id="qualidade" title="Alta: sombras de contato e brilho do RGB. Leve: mais rápido em PCs fracos.">Qualidade: alta</button>
         <button type="button" id="capturar">Imagem</button>
         <button type="button" id="mostrar-tudo" hidden>Mostrar peças ocultas</button>
       </div>
@@ -84,7 +85,16 @@ try {
   const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
   const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
   const { CSS2DRenderer, CSS2DObject } = await import('three/addons/renderers/CSS2DRenderer.js');
-  window.PCBApp.iniciar({ THREE, OrbitControls, RoomEnvironment, CSS2DRenderer, CSS2DObject });
+  // pós-processamento (opcional: se não carregar, o site segue sem ele)
+  const extras = {};
+  await Promise.all([
+    ['EffectComposer', 'postprocessing/EffectComposer.js'], ['RenderPass', 'postprocessing/RenderPass.js'],
+    ['GTAOPass', 'postprocessing/GTAOPass.js'], ['UnrealBloomPass', 'postprocessing/UnrealBloomPass.js'],
+    ['OutputPass', 'postprocessing/OutputPass.js']
+  ].map(async ([nome, arq]) => {
+    try { extras[nome] = (await import('three/addons/' + arq))[nome]; } catch (e) { console.warn('Sem ' + nome + ': ' + e.message); }
+  }));
+  window.PCBApp.iniciar(Object.assign({ THREE, OrbitControls, RoomEnvironment, CSS2DRenderer, CSS2DObject }, extras));
 } catch (erro) {
   window.PCBApp.falha(erro);
 }

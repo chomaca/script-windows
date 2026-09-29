@@ -9,9 +9,14 @@ window.PCBApp = (function () {
   const CHAVE = 'bancada3d.v1';
   const CAT = window.PCB_CATALOGO;
   const PADRAO = window.PCB_BUILD_PADRAO;
-  const VIS_PADRAO = { paineis: true, vidro: true, fluxo: false, cotas: true, girar: true, rgb: '#7cc8ff' };
+  const VIS_PADRAO = {
+    paineis: true, vidro: true, fluxo: false, cotas: true, girar: true, rgb: '#7cc8ff',
+    qualidade: (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'leve' : 'alta'
+  };
 
   let THREE, M, MONT, VER, OrbitControls, CSS2DRenderer, CSS2DObject, RoomEnvironment;
+  let D = {};
+  let composer = null, passoAO = null, sol = null;
   let cena, camera, renderer, controles, rotulos, grupoCotas, destaque;
   let grades = [];
   let luzInterna = null;
@@ -105,19 +110,23 @@ window.PCBApp = (function () {
     controles.maxPolarAngle = Math.PI * 0.49;
     controles.addEventListener('change', () => { precisaRender = true; });
 
-    cena.add(new THREE.HemisphereLight(0xffffff, 0x3a3f46, 0.55));
-    const sol = new THREE.DirectionalLight(0xffffff, 1.5);
+    cena.environmentIntensity = 0.85;
+    cena.add(new THREE.HemisphereLight(0xfff6ec, 0x2a2e34, 0.45));
+    sol = new THREE.DirectionalLight(0xfff4e8, 1.75);
     sol.position.set(-520, 980, 640);
     sol.castShadow = true;
     sol.shadow.mapSize.set(2048, 2048);
-    Object.assign(sol.shadow.camera, { left: -520, right: 520, top: 620, bottom: -320, near: 100, far: 2800 });
-    sol.shadow.bias = -0.0005;
-    sol.shadow.normalBias = 0.6;
+    Object.assign(sol.shadow.camera, { left: -420, right: 420, top: 560, bottom: -160, near: 200, far: 2400 });
+    sol.shadow.bias = -0.0004;
+    sol.shadow.normalBias = 0.5;
     sol.target.position.set(0, 200, 0);
     cena.add(sol, sol.target);
-    const contra = new THREE.DirectionalLight(0xdfe8ff, 0.45);
-    contra.position.set(700, 400, -700);
+    const contra = new THREE.DirectionalLight(0xd6e4ff, 0.6);
+    contra.position.set(700, 420, -700);
     cena.add(contra);
+    const recorte = new THREE.DirectionalLight(0xffffff, 0.35);
+    recorte.position.set(-200, 260, -900);
+    cena.add(recorte);
 
     const chao = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), new THREE.ShadowMaterial({ opacity: 0.2 }));
     chao.rotation.x = -Math.PI / 2;
@@ -130,7 +139,59 @@ window.PCBApp = (function () {
 
     new ResizeObserver(redimensionar).observe(el);
     redimensionar();
+    montarPosProcesso();
     ligarPonteiro();
+  }
+
+  /* Qualidade alta: oclusão de ambiente (sombras de contato), brilho do RGB e sombras mais nítidas. */
+  function montarPosProcesso() {
+    if (composer) { composer.passes.forEach((p) => p.dispose && p.dispose()); composer.dispose && composer.dispose(); }
+    composer = null;
+    passoAO = null;
+    const alta = E.vis.qualidade !== 'leve';
+    renderer.setPixelRatio(alta ? Math.min(window.devicePixelRatio || 1, 2) : 1);
+    if (sol) {
+      const tam = alta ? 4096 : 1536;
+      if (sol.shadow.mapSize.x !== tam) {
+        sol.shadow.mapSize.set(tam, tam);
+        if (sol.shadow.map) { sol.shadow.map.dispose(); sol.shadow.map = null; }
+      }
+    }
+    const b = $('#qualidade');
+    if (b) { b.textContent = 'Qualidade: ' + (alta ? 'alta' : 'leve'); b.setAttribute('aria-pressed', String(alta)); }
+    redimensionar();
+    if (!alta || !D.EffectComposer || !D.RenderPass || !D.OutputPass) return;
+    try {
+      const el = $('#vista');
+      const w = Math.max(1, el.clientWidth), h = Math.max(1, el.clientHeight);
+      const pr = renderer.getPixelRatio();
+      const alvo = new THREE.WebGLRenderTarget(w * pr, h * pr, { type: THREE.HalfFloatType, samples: 4 });
+      composer = new D.EffectComposer(renderer, alvo);
+      composer.setPixelRatio(pr);
+      composer.setSize(w, h);
+      composer.addPass(new D.RenderPass(cena, camera));
+      if (D.GTAOPass) {
+        passoAO = new D.GTAOPass(cena, camera, w, h);
+        passoAO.updateGtaoMaterial({ radius: 24, distanceExponent: 1.5, thickness: 9, scale: 1.25, samples: 16, distanceFallOff: 1 });
+        if (passoAO.updatePdMaterial) passoAO.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 16 });
+        passoAO.blendIntensity = 0.95;
+        // vidro, telas e setas não entram no cálculo da oclusão
+        const esconder = passoAO.overrideVisibility.bind(passoAO);
+        passoAO.overrideVisibility = function () {
+          esconder();
+          cena.traverse((o) => {
+            if (o.isMesh && o.material && !Array.isArray(o.material) && o.material.transparent && !o.material.isShadowMaterial) o.visible = false;
+          });
+        };
+        composer.addPass(passoAO);
+      }
+      if (D.UnrealBloomPass) composer.addPass(new D.UnrealBloomPass(new THREE.Vector2(w, h), 0.6, 0.45, 2.2));
+      composer.addPass(new D.OutputPass());
+    } catch (err) {
+      console.warn('Pós-processamento desligado:', err);
+      composer = null;
+    }
+    precisaRender = true;
   }
 
   function aplicarTema() {
@@ -154,6 +215,7 @@ window.PCBApp = (function () {
     const el = $('#vista');
     const w = Math.max(1, el.clientWidth), h = Math.max(1, el.clientHeight);
     renderer.setSize(w, h, false);
+    if (composer) composer.setSize(w, h);
     rotulos.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -389,7 +451,7 @@ window.PCBApp = (function () {
     controles.update();
     if (precisaRender) {
       precisaRender = false;
-      renderer.render(cena, camera);
+      if (composer) composer.render(); else renderer.render(cena, camera);
       rotulos.render(cena, camera);
     }
   }
@@ -443,6 +505,7 @@ window.PCBApp = (function () {
     const p = atual && atual.partes.find((x) => x.id === id);
     if (!p) return;
     if (p.id === 'gabinete') { irVista('iso'); return; }
+    if (p.id === 'fonte' && !E.ocultas.has('caixaFonte')) { E.ocultas.add('caixaFonte'); aplicarVisibilidade(); }
     const caixa = new THREE.Box3();
     for (const c of p.caixas) caixa.union(c);
     if (caixa.isEmpty()) return;
@@ -948,6 +1011,11 @@ window.PCBApp = (function () {
     }
     $('#explodir').addEventListener('input', (e) => { explodirAlvo = Number(e.target.value); });
     $('#capturar').addEventListener('click', capturar);
+    $('#qualidade').addEventListener('click', () => {
+      E.vis.qualidade = E.vis.qualidade === 'leve' ? 'alta' : 'leve';
+      salvar();
+      montarPosProcesso();
+    });
     $('#modal-imagem-baixar').addEventListener('click', baixarImagem);
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -1006,7 +1074,7 @@ window.PCBApp = (function () {
 
   let imagemAtual = null;
   function capturar() {
-    renderer.render(cena, camera);
+    if (composer) composer.render(); else renderer.render(cena, camera);
     const cv = renderer.domElement;
     $('#modal-imagem-img').src = cv.toDataURL('image/png');
     cv.toBlob((b) => { imagemAtual = b; }, 'image/png');
@@ -1030,6 +1098,7 @@ window.PCBApp = (function () {
     if (iniciou) return;
     iniciou = true;
     ({ THREE, OrbitControls, RoomEnvironment, CSS2DRenderer, CSS2DObject } = deps);
+    D = deps;
     M = window.PCBModelos(THREE);
     MONT = window.PCBMontagem(THREE, M);
     VER = window.PCBVerificacao();

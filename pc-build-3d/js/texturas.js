@@ -529,5 +529,270 @@ window.PCBTexturas = function (THREE) {
     });
   }
 
-  return { escovadoRepetivel, placaMaeTopo, placaMaeIO, memoriaLado, adesivoFan, gpuBackplate, gpuSuporte };
+
+  /* ================= superfícies genéricas ================= */
+  // Grão fino (pintura eletrostática / plástico fosco): mapa de cor + relevo, repetível.
+  function grao(cor, forca = 14, seed = 3) {
+    return memo('grao|' + cor + forca + seed, () => {
+      const c = criar(256, 256);
+      const g = c.getContext('2d');
+      g.fillStyle = cor; g.fillRect(0, 0, 256, 256);
+      granular(c, forca, seed);
+      const b = criar(256, 256);
+      const gb = b.getContext('2d');
+      gb.fillStyle = '#808080'; gb.fillRect(0, 0, 256, 256);
+      granular(b, 90, seed + 1);
+      return { map: tex(c, { repetir: true }), bump: tex(b, { cor: false, repetir: true }) };
+    });
+  }
+
+  /* Painel de aço perfurado (furos redondos em grade), com regiões sólidas.
+   * w,h em mm. solidos: [{x0,y0,x1,y1}] em mm (origem no canto superior esquerdo
+   * da face vista de fora). textos: [{s,x,y,tam}] gravados nas partes sólidas. */
+  function painelPerfurado(chave, w, h, cor, { passo = 5, furo = 3.4, borda = 6, solidos = [], textos = [] } = {}) {
+    return memo('painel|' + chave + '|' + w + '|' + h + '|' + cor, () => {
+      const S = 2048 / Math.max(w, h);
+      const c = criar(w * S, h * S);
+      const a = criar(c.width, c.height);
+      const g = c.getContext('2d');
+      const ga = a.getContext('2d');
+      g.fillStyle = cor; g.fillRect(0, 0, c.width, c.height);
+      granular(c, 12, 23);
+      ga.fillStyle = '#fff'; ga.fillRect(0, 0, a.width, a.height);
+      const dentroSolido = (x, y) => solidos.some((r) => x > r.x0 - furo && x < r.x1 + furo && y > r.y0 - furo && y < r.y1 + furo);
+      ga.fillStyle = '#000';
+      g.fillStyle = 'rgba(0,0,0,0.55)';
+      for (let y = borda + furo; y < h - borda - furo / 2; y += passo) {
+        for (let x = borda + furo; x < w - borda - furo / 2; x += passo) {
+          if (dentroSolido(x, y)) continue;
+          ga.beginPath(); ga.arc(x * S, y * S, (furo / 2) * S, 0, Math.PI * 2); ga.fill();
+          g.beginPath(); g.arc(x * S, y * S, (furo / 2 + 0.25) * S, 0, Math.PI * 2); g.fill();
+        }
+      }
+      for (const r of solidos) {
+        g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 0.6 * S;
+        g.strokeRect(r.x0 * S, r.y0 * S, (r.x1 - r.x0) * S, (r.y1 - r.y0) * S);
+      }
+      for (const t of textos) {
+        texto(g, t.s, t.x * S + 0.3 * S, t.y * S + 0.3 * S, t.tam * S, 'rgba(0,0,0,0.6)', { fonte: F_PESADA, peso: '900', alinhar: t.alinhar || 'center', espaco: (t.espaco || 0.6) * S });
+        texto(g, t.s, t.x * S, t.y * S, t.tam * S, t.cor || '#8a8f96', { fonte: F_PESADA, peso: '900', alinhar: t.alinhar || 'center', espaco: (t.espaco || 0.6) * S });
+      }
+      return { map: tex(c), alpha: tex(a, { cor: false }) };
+    });
+  }
+
+  /* ================= WATERCOOLER AORUS ================= */
+  // Face espelhada da bomba (efeito "infinito"): cor + máscara do brilho RGB.
+  function aorusEspelho() {
+    return memo('aorusEspelho', () => {
+      const N = 512, c = criar(N, N), e = criar(N, N);
+      const g = c.getContext('2d'), ge = e.getContext('2d');
+      const grd = g.createRadialGradient(N * 0.45, N * 0.4, 10, N / 2, N / 2, N / 2);
+      grd.addColorStop(0, '#2a2d33'); grd.addColorStop(1, '#07080a');
+      g.fillStyle = grd; g.fillRect(0, 0, N, N);
+      ge.fillStyle = '#000'; ge.fillRect(0, 0, N, N);
+      // anéis refletidos que somem para o centro
+      for (let i = 0; i < 7; i++) {
+        const r = N * (0.46 - i * 0.045);
+        const alfa = Math.pow(0.62, i);
+        ge.beginPath(); ge.arc(N / 2, N / 2, r, 0, Math.PI * 2);
+        ge.strokeStyle = 'rgba(255,255,255,' + alfa.toFixed(3) + ')'; ge.lineWidth = N * 0.018 * (1 - i * 0.1); ge.stroke();
+        g.beginPath(); g.arc(N / 2, N / 2, r, 0, Math.PI * 2);
+        g.strokeStyle = 'rgba(180,200,220,' + (alfa * 0.25).toFixed(3) + ')'; g.lineWidth = N * 0.012; g.stroke();
+      }
+      // emblema: asas estilizadas + AORUS
+      g.save(); g.translate(N / 2, N * 0.47);
+      const asa = (lado) => {
+        g.beginPath(); g.moveTo(0, -N * 0.02);
+        g.quadraticCurveTo(lado * N * 0.09, -N * 0.12, lado * N * 0.17, -N * 0.1);
+        g.quadraticCurveTo(lado * N * 0.1, -N * 0.05, lado * N * 0.03, N * 0.05);
+        g.closePath();
+        const gg = g.createLinearGradient(0, -N * 0.12, 0, N * 0.05);
+        gg.addColorStop(0, '#f2f4f6'); gg.addColorStop(1, '#9ea4ab');
+        g.fillStyle = gg; g.fill();
+      };
+      asa(1); asa(-1);
+      g.restore();
+      texto(g, 'AORUS', N / 2, N * 0.62, N * 0.075, '#dfe3e7', { fonte: F_PESADA, peso: '900', alinhar: 'center', espaco: N * 0.012 });
+      return { map: tex(c), emissive: tex(e) };
+    });
+  }
+
+  function aorusTanque(w, h) {
+    return memo('aorusTanque|' + w + '|' + h, () => {
+      const S = 12, c = criar(w * S, h * S), b = criar(w * S, h * S);
+      const g = c.getContext('2d'), gb = b.getContext('2d');
+      g.fillStyle = '#eef0f2'; g.fillRect(0, 0, c.width, c.height);
+      granular(c, 7, 29);
+      gb.fillStyle = '#707070'; gb.fillRect(0, 0, b.width, b.height);
+      const cx = c.width / 2, cy = c.height / 2;
+      const tam = Math.min(w * 0.55, h * 0.16) * S;
+      texto(g, 'AORUS', cx, cy, tam, '#c5c9ce', { fonte: F_PESADA, peso: '900', alinhar: 'center', rot: -Math.PI / 2, espaco: tam * 0.15 });
+      texto(gb, 'AORUS', cx, cy, tam, '#d8d8d8', { fonte: F_PESADA, peso: '900', alinhar: 'center', rot: -Math.PI / 2, espaco: tam * 0.15 });
+      return { map: tex(c), bump: tex(b, { cor: false }) };
+    });
+  }
+
+  function aletasRadiador(cor, fenda) {
+    return memo('aletasRad2|' + cor + fenda, () => {
+      const c = criar(64, 16);
+      const g = c.getContext('2d');
+      g.fillStyle = cor; g.fillRect(0, 0, 64, 16);
+      for (let x = 0; x < 64; x += 4) { g.fillStyle = fenda; g.fillRect(x + 2.6, 0, 1.4, 16); }
+      g.fillStyle = 'rgba(0,0,0,0.25)';
+      for (let y = 0; y < 16; y += 8) g.fillRect(0, y, 64, 1.2);
+      return tex(c, { repetir: true });
+    });
+  }
+
+  // Malha trançada da mangueira (repetível; u ao longo do tubo).
+  function trancado(cor) {
+    return memo('trancado|' + cor, () => {
+      const c = criar(128, 128), b = criar(128, 128);
+      const g = c.getContext('2d'), gb = b.getContext('2d');
+      g.fillStyle = cor; g.fillRect(0, 0, 128, 128);
+      gb.fillStyle = '#808080'; gb.fillRect(0, 0, 128, 128);
+      // fios em duas direções, alternando por cima e por baixo
+      for (let d = 0; d < 2; d++) {
+        for (let i = -128; i < 256; i += 10) {
+          const x0 = d ? i + 128 : i, x1 = d ? i : i + 128;
+          g.strokeStyle = 'rgba(0,0,0,0.32)'; g.lineWidth = 4.5;
+          g.beginPath(); g.moveTo(x0, 0); g.lineTo(x1, 128); g.stroke();
+          g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2;
+          g.beginPath(); g.moveTo(x0 + 1, 0); g.lineTo(x1 + 1, 128); g.stroke();
+          gb.strokeStyle = '#202020'; gb.lineWidth = 4.5;
+          gb.beginPath(); gb.moveTo(x0, 0); gb.lineTo(x1, 128); gb.stroke();
+          gb.strokeStyle = '#e8e8e8'; gb.lineWidth = 2;
+          gb.beginPath(); gb.moveTo(x0 + 1, 0); gb.lineTo(x1 + 1, 128); gb.stroke();
+        }
+      }
+      granular(c, 10, 71);
+      return { map: tex(c, { repetir: true }), bump: tex(b, { cor: false, repetir: true }) };
+    });
+  }
+
+  /* ================= MEMÓRIA — lado da etiqueta ================= */
+  function memoriaEtiqueta(spec) {
+    const branca = /eef|f2f|fff/i.test(spec.cor);
+    return memo('ramEtq|' + spec.nome + spec.altura + spec.cor, () => {
+      const L = spec.comprimento, H = spec.altura, S = 1024 / L;
+      const c = criar(L * S, H * S);
+      const g = c.getContext('2d');
+      escovar(g, 0, 0, c.width, c.height, branca ? '#e9ebee' : '#141416', 0.035, true, 37);
+      // etiqueta de especificações
+      const ex = L * 0.34, ey = H * 0.24, ew = L * 0.4, eh = H * 0.56;
+      g.fillStyle = '#f4f4f2'; retArr(g, ex * S, ey * S, ew * S, eh * S, 0.8 * S); g.fill();
+      const tinta = '#1b1c1e';
+      texto(g, 'KF560C36BBE-32', (ex + 2) * S, (ey + eh * 0.2) * S, 2.3 * S, tinta, { peso: '800' });
+      texto(g, '32GB 2Rx8 4G x 64-Bit PC5-6000', (ex + 2) * S, (ey + eh * 0.42) * S, 1.5 * S, tinta, { peso: '600' });
+      texto(g, 'CL36-38-38 1.35V', (ex + 2) * S, (ey + eh * 0.6) * S, 1.5 * S, tinta, { peso: '600' });
+      for (let i = 0; i < 38; i++) { const bw = (0.2 + ((i * 7) % 5) * 0.12) * S; g.fillStyle = tinta; g.fillRect((ex + 2 + i * 0.75) * S, (ey + eh * 0.72) * S, bw, eh * 0.2 * S); }
+      texto(g, 'ASSEMBLED IN TAIWAN', (ex + ew - 2) * S, (ey + eh * 0.2) * S, 1.2 * S, '#55585d', { peso: '700', alinhar: 'right' });
+      texto(g, 'Kingston', 7 * S, H * 0.2 * S, 2.6 * S, branca ? '#2a2c30' : '#f1f2f4', { peso: '700' });
+      texto(g, 'DDR5', (L - 6) * S, H * 0.2 * S, 2.8 * S, branca ? '#2a2c30' : '#f1f2f4', { peso: '800', alinhar: 'right' });
+      granular(c, 6, 19);
+      return tex(c);
+    });
+  }
+
+  /* ================= FONTE CORSAIR RMe ================= */
+  // Topo: grade com o padrão triangular/"Y" da Corsair, ventoinha aparecendo por baixo e logo no centro.
+  function corsairGrade(w, l) {
+    return memo('corsairGrade|' + w + '|' + l, () => {
+      const S = 1024 / Math.max(w, l), c = criar(w * S, l * S);
+      const g = c.getContext('2d');
+      const cx = c.width / 2, cy = c.height / 2, R = Math.min(w, l) * 0.45 * S;
+      escovar(g, 0, 0, c.width, c.height, '#161719', 0.03, true, 43);
+      // ventoinha escura por baixo
+      g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
+      g.fillStyle = '#050506'; g.fillRect(0, 0, c.width, c.height);
+      for (let i = 0; i < 9; i++) {
+        g.save(); g.translate(cx, cy); g.rotate(i * Math.PI * 2 / 9);
+        g.beginPath(); g.moveTo(R * 0.22, -R * 0.05); g.quadraticCurveTo(R * 0.6, -R * 0.35, R * 0.98, -R * 0.12); g.lineTo(R * 0.98, R * 0.1); g.quadraticCurveTo(R * 0.6, -R * 0.05, R * 0.22, R * 0.08); g.closePath();
+        g.fillStyle = '#26272b'; g.fill(); g.restore();
+      }
+      g.restore();
+      // grade (camada separada): chapa com triângulos vazados em padrão Y
+      const cg = criar(c.width, c.height);
+      const gg = cg.getContext('2d');
+      gg.beginPath(); gg.arc(cx, cy, R, 0, Math.PI * 2); gg.fillStyle = '#18191b'; gg.fill();
+      gg.globalCompositeOperation = 'destination-out';
+      const passo = 5.2 * S;
+      for (let y = 0, lin = 0; y < c.height + passo; y += passo * 0.866, lin++) {
+        for (let x = (lin % 2) * passo / 2; x < c.width + passo; x += passo) {
+          const d = Math.hypot(x - cx, y - cy);
+          if (d > R - 2 * S || d < R * 0.22) continue;
+          const t = passo * 0.38, inv = lin % 2 ? -1 : 1;
+          gg.beginPath(); gg.moveTo(x, y - t * inv); gg.lineTo(x + t * 0.87, y + t * 0.5 * inv); gg.lineTo(x - t * 0.87, y + t * 0.5 * inv); gg.closePath(); gg.fill();
+        }
+      }
+      g.drawImage(cg, 0, 0);
+      // aro e logo no centro
+      g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.strokeStyle = '#26282b'; g.lineWidth = 2.2 * S; g.stroke();
+      g.beginPath(); g.arc(cx, cy, R * 0.2, 0, Math.PI * 2); g.fillStyle = '#131416'; g.fill();
+      g.save(); g.translate(cx, cy);
+      for (let i = 0; i < 3; i++) {
+        g.beginPath();
+        g.moveTo(-R * 0.1 + i * R * 0.045, R * 0.08);
+        g.quadraticCurveTo(-R * 0.02 + i * R * 0.05, -R * 0.02, R * 0.08 + i * R * 0.02, -R * 0.12 + i * R * 0.03);
+        g.lineWidth = R * 0.022; g.strokeStyle = '#e9ebee'; g.stroke();
+      }
+      g.restore();
+      granular(c, 6, 47);
+      return tex(c);
+    });
+  }
+
+  function corsairLateral(w, h, spec) {
+    return memo('corsairLat|' + w + '|' + h + spec.nome, () => {
+      const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
+      const g = c.getContext('2d');
+      escovar(g, 0, 0, c.width, c.height, '#151618', 0.025, true, 53);
+      granular(c, 9, 59);
+      const modelo = (spec.nome.match(/RM\d+\w*/) || ['RM'])[0];
+      texto(g, 'CORSAIR', 12 * S, h * 0.36 * S, h * 0.14 * S, '#e8eaed', { fonte: F_PESADA, peso: '900', espaco: 2.4 * S });
+      texto(g, modelo, 12 * S, h * 0.62 * S, h * 0.2 * S, '#d5d8dc', { fonte: F_PESADA, peso: '900' });
+      texto(g, 'RMe SERIES  ·  80 PLUS GOLD', 12 * S, h * 0.8 * S, h * 0.06 * S, '#8c9097', { peso: '700', espaco: 0.8 * S });
+      g.fillStyle = '#e8eaed'; g.fillRect((w - 14) * S, h * 0.25 * S, 1.2 * S, h * 0.5 * S);
+      return tex(c);
+    });
+  }
+
+  function corsairEspecificacao(w, h, spec) {
+    return memo('corsairEsp|' + w + '|' + h + spec.nome, () => {
+      const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
+      const g = c.getContext('2d');
+      escovar(g, 0, 0, c.width, c.height, '#151618', 0.025, true, 61);
+      const ex = w * 0.08, ey = h * 0.12, ew = w * 0.84, eh = h * 0.76;
+      g.fillStyle = '#d9dbdf'; retArr(g, ex * S, ey * S, ew * S, eh * S, 1.2 * S); g.fill();
+      texto(g, 'CORSAIR ' + (spec.nome.match(/RM\d+\w*/) || [''])[0], (ex + 4) * S, (ey + 8) * S, 5 * S, '#1b1c1e', { fonte: F_PESADA, peso: '900' });
+      const linhas = ['AC INPUT 100-240V~ 15A 50-60Hz', 'DC OUTPUT  +3.3V 25A  +5V 25A  +12V 100A', 'MAX COMBINED WATTAGE ' + spec.potencia + 'W', 'ATX 3.1 · PCIe 5.1 READY'];
+      linhas.forEach((t, i) => texto(g, t, (ex + 4) * S, (ey + 18 + i * 7.5) * S, 3 * S, '#2a2c30', { peso: '700' }));
+      g.strokeStyle = '#2a2c30'; g.lineWidth = 0.4 * S;
+      for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo((ex + 4) * S, (ey + 21.5 + i * 7.5) * S); g.lineTo((ex + ew - 4) * S, (ey + 21.5 + i * 7.5) * S); g.stroke(); }
+      g.fillStyle = '#1b1c1e'; retArr(g, (ex + ew - 30) * S, (ey + eh - 24) * S, 24 * S, 18 * S, 2 * S); g.fill();
+      texto(g, '80 PLUS', (ex + ew - 18) * S, (ey + eh - 18) * S, 3.4 * S, '#e0c16b', { peso: '900', alinhar: 'center' });
+      texto(g, 'GOLD', (ex + ew - 18) * S, (ey + eh - 11) * S, 3.4 * S, '#e0c16b', { peso: '900', alinhar: 'center' });
+      return tex(c);
+    });
+  }
+
+  function corsairModular(w, h) {
+    return memo('corsairMod|' + w + '|' + h, () => {
+      const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
+      const g = c.getContext('2d');
+      escovar(g, 0, 0, c.width, c.height, '#131416', 0.025, true, 67);
+      const rot = [['12V-2x6', 18, 16], ['PCIe & CPU', 18, 38], ['PCIe & CPU', 66, 38], ['24-PIN ATX', 90, 16], ['SATA / PERIPHERAL', 90, 60]];
+      for (const [t, x, y] of rot) texto(g, t, x * S, (h - y) * S, 2.8 * S, '#d8dbdf', { peso: '800', alinhar: 'left' });
+      g.strokeStyle = 'rgba(216,219,223,0.5)'; g.lineWidth = 0.4 * S;
+      g.strokeRect(6 * S, 6 * S, (w - 12) * S, (h - 12) * S);
+      return tex(c);
+    });
+  }
+
+  return {
+    escovadoRepetivel, placaMaeTopo, placaMaeIO, memoriaLado, adesivoFan, gpuBackplate, gpuSuporte,
+    grao, painelPerfurado, aorusEspelho, aorusTanque, aletasRadiador, trancado, memoriaEtiqueta,
+    corsairGrade, corsairLateral, corsairEspecificacao, corsairModular
+  };
 };

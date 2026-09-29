@@ -197,7 +197,7 @@ window.PCBMontagem = function (THREE, M) {
     const zonaRadId = cfgC.local;
     const zonaRad = G.montagens[zonaRadId];
     const bombaPos = mbPonto(MB.soquete.x, MB.soquete.y, 9);
-    const bomba = M.bomba(CL.bomba, CL.cor, rgb);
+    const bomba = M.bomba(CL.bomba, CL.cor, rgb, CL.estilo);
     orientar(bomba, vdir('frente'), vdir('cima'), vdir('esquerda'), bombaPos, 'y');
     registrar('bomba', 'Bomba — ' + CL.nome, 'Watercooler', bomba, {
       ignora: ['placaMae'],
@@ -218,7 +218,7 @@ window.PCBMontagem = function (THREE, M) {
       const Tr = CL.radiador.espessura, Tf = R.coolerFan.espessura;
       const naFrente = cfgC.fansPosicao === 'painel';
       const radOff = naFrente ? Tf : 0, fanOff = naFrente ? 0 : Tr;
-      const rad = M.radiador(CL.radiador, CL.cor, R.coolerFan.tamanho);
+      const rad = M.radiador(CL.radiador, CL.cor, R.coolerFan.tamanho, CL.estilo);
       const sentido = (Number(cfgC.tubos) || 1) >= 0 ? 1 : -1;
       const radX = a.clone().multiplyScalar(sentido);
       orientar(rad, radX, new THREE.Vector3().crossVectors(k, radX), k, c.clone().addScaledVector(k, radOff + Tr / 2), 'y');
@@ -255,7 +255,7 @@ window.PCBMontagem = function (THREE, M) {
         const p3 = B.pos.clone().addScaledVector(B.dir, 45);
         const meio = p1.clone().lerp(p3, 0.5);
         meio.x = Math.min(meio.x, faceX - 60 - i * 14);
-        tubos.add(M.tubo([A.pos, p1, meio, p3, B.pos], 6.2, CL.cor));
+        tubos.add(M.tubo([A.pos, p1, meio, p3, B.pos], 6.2, CL.cor, null, CL.cor));
       }
       registrar('tubos', 'Mangueiras — ' + CL.nome, 'Watercooler', tubos, { colide: false, info: { notas: 'Traçado ilustrativo das mangueiras.' } });
       radInfo = { zona: zonaRadId, classe, deslocamento: desloc, folgaEixo };
@@ -463,6 +463,13 @@ window.PCBMontagem = function (THREE, M) {
       bandejaMundoX: bandejaX,
       caixaFonte: { box: caixaFonte, faces: facesFonte }
     });
+    const pCaixa = partes.find((p) => p.id === 'caixaFonte');
+    if (pCaixa && caso.caixaFonte) {
+      pCaixa.obj = caso.caixaFonte;
+      caso.caixaFonte.traverse((o) => { o.userData.parteId = 'caixaFonte'; });
+      raiz.add(caso.caixaFonte);
+      pCaixa.info = { notas: 'Chapa perfurada que cobre a fonte no canto frontal superior. Use “Ocultar” para ver a fonte.' };
+    }
     registrar('gabinete', G.nome, 'Gabinete', caso.grupo, {
       colide: false,
       info: {
