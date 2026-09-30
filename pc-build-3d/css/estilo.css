@@ -643,6 +643,32 @@ details.peca[open] .peca-seta { transform: rotate(90deg); }
 .acoes-zona { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .acoes-zona .botao { padding: 4px 9px; font-size: 12px; }
 
+/* ------------------------------------------------ fotos reais */
+details.fotos-reais { border-top: 1px dashed var(--linha); padding-top: 8px; }
+details.fotos-reais summary { cursor: pointer; font-size: 13px; font-weight: 500; color: var(--tinta-2); display: flex; align-items: center; gap: 8px; }
+details.fotos-reais[open] summary { margin-bottom: 8px; }
+details.fotos-reais > .nota { margin-bottom: 8px; }
+.cartao > details.fotos-reais { border-top: 0; padding-top: 0; }
+details.fotos-reais.piscar { animation: piscar 1.5s ease-out; border-radius: 8px; }
+@keyframes piscar { 0%, 40% { box-shadow: 0 0 0 2px var(--acento); } 100% { box-shadow: 0 0 0 2px transparent; } }
+.lista-fotos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.foto-item { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 8px; border-radius: 9px; background: var(--superficie-2); }
+.foto-item.tem { outline: 1px solid color-mix(in srgb, var(--ok) 45%, transparent); }
+.foto-mini { width: 56px; height: 42px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--fundo); color: var(--tinta-3); grid-row: span 2; }
+.foto-mini.redonda { width: 42px; height: 42px; border-radius: 50%; justify-self: center; }
+.foto-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.foto-texto { display: grid; gap: 1px; min-width: 0; }
+.foto-texto strong { font-size: 12.5px; font-weight: 600; }
+.foto-texto span { font-size: 11.5px; color: var(--tinta-2); line-height: 1.35; }
+.foto-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.foto-acoes .botao { padding: 4px 9px; font-size: 12px; }
+.enquadrar .enq-area { border-radius: 10px; overflow: hidden; background: #0d0f12; touch-action: none; }
+.enquadrar canvas { display: block; width: 100%; cursor: grab; touch-action: none; }
+.enquadrar canvas:active { cursor: grabbing; }
+.enq-controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.enq-zoom { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; font-size: 13px; color: var(--tinta-2); }
+.enq-zoom input { flex: 1; }
+
 /* ------------------------------------------------ salvas */
 .nova-salva { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .nova-salva input { border: 1px solid var(--linha); background: var(--fundo); border-radius: 8px; padding: 7px 9px; min-width: 0; }

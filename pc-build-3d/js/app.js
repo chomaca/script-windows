@@ -17,7 +17,7 @@ window.PCBApp = (function () {
   };
   const TONS = { neutro: 'NeutralToneMapping', aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping' };
 
-  let THREE, M, MONT, VER, AMB, SIM, HIST, OrbitControls, CSS2DRenderer, CSS2DObject;
+  let THREE, M, MONT, VER, AMB, SIM, HIST, FOT, OrbitControls, CSS2DRenderer, CSS2DObject;
   let D = {};
   let composer = null, passoAO = null, sol = null, reflexo = null, sombraContato = null, chao = null;
   let cena, camera, renderer, controles, rotulos, grupoCotas, grupoVagas, grupoMedidas, destaque;
@@ -323,7 +323,7 @@ window.PCBApp = (function () {
       if (atual.sim) { cena.remove(atual.sim.objeto); atual.sim.descartar(); }
     }
     try {
-      atual = MONT.montar(E.build, CAT, { rgb: E.vis.rgb, fotos });
+      atual = MONT.montar(E.build, CAT, { rgb: E.vis.rgb, fotos: fotosProntas(MONT.resolver(E.build, CAT)) });
     } catch (err) {
       console.error(err);
       atual = null;
@@ -861,49 +861,95 @@ window.PCBApp = (function () {
     if (atual && E.vis.ar) criarSimulacao();
   }
 
-  /* ---------- foto real do topo da placa-mãe (guardada no navegador) ---------- */
-  const fotos = {};
-  function abrirBanco() {
-    return new Promise((ok, erro) => {
-      try {
-        const req = indexedDB.open('bancada3d', 1);
-        req.onupgradeneeded = () => req.result.createObjectStore('fotos');
-        req.onsuccess = () => ok(req.result);
-        req.onerror = () => erro(req.error);
-      } catch (e) { erro(e); }
-    });
+  /* ---------- fotos reais das peças (ficam só neste navegador) ---------- */
+  const fotosOrig = {};   // chave -> { img, blob, params }
+  const recortes = {};    // chave -> { assinatura, canvas, mini }
+  const idsFans = () => {
+    const s = new Set();
+    for (const z of Object.values(E.build.fans || {})) for (const f of (z && z.vagas) || []) if (f && CAT.fans[f]) s.add(f);
+    return Array.from(s);
+  };
+  /* Vagas de foto da montagem atual, com a proporção de cada face. */
+  function vagasDeFoto(R) {
+    const ids = R.ids, b = E.build;
+    const gl = b.gpu.modo !== 'original' ? R.gpu.deshroud : R.gpu;
+    const face = Math.max(1, gl.altura - 9);
+    const L = [
+      { secao: 'placaMae', slot: 'mb-topo', modelo: ids.placaMae, prop: R.placaMae.largura / R.placaMae.altura, produto: R.placaMae },
+      { secao: 'memoria', slot: 'memoria-lado', modelo: ids.memoria, prop: R.memoria.comprimento / R.memoria.altura, produto: R.memoria },
+      { secao: 'cooler', slot: 'bomba-topo', modelo: ids.cooler, prop: R.cooler.bomba.largura / R.cooler.bomba.profundidade, produto: R.cooler },
+      { secao: 'cooler', slot: 'fan-cubo', modelo: ids.coolerFan, prop: 1, produto: R.coolerFan },
+      { secao: 'gpu', slot: 'gpu-frente', modelo: ids.gpu, prop: gl.comprimento / face, produto: R.gpu },
+      { secao: 'gpu', slot: 'gpu-borda', modelo: ids.gpu, prop: gl.comprimento / gl.espessura, produto: R.gpu },
+      { secao: 'gpu', slot: 'gpu-backplate', modelo: ids.gpu, prop: gl.comprimento / face, produto: R.gpu },
+      { secao: 'fonte', slot: 'fonte-lado', modelo: ids.fonte, prop: R.fonte.comprimento / R.fonte.altura, produto: R.fonte }
+    ];
+    if (b.gpu.modo !== 'original') L.push({ secao: 'gpu', slot: 'fan-cubo', modelo: ids.gpuFan, prop: 1, produto: R.gpuFan });
+    for (const f of idsFans()) L.push({ secao: 'fans', slot: 'fan-cubo', modelo: f, prop: 1, produto: CAT.fans[f] });
+    for (const v of L) v.chave = FOT.chave(v.slot, v.modelo);
+    return L;
   }
-  async function bancoOp(modo, fn) {
-    const db = await abrirBanco();
-    return new Promise((ok, erro) => {
-      const tx = db.transaction('fotos', modo);
-      const req = fn(tx.objectStore('fotos'));
-      tx.oncomplete = () => ok(req && req.result);
-      tx.onerror = () => erro(tx.error);
-    });
+  function recorte(chave, prop) {
+    const o = fotosOrig[chave];
+    if (!o) return null;
+    const assinatura = prop.toFixed(4) + JSON.stringify(o.params);
+    const r = recortes[chave];
+    if (r && r.assinatura === assinatura) return r;
+    if (r) M.liberarFoto(r.canvas);
+    const canvas = FOT.recortar(o.img, o.params, prop, FOT.SLOTS[chave.split('|')[0]] && chave.startsWith('fan-cubo') ? 768 : 1536);
+    let mini = null;
+    try {
+      const c = document.createElement('canvas');
+      const k = Math.min(1, 96 / Math.max(canvas.width, canvas.height));
+      c.width = Math.max(2, Math.round(canvas.width * k)); c.height = Math.max(2, Math.round(canvas.height * k));
+      c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+      mini = c.toDataURL('image/jpeg', 0.75);
+    } catch (e) { /* sem miniatura */ }
+    return (recortes[chave] = { assinatura, canvas, mini });
   }
-  const fotoLer = (id) => bancoOp('readonly', (st) => st.get(id)).catch(() => null);
-  const fotoGravar = (id, blob) => bancoOp('readwrite', (st) => st.put(blob, id)).catch(() => null);
-  const fotoApagar = (id) => bancoOp('readwrite', (st) => st.delete(id)).catch(() => null);
-  function carregarImagem(blob) {
-    return new Promise((ok, erro) => {
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => ok(img);
-      img.onerror = () => { URL.revokeObjectURL(url); erro(new Error('Não consegui abrir essa imagem.')); };
-      img.src = url;
-    });
+  function fotosProntas(R) {
+    const out = {};
+    for (const v of vagasDeFoto(R)) {
+      if (out[v.chave]) continue;
+      const r = recorte(v.chave, v.prop);
+      if (r) out[v.chave] = r.canvas;
+    }
+    return out;
   }
-  async function prepararFoto(id) {
-    if (!id || id in fotos) return false;
-    fotos[id] = null;
-    const blob = await fotoLer(id);
-    if (!blob) return false;
-    try { fotos[id] = await carregarImagem(blob); return true; } catch (e) { return false; }
+  async function carregarFotos() {
+    let n = 0;
+    for (const k of await FOT.chaves()) {
+      const v = await FOT.ler(k);
+      if (!v || !v.blob) continue;
+      try { fotosOrig[k] = { img: await FOT.imagem(v.blob), blob: v.blob, params: v.params }; n++; } catch (e) { /* foto ilegível */ }
+    }
+    if (n) { reconstruir(); renderAba(); }
   }
-  function aoPrepararFoto(id) {
-    prepararFoto(id).then((achou) => { if (achou) { reconstruir(); renderAba(); } });
+  function trocarFoto(k, v) {
+    if (recortes[k]) { M.liberarFoto(recortes[k].canvas); delete recortes[k]; }
+    if (v) fotosOrig[k] = v; else delete fotosOrig[k];
+    reconstruir();
+    renderAba();
   }
+  async function editarFoto(slot, modelo, prop, arq) {
+    const S = FOT.SLOTS[slot];
+    const k = FOT.chave(slot, modelo);
+    let img, blob, params = null;
+    if (arq) {
+      try { img = await FOT.imagem(arq); } catch (e) { toast(e.message, { tipo: 'erro' }); return; }
+      blob = arq;
+    } else {
+      const o = fotosOrig[k];
+      if (!o) return;
+      img = o.img; blob = o.blob; params = o.params || FOT.paramsPadrao(img, prop);
+    }
+    const res = await FOT.editar(img, { titulo: S.rotulo, dica: S.dica, prop, forma: S.forma, params });
+    if (!res) return;
+    await FOT.gravar(k, blob, res);
+    trocarFoto(k, { img, blob, params: res });
+    toast(arq ? 'Foto aplicada: ' + S.rotulo.toLowerCase() + '.' : 'Enquadramento atualizado.');
+  }
+
 
   /* ============================== interface ============================== */
   function opcoes(colecao, sel, filtro) {
@@ -970,18 +1016,33 @@ window.PCBApp = (function () {
       '</details>';
   }
 
-  function blocoFoto(id, spec) {
-    const tem = !!fotos[id];
-    const nota = tem
-      ? 'Usando a sua foto no topo da placa e de cada dissipador.'
-      : (spec.estilo === 'maxsun-terminator'
-        ? 'Desenho baseado na MAXSUN branca: PCB preto e armadura prata-branca jateada e escovada com linhas vermelho-escuras.'
-        : 'Desenho genérico.') + ' Para ficar idêntica, envie a foto oficial de cima da placa, reta e recortada rente às bordas.';
-    return '<div class="campo"><span class="rotulo">Acabamento do topo</span><div class="acoes">' +
-      '<label class="botao" for="foto-mb">' + (tem ? 'Trocar foto' : 'Usar foto da placa') + '</label>' +
-      '<input type="file" id="foto-mb" accept="image/*" hidden>' +
-      (tem ? '<button type="button" class="botao" id="foto-mb-remover">Voltar ao desenho</button>' : '') +
-      '</div><p class="nota" id="foto-mb-msg">' + esc(nota) + '</p></div>';
+  let idFoto = 0;
+  function blocoFotos(secao) {
+    const R = atual ? atual.R : MONT.resolver(E.build, CAT);
+    const lista = vagasDeFoto(R).filter((v) => v.secao === secao);
+    if (!lista.length) return '';
+    const vistos = new Set();
+    const itens = lista.filter((v) => (vistos.has(v.chave) ? false : vistos.add(v.chave))).map((v) => {
+      const S = FOT.SLOTS[v.slot];
+      const tem = !!fotosOrig[v.chave];
+      const r = tem ? recorte(v.chave, v.prop) : null;
+      const id = 'ff-' + (++idFoto);
+      const nome = v.slot === 'fan-cubo' ? S.rotulo + ' — ' + curto(v.produto && v.produto.nome) : S.rotulo;
+      const dados = ' data-slot="' + v.slot + '" data-modelo="' + esc(v.modelo) + '" data-prop="' + v.prop + '"';
+      return '<li class="foto-item' + (tem ? ' tem' : '') + '">' +
+        '<div class="foto-mini' + (S.forma === 'circulo' ? ' redonda' : '') + '">' + (r && r.mini ? '<img src="' + r.mini + '" alt="">' : '<svg class="ic"><use href="#i-camera"/></svg>') + '</div>' +
+        '<div class="foto-texto"><strong>' + esc(nome) + '</strong><span>' + esc(S.dica) + '</span></div>' +
+        '<div class="foto-acoes"><label class="botao' + (tem ? '' : ' botao-forte') + '" for="' + id + '">' + (tem ? 'Trocar' : 'Enviar foto') + '</label>' +
+        '<input type="file" id="' + id + '" accept="image/*" hidden data-foto-enviar' + dados + '>' +
+        (tem ? '<button type="button" class="botao" data-foto-ajustar' + dados + '>Ajustar</button><button type="button" class="botao" data-foto-remover' + dados + '>Remover</button>' : '') +
+        '</div></li>';
+    });
+    const n = lista.filter((v) => fotosOrig[v.chave]).length;
+    const fonte = lista.map((v) => v.produto && (v.produto.fontes || [])[0]).find(Boolean);
+    const aberto = E.abertas.has('fotos:' + secao);
+    return '<details class="fotos-reais" data-fotos="' + secao + '"' + (aberto ? ' open' : '') + '><summary>Fotos reais' + (n ? ' <span class="etiqueta">' + n + ' em uso</span>' : '') + '</summary>' +
+      '<p class="nota">Para ficar idêntico ao produto, com os logos, use fotos oficiais' + (fonte ? ' (<a href="' + esc(fonte.url) + '" target="_blank" rel="noopener">página do produto</a>)' : '') + '. Você enquadra e a foto vira a textura dessa parte no 3D. Ela fica só neste navegador.</p>' +
+      '<ul class="lista-fotos">' + itens.join('') + '</ul></details>';
   }
 
   /* ---------- seções (peças agrupadas) e o estado de cada uma ---------- */
@@ -1087,13 +1148,14 @@ window.PCBApp = (function () {
       cartaoPeca(S.placaMae, R.placaMae.nome, R.placaMae.formato + ' · ' + R.placaMae.largura + ' × ' + R.placaMae.altura + ' mm · ' + R.cpu.nome, est.placaMae, itens.placaMae, [
         campoSelect('s-mb', 'placaMae.modelo', 'Modelo', opcoes(CAT.placasMae, b.placaMae.modelo)),
         campoSelect('s-cpu', 'cpu.modelo', 'Processador (para estimar o consumo)', opcoes(CAT.cpus, b.cpu.modelo)),
-        blocoFoto(R.ids.placaMae, R.placaMae),
+        blocoFotos('placaMae'),
         blocoMedidas('placaMae', R.ids.placaMae)
       ].join('')),
 
       cartaoPeca(S.memoria, q + '× ' + R.memoria.nome, R.memoria.capacidade * q + ' GB · ' + fmt(R.memoria.altura) + ' mm de altura', est.memoria, itens.memoria, [
         campoSelect('s-ram', 'memoria.modelo', 'Modelo', opcoes(CAT.memorias, b.memoria.modelo)),
         campoSeg('Quantidade de pentes', seg('memoria.quantidade', b.memoria.quantidade, [[1, '1'], [2, '2'], [4, '4']], 'Quantidade de pentes', true)),
+        blocoFotos('memoria'),
         blocoMedidas('memoria', R.ids.memoria)
       ].join('')),
 
@@ -1105,13 +1167,14 @@ window.PCBApp = (function () {
         campoSeg('Fans do radiador', seg('refrigeracao.fansPosicao', b.refrigeracao.fansPosicao, [['dentro', 'Entre radiador e placa'], ['painel', 'Colados no painel']], 'Posição dos fans do radiador')),
         campoSeg('Mangueiras saem', seg('refrigeracao.tubos', b.refrigeracao.tubos, tubosItens, 'Lado das mangueiras', true)),
         slider('r-aio-desl', 'refrigeracao.deslocamento', Math.max(-lim, Math.min(lim, b.refrigeracao.deslocamento || 0)), -lim, lim, 1, 'Deslocar o radiador ao longo da posição'),
+        blocoFotos('cooler'),
         blocoMedidas('cooler', R.ids.cooler)
       ].join('')),
 
       cartaoPeca(S.gpu, R.gpu.nome, (gm ? fmt(gm.comprimento) + ' × ' + fmt(gm.altura) + ' × ' + fmt(gm.espessura) + ' mm · ' : '') + (vertical ? 'vertical' : 'horizontal') + (deshroud ? ', sem shroud' : ''), est.gpu, itens.gpu, [
         campoSelect('s-gpu', 'gpu.modelo', 'Modelo', opcoes(CAT.gpus, b.gpu.modelo)),
-        campoSeg('Cooler', seg('gpu.modo', b.gpu.modo, [['deshroud', 'Sem shroud (fans presos)'], ['original', 'Original, com shroud']], 'Cooler da placa de vídeo')),
-        campoSeg('Montagem', seg('gpu.orientacao', b.gpu.orientacao, [['vertical', 'Vertical (riser)'], ['horizontal', 'Horizontal (no slot)']], 'Orientação da placa de vídeo')),
+        campoSeg('Cooler', seg('gpu.modo', b.gpu.modo, [['deshroud', 'Sem shroud'], ['original', 'Com shroud']], 'Cooler da placa de vídeo')),
+        campoSeg('Montagem', seg('gpu.orientacao', b.gpu.orientacao, [['vertical', 'Vertical (riser)'], ['horizontal', 'Horizontal']], 'Orientação da placa de vídeo')),
         vertical ? slider('r-gpu-dist', 'gpu.distanciaBandeja', b.gpu.distanciaBandeja, gv.distanciaMin, gv.distanciaMax, 1, 'Distância da bandeja até a backplate') : '',
         vertical ? slider('r-gpu-alt', 'gpu.alturaDoChao', b.gpu.alturaDoChao, gv.alturaMin, Math.round(G.medidas.altura * 0.5), 1, 'Altura da borda de baixo da placa (do chão)') : '',
         vertical && atual && atual.riserInfo ? '<p class="nota">Cabo riser: precisa de ~' + fmt(atual.riserInfo.comprimento, 0) + ' mm pelo caminho mostrado.</p>' : '',
@@ -1121,6 +1184,7 @@ window.PCBApp = (function () {
           slider('r-gpu-esp', 'gpu.fans.espacamento', b.gpu.fans.espacamento, 0, 40, 1, 'Espaço entre os fans'),
           slider('r-gpu-fdes', 'gpu.fans.deslocamento', b.gpu.fans.deslocamento, -80, 80, 1, 'Deslocar os fans ao longo da placa')
         ].join('') : '',
+        blocoFotos('gpu'),
         blocoMedidas('gpu', R.ids.gpu)
       ].join('')),
 
@@ -1128,6 +1192,7 @@ window.PCBApp = (function () {
         campoSelect('s-psu', 'fonte.modelo', 'Modelo', opcoes(CAT.fontes, b.fonte.modelo)),
         campoSelect('s-cabos', 'fonte.cabos', 'Cabos', OPCOES_CABOS.map(([v, r]) => '<option value="' + v + '"' + ((b.fonte.cabos || 'originais') === v ? ' selected' : '') + '>' + esc(r) + '</option>').join('')),
         '<p class="nota">O ' + esc(G.nome) + ' aceita fonte de até <strong>' + G.limites.fonteComprimento + ' mm</strong> de comprimento.</p>',
+        blocoFotos('fonte'),
         blocoMedidas('fonte', R.ids.fonte)
       ].join('')),
 
@@ -1193,6 +1258,8 @@ window.PCBApp = (function () {
         cheias ? '<button type="button" class="botao" data-esvaziar="' + zid + '">Tirar todos</button>' : '',
         '</div></section>');
     }
+    const bf = blocoFotos('fans');
+    if (bf) partes.push('<section class="cartao">' + bf + '</section>');
     partes.push('<p class="nota">Para cadastrar um fan novo, copie um item da seção <code>fans</code> do arquivo <code>data/catalogo.js</code>.</p>');
     return partes.join('');
   }
@@ -1384,6 +1451,7 @@ window.PCBApp = (function () {
       '<div class="acoes"><button type="button" class="botao" data-enquadrar="' + esc(p.id) + '">Aproximar</button>' +
       (p.id !== 'gabinete' ? '<button type="button" class="botao" data-ocultar="' + esc(p.id) + '">Ocultar <kbd>H</kbd></button>' : '') +
       (sec && sec !== 'fans' ? '<button type="button" class="botao" data-editar-secao="' + sec + '">Mais ajustes</button>' : '') +
+      (sec && sec !== 'gabinete' ? '<button type="button" class="botao" data-abrir-fotos="' + sec + '"><svg class="ic"><use href="#i-camera"/></svg>Foto real</button>' : '') +
       (sec === 'fans' ? '<button type="button" class="botao" data-ir-aba="fans">Todos os fans</button>' : '') + '</div>';
     f.hidden = false;
   }
@@ -1522,7 +1590,6 @@ window.PCBApp = (function () {
           if (cam === 'gabinete.modelo') aoMudarGabinete();
           if (cam === 'refrigeracao.local') E.build.refrigeracao.deslocamento = 0;
         });
-        if (cam === 'placaMae.modelo') aoPrepararFoto(E.build.placaMae.modelo);
       } else if (el.matches('input[type="range"][data-bind]') || el.matches('input[type="color"][data-bind]')) {
         if (HIST.concluir(E.build, el.dataset.rotulo || 'Ajuste')) atualizarBotoesHist();
         salvar();
@@ -1545,17 +1612,10 @@ window.PCBApp = (function () {
         const zid = el.dataset.fz, i = Number(el.dataset.vaga);
         const nome = (atual.G.montagens[zid] || {}).nome || zid;
         mudarZona(zid, el.value ? nome + ' ' + (i + 1) + ': ' + nomeEm('fans', el.value) : 'Fan removido de ' + nome + ' ' + (i + 1), (cfg) => { cfg.vagas[i] = el.value || null; });
-      } else if (el.id === 'foto-mb' && el.files && el.files[0]) {
+      } else if (el.matches('input[data-foto-enviar]') && el.files && el.files[0]) {
         const arq = el.files[0];
-        const id = E.build.placaMae.modelo;
-        carregarImagem(arq).then((img) => {
-          fotos[id] = img;
-          fotoGravar(id, arq);
-          aplicar();
-          selecionar('placaMae');
-          enquadrar('placaMae');
-          toast('Foto aplicada no topo da placa-mãe.');
-        }, (err) => { const m = $('#foto-mb-msg'); if (m) m.textContent = err.message; });
+        el.value = '';
+        editarFoto(el.dataset.slot, el.dataset.modelo, Number(el.dataset.prop), arq);
       } else if (el.id === 'b-arquivo' && el.files && el.files[0]) {
         const leitor = new FileReader();
         leitor.onload = () => { $('#json-build').value = String(leitor.result); carregarTexto(); };
@@ -1626,11 +1686,13 @@ window.PCBApp = (function () {
         if (E.ocultas.has(id)) E.ocultas.delete(id); else E.ocultas.add(id);
         aplicarVisibilidade();
         renderAba();
-      } else if (el.id === 'foto-mb-remover') {
-        const id = E.build.placaMae.modelo;
-        fotos[id] = null;
-        fotoApagar(id);
-        aplicar();
+      } else if (el.matches('[data-foto-ajustar]')) {
+        editarFoto(el.dataset.slot, el.dataset.modelo, Number(el.dataset.prop), null);
+      } else if (el.matches('[data-foto-remover]')) {
+        const k = FOT.chave(el.dataset.slot, el.dataset.modelo);
+        FOT.apagar(k);
+        trocarFoto(k, null);
+        toast('Foto removida; voltou ao desenho.');
       } else if (el.dataset.restaurar) {
         mudar('Medidas originais restauradas', () => { if (E.build.medidas) delete E.build.medidas[el.dataset.restaurar]; });
       } else if (el.id === 'b-copiar') {
@@ -1698,8 +1760,10 @@ window.PCBApp = (function () {
     ligarEditores($('#ficha'));
     $('#conteudo').addEventListener('toggle', (e) => {
       const d = e.target;
-      if (!d.matches || !d.matches('details.peca')) return;
-      if (d.open) E.abertas.add(d.dataset.secao); else E.abertas.delete(d.dataset.secao);
+      if (!d.matches) return;
+      const id = d.matches('details.peca') ? d.dataset.secao : d.matches('details.fotos-reais') ? 'fotos:' + d.dataset.fotos : null;
+      if (!id) return;
+      if (d.open) E.abertas.add(id); else E.abertas.delete(id);
       salvar();
     }, true);
 
@@ -1724,6 +1788,21 @@ window.PCBApp = (function () {
       if (enq) enquadrar(enq.dataset.enquadrar);
       const oc = e.target.closest('[data-ocultar]');
       if (oc) { E.ocultas.add(oc.dataset.ocultar); selecionar(null); aplicarVisibilidade(); if (E.aba === 'pecas') renderAba(); }
+      const af = e.target.closest('[data-abrir-fotos]');
+      if (af) {
+        const sec = af.dataset.abrirFotos;
+        E.abertas.add('fotos:' + sec);
+        if (sec !== 'fans') E.abertas.add(sec);
+        E.aba = '';
+        trocarAba(sec === 'fans' ? 'fans' : 'pecas');
+        const alvo = $('#conteudo details.fotos-reais[data-fotos="' + sec + '"]');
+        if (alvo) {
+          const cont = $('#conteudo');
+          cont.scrollTop += alvo.getBoundingClientRect().top - cont.getBoundingClientRect().top - 12;
+          alvo.classList.add('piscar');
+          setTimeout(() => alvo.classList.remove('piscar'), 1600);
+        }
+      }
       const ed = e.target.closest('[data-editar-secao]');
       if (ed) { E.abertas.add(ed.dataset.editarSecao); trocarAba('pecas'); marcarNaLista(); }
       if (e.target.closest('#mostrar-tudo')) { E.ocultas.clear(); aplicarVisibilidade(); if (E.aba === 'pecas') renderAba(); }
@@ -1899,6 +1978,7 @@ window.PCBApp = (function () {
     AMB = window.PCBAmbiente(THREE, deps);
     SIM = window.PCBAr ? window.PCBAr(THREE) : null;
     HIST = window.PCBHistorico();
+    FOT = window.PCBFotos();
     let primeiraVez = true;
     try { primeiraVez = !localStorage.getItem(CHAVE); } catch (e) { /* sem armazenamento */ }
     const est = carregarEstado();
@@ -1919,7 +1999,7 @@ window.PCBApp = (function () {
     atualizarBotoesHist();
     atualizarRGB();
     irVista('iso', true);
-    aoPrepararFoto(E.build.placaMae.modelo);
+    carregarFotos();
     $('#carregando').hidden = true;
     requestAnimationFrame(animar);
     if (primeiraVez) setTimeout(() => toast('Dica: clique numa peça para trocar ou ajustar. Aperte ? para ver os atalhos.', { duracao: 9000 }), 1200);

@@ -289,7 +289,7 @@ window.PCBModelos = function (THREE) {
     }));
   }
 
-  function fan(spec, { rgb = '#7cc8ff', setaCor = null } = {}) {
+  function fan(spec, { rgb = '#7cc8ff', setaCor = null, fotoCubo = null } = {}) {
     const s = spec.tamanho, t = spec.espessura;
     const estilo = spec.estilo || '';
     const arctic = estilo === 'arctic-p14-pro';
@@ -333,7 +333,15 @@ window.PCBModelos = function (THREE) {
     motor.rotation.x = Math.PI / 2;
     motor.position.z = t - 1.5;
     g.add(motor);
-    if (estilo !== 'aorus') {
+    if (estilo === 'aorus') {
+      // EZ-Chain Mag: encaixes magnéticos nas laterais, que ligam um fan no outro
+      const encaixe = plastico('#d9dce0', 0.5);
+      const contato = std('#c9a54b', 0.3, 0.9);
+      for (const sx of [-1, 1]) {
+        g.add(caixa(sx * (s / 2 - 2.2), sx * (s / 2 - 0.1), -9, 9, t * 0.25, t * 0.75, encaixe));
+        for (const cy of [-4.5, 0, 4.5]) g.add(caixa(sx * (s / 2 - 0.3), sx * (s / 2 - 0.05), cy - 1, cy + 1, t * 0.4, t * 0.6, contato));
+      }
+    } else {
       const cabo = cilindro(1.1, s * 0.3, std('#0b0b0c', 0.7, 0), 8);
       const a = Math.PI / 4;
       cabo.rotation.z = a - Math.PI / 2;
@@ -349,13 +357,16 @@ window.PCBModelos = function (THREE) {
     cubo.rotation.x = Math.PI / 2;
     rotor.add(cubo);
     const texAdesivo = T ? T.adesivoFan(estilo, spec.corPas || spec.cor) : null;
+    const tfCubo = fotoCubo ? texturaFoto(fotoCubo) : null;
     const adesivo = new THREE.Mesh(new THREE.CircleGeometry(rCubo * 0.9, 48),
-      texAdesivo ? materialCache('adesivo|' + estilo + spec.cor, () => new THREE.MeshStandardMaterial({ map: texAdesivo, roughness: 0.4, metalness: 0.1 }))
-        : std(spec.cor, 0.3, 0.4));
+      tfCubo ? materialCache('adesivoFoto|' + tfCubo.uuid, () => new THREE.MeshStandardMaterial({ map: tfCubo, roughness: 0.42, metalness: 0.05 }))
+        : texAdesivo ? materialCache('adesivo|' + estilo + spec.cor, () => new THREE.MeshStandardMaterial({ map: texAdesivo, roughness: 0.4, metalness: 0.1 }))
+          : std(spec.cor, 0.3, 0.4));
     adesivo.rotation.y = Math.PI;
     adesivo.position.z = -t * 0.35 - 0.05;
     rotor.add(adesivo);
-    const rPonta = arctic ? s * 0.447 : s * 0.466;
+    // P14 Pro: anel nas pontas das pás a 1,1 mm da moldura (boca com raio 0,475·s)
+    const rPonta = arctic ? s * 0.475 - 1.1 - 1.1 : s * 0.466;
     const alturaAnel = t * 0.46;
     for (let i = 0; i < nPas; i++) {
       const pa = new THREE.Mesh(geometriaPa(rCubo - 1, rPonta + 0.5, nPas, t, arctic ? alturaAnel / 2 - 0.4 : null), matPas);
@@ -461,7 +472,7 @@ window.PCBModelos = function (THREE) {
 
   /* ---------------- BOMBA (bloco do watercooler) ----------------
    * Local: centrada em XY sobre a CPU; Z sobe a partir do topo da CPU.  */
-  function bomba(spec, cor, rgb, estilo) {
+  function bomba(spec, cor, rgb, estilo, fotoTopo) {
     const w = spec.largura, d = spec.profundidade, h = spec.altura;
     const g = new THREE.Group();
     const aorus = estilo === 'aorus-waterforce';
@@ -478,7 +489,21 @@ window.PCBModelos = function (THREE) {
     const tampa = extrudar(retArredondado(w * 0.96, d * 0.96, w * 0.19), 5, aorus ? corpoMat : std('#16181b', 0.15, 0.5), 0.6);
     tampa.position.z = h - 6;
     g.add(tampa);
-    if (spec.tela) {
+    if (fotoTopo) {
+      // foto real do topo, nos cantos arredondados da tampa; brilha de leve (LEDs acesos)
+      const tf = texturaFoto(fotoTopo);
+      const forma = retArredondado(w * 0.96, d * 0.96, w * 0.19);
+      const geo = new THREE.ShapeGeometry(forma, 12);
+      const uv = geo.attributes.uv, ps = geo.attributes.position;
+      for (let i = 0; i < ps.count; i++) uv.setXY(i, ps.getX(i) / (w * 0.96) + 0.5, ps.getY(i) / (d * 0.96) + 0.5);
+      const mat = materialCache('bombaFoto|' + tf.uuid, () => new THREE.MeshPhysicalMaterial({
+        map: tf, emissiveMap: tf, emissive: '#ffffff', emissiveIntensity: 0.3, roughness: 0.18, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05
+      }));
+      const topo = new THREE.Mesh(geo, mat);
+      topo.position.z = h + 0.12;
+      topo.userData.rgb = true;
+      g.add(topo);
+    } else if (spec.tela) {
       const tex = texturaEtiqueta(['38 °C', 'CPU'], '#07121f', '#9fd3ff');
       const tela = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, d * 0.7), new THREE.MeshBasicMaterial({ map: tex }));
       tela.position.z = h + 0.1;
@@ -645,6 +670,12 @@ window.PCBModelos = function (THREE) {
     return t;
   }
 
+  /* Libera a textura de uma foto que foi trocada ou removida. */
+  function liberarFoto(img) {
+    const t = cacheFotos.get(img);
+    if (t) { t.dispose(); cacheFotos.delete(img); }
+  }
+
   function materiaisPlaca(spec, lay, foto) {
     const mats = {};
     if (foto) {
@@ -740,7 +771,7 @@ window.PCBModelos = function (THREE) {
   /* ---------------- MEMÓRIA ----------------
    * Local: origem no centro da borda inferior (a que encaixa no slot).
    * +Y = altura, Z = comprimento, X = espessura.                        */
-  function memoria(spec, rgb) {
+  function memoria(spec, rgb, fotoLado) {
     const L = spec.comprimento, H = spec.altura, Tk = spec.espessura;
     const g = new THREE.Group();
     g.add(caixa(-0.65, 0.65, 0, 8, -L / 2 + 1, L / 2 - 1, std('#12301f', 0.6, 0.1)));
@@ -770,7 +801,8 @@ window.PCBModelos = function (THREE) {
     geo.translate(0, 0, -Tk / 2);
     geo.rotateY(-Math.PI / 2);
     const tx = T ? T.memoriaLado(spec) : null;
-    const lado = tx ? materialCache('ramLado|' + tx.map.uuid, () => new THREE.MeshStandardMaterial({ map: tx.map, bumpMap: tx.bump, bumpScale: 1.2, roughness: 0.48, metalness: 0.55 })) : std(spec.cor, 0.42, 0.45);
+    const tfl = fotoLado ? texturaFoto(fotoLado) : null;
+    const lado = tfl ? materialCache('ramFoto|' + tfl.uuid, () => new THREE.MeshStandardMaterial({ map: tfl, roughness: 0.45, metalness: 0.5 })) : tx ? materialCache('ramLado|' + tx.map.uuid, () => new THREE.MeshStandardMaterial({ map: tx.map, bumpMap: tx.bump, bumpScale: 1.2, roughness: 0.48, metalness: 0.55 })) : std(spec.cor, 0.42, 0.45);
     const te = T ? T.memoriaEtiqueta(spec) : null;
     const etiqueta = te ? materialCache('ramEtq|' + te.uuid, () => new THREE.MeshStandardMaterial({ map: te, roughness: 0.5, metalness: 0.45 })) : lado;
     const dissip = new THREE.Mesh(geo, [lado, std(spec.cor, 0.45, 0.55), etiqueta]);
@@ -789,7 +821,7 @@ window.PCBModelos = function (THREE) {
   /* ---------------- FONTE ----------------
    * Local: X = largura (centrada), Y = altura (centrada, ventoinha em +Y),
    * Z = comprimento (z=0 é a face da tomada AC; z=L é a face modular).  */
-  function fonte(spec) {
+  function fonte(spec, fotoLado) {
     const W = spec.largura, H = spec.altura, L = spec.comprimento;
     const g = new THREE.Group();
     const corpo = pintado(spec.cor, 0.62);
@@ -799,7 +831,9 @@ window.PCBModelos = function (THREE) {
       const m = (tx, rough = 0.62, metal = 0.2) => materialCache('psu|' + tx.uuid, () => new THREE.MeshStandardMaterial({ map: tx, roughness: rough, metalness: metal }));
       const geo = new THREE.BoxGeometry(W, H, L);
       // +X/−X: marca nas duas laterais; +Y: grade da ventoinha; −Y: etiqueta; +Z: painel modular
-      const caixaFonte = new THREE.Mesh(geo, [m(lat), m(lat), m(grade, 0.5, 0.45), m(esp), m(mod), corpo]);
+      const tfl = fotoLado ? texturaFoto(fotoLado) : null;
+      const matLado = tfl ? materialCache('psuFoto|' + tfl.uuid, () => new THREE.MeshStandardMaterial({ map: tfl, roughness: 0.6, metalness: 0.2 })) : m(lat);
+      const caixaFonte = new THREE.Mesh(geo, [matLado, matLado, m(grade, 0.5, 0.45), m(esp), m(mod), corpo]);
       caixaFonte.position.set(0, 0, L / 2);
       caixaFonte.castShadow = caixaFonte.receiveShadow = true;
       g.add(caixaFonte);
@@ -853,8 +887,11 @@ window.PCBModelos = function (THREE) {
     };
     conectores(spec.conectoresNaLateral ? 'lateral' : 'fundo');
 
-    const et = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(L - 20, 130), H - 30),
-      new THREE.MeshStandardMaterial({ map: texturaEtiqueta([spec.nome.split(' ')[0].toUpperCase(), spec.potencia + ' W']), roughness: 0.6 }));
+    const tflG = fotoLado ? texturaFoto(fotoLado) : null;
+    const et = tflG
+      ? new THREE.Mesh(new THREE.PlaneGeometry(L, H), materialCache('psuFoto|' + tflG.uuid, () => new THREE.MeshStandardMaterial({ map: tflG, roughness: 0.6, metalness: 0.2 })))
+      : new THREE.Mesh(new THREE.PlaneGeometry(Math.min(L - 20, 130), H - 30),
+        new THREE.MeshStandardMaterial({ map: texturaEtiqueta([spec.nome.split(' ')[0].toUpperCase(), spec.potencia + ' W']), roughness: 0.6 }));
     et.rotation.y = Math.PI / 2;
     et.position.set(W / 2 + 0.3, 0, L / 2);
     g.add(et);
@@ -871,7 +908,8 @@ window.PCBModelos = function (THREE) {
    * Local: X = comprimento (x=0 no suporte/bracket), Y = altura
    * (y=0 na ponta dos contatos PCIe), Z = espessura (z=0 na backplate,
    * crescendo para o lado dos fans).                                    */
-  function placaDeVideo(spec, cfg, fanSpec, rgb) {
+  function placaDeVideo(spec, cfg, fanSpec, rgb, fotos) {
+    fotos = fotos || {};
     const g = new THREE.Group();
     const col = [];
     const deshroud = cfg.modo === 'deshroud';
@@ -886,7 +924,16 @@ window.PCBModelos = function (THREE) {
     // backplate de metal fundido (face externa texturizada, com passagem de ar no fim)
     const bpLado = std(spec.corBackplate, 0.42, 0.65);
     const texBp = T ? T.gpuBackplate(L, Hc - y0, pcbL) : null;
-    if (texBp) {
+    if (fotos.backplate) {
+      const tf = texturaFoto(fotos.backplate);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(L, Hc - y0),
+        materialCache('bpFoto|' + tf.uuid, () => new THREE.MeshPhysicalMaterial({ map: tf, roughness: 0.4, metalness: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.25 })));
+      face.rotation.y = Math.PI;
+      face.position.set(L / 2, (y0 + Hc) / 2, -0.05);
+      face.castShadow = true;
+      g.add(face);
+      g.add(caixa(0, L, y0, Hc, 0, 2.5, bpLado));
+    } else if (texBp) {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(L, Hc - y0),
         materialCache('bp|' + texBp.map.uuid, () => new THREE.MeshPhysicalMaterial({ map: texBp.map, alphaMap: texBp.alpha, alphaTest: 0.5, roughness: 0.4, metalness: 0.72, clearcoat: 0.35, clearcoatRoughness: 0.22, side: THREE.DoubleSide })));
       face.rotation.y = Math.PI;
@@ -962,7 +1009,7 @@ window.PCBModelos = function (THREE) {
       const amarra = std('#0c0d0f', 0.7, 0);
       for (let i = 0; i < q; i++) {
         const cx = xi + s / 2 + i * (s + f.espacamento);
-        const fm = fan(fanSpec, { rgb, setaCor: '#4aa3ff' });
+        const fm = fan(fanSpec, { rgb, setaCor: '#4aa3ff', fotoCubo: fotos.cubo });
         fm.rotation.x = Math.PI;
         if (fm.userData.rotor) fm.userData.rotor.rotation.z = Math.PI; // adesivo do cubo de pé, visto pelo vidro
         fm.position.set(cx, cy, Tc + ft);
@@ -1006,6 +1053,22 @@ window.PCBModelos = function (THREE) {
         g.add(fm);
       }
       g.userData.fansGPU = 3;
+    }
+    // fotos reais: face das aletas (lado dos fans) e borda de cima
+    if (fotos.frente) {
+      const tf = texturaFoto(fotos.frente);
+      const frente = new THREE.Mesh(new THREE.PlaneGeometry(L, Hc - y0), materialCache('gpuFrente|' + tf.uuid, () => new THREE.MeshStandardMaterial({ map: tf, roughness: 0.38, metalness: 0.6 })));
+      frente.position.set(L / 2, (y0 + Hc) / 2, Tc + 0.3);
+      frente.receiveShadow = true;
+      g.add(frente);
+    }
+    if (fotos.borda) {
+      const tf = texturaFoto(fotos.borda);
+      const borda = new THREE.Mesh(new THREE.PlaneGeometry(L, Tc), materialCache('gpuBorda|' + tf.uuid, () => new THREE.MeshStandardMaterial({ map: tf, roughness: 0.38, metalness: 0.6 })));
+      borda.rotation.x = -Math.PI / 2;
+      borda.position.set(L / 2, Hc + 0.3, Tc / 2);
+      borda.receiveShadow = true;
+      g.add(borda);
     }
     g.userData.colisores = col;
     g.userData.medidas = { comprimento: L, altura: Hc, espessura: espessuraTotal, dedos: [dx, dx + 89] };
@@ -1234,7 +1297,7 @@ window.PCBModelos = function (THREE) {
   }
 
   return {
-    std, luz, vidro, tela, caixa, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico,
+    std, luz, vidro, tela, caixa, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico, liberarFoto,
     fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, riser, tubo, gabinete,
     layoutPlacaMae, texturas: T
   };

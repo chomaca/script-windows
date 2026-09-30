@@ -88,9 +88,23 @@ originais pretos ou extensões trançadas brancas/pretas com pentes.
 
 Se o 3D ficar lento, o site avisa e oferece mudar para Leve.
 
-Para a placa-mãe ficar **idêntica** ao produto, use **Peças → Placa-mãe → Usar foto
-da placa**: envie a foto oficial de cima (vista reta, recortada rente às bordas). Ela é
-aplicada no topo da placa e de cada dissipador e fica salva no navegador.
+### Fotos reais (para ficar idêntico, com os logos)
+
+Clique numa peça → **Foto real** (ou abra “Fotos reais” no cartão da peça), envie a foto
+oficial do produto e enquadre (arrastar, zoom, girar 90°, espelhar). A foto vira a textura
+daquela parte do 3D:
+
+| Peça | Onde a foto entra |
+|---|---|
+| Placa de vídeo | face das aletas (lado dos fans), borda de cima (heatpipes) e backplate |
+| Fans (P14 Pro, AORUS, Squama…) | adesivo redondo do cubo — vale para todos os fans daquele modelo |
+| Watercooler | topo da bomba (brilha de leve e acompanha a cor do RGB) |
+| Memória, fonte | lateral com o logo |
+| Placa-mãe | topo inteiro (também no topo de cada dissipador) |
+
+Onde achar as fotos: as páginas oficiais estão em **Medidas** (ZOTAC, ARCTIC, GIGABYTE,
+Kingston, Corsair). Use fotos retas, de frente. As fotos ficam **só neste navegador**
+(IndexedDB): não vão para o arquivo JSON nem para nenhum servidor.
 
 ## Usando o site
 

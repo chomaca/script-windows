@@ -80,6 +80,7 @@ window.PCBMontagem = function (THREE, M) {
     };
     const cooler = comMedidas(cat.coolers[ids.cooler], med[ids.cooler]);
     const coolerFanId = pegar(cat.fans, cooler.fans.modelo, 'Fan do watercooler', avisos);
+    ids.coolerFan = coolerFanId;
     return {
       ids,
       avisos,
@@ -165,6 +166,8 @@ window.PCBMontagem = function (THREE, M) {
     const G = R.gabinete;
     const Q = quadro(G);
     const raiz = new THREE.Group();
+    // fotos reais enviadas pelo usuário (chave: 'vaga|modelo'; a da placa-mãe é só o modelo)
+    const fotoDe = (slot, id) => (opts.fotos ? opts.fotos[slot === 'mb-topo' ? id : slot + '|' + id] || null : null);
     const partes = [];
     const P = G.paineis;
     const interior = new THREE.Box3(
@@ -186,7 +189,7 @@ window.PCBMontagem = function (THREE, M) {
     const bandejaX = Q.X(G.bandeja.x);
     const faceX = Q.X(G.bandeja.x + G.placaMae.standoff + MB.espessura);
     const topoY = G.placaMae.topoY;
-    const mb = M.placaMae(MB, { foto: opts.fotos ? opts.fotos[R.ids.placaMae] : null });
+    const mb = M.placaMae(MB, { foto: fotoDe('mb-topo', R.ids.placaMae) });
     orientar(mb, vdir('frente'), vdir('cima'), vdir('esquerda'), new THREE.Vector3(faceX, topoY, Q.Z(G.placaMae.traseira)));
     const mbPonto = (x, y, z) => mb.localToWorld(new THREE.Vector3(x, -y, z));
     registrar('placaMae', MB.nome, 'Placa-mãe', mb, {
@@ -205,7 +208,7 @@ window.PCBMontagem = function (THREE, M) {
     else slotsUsados = q === 1 ? [0] : [0, 1].slice(0, nSlots);
     if (q > nSlots) avisos.push('A placa-mãe tem ' + nSlots + ' slots de memória; mostrei só ' + nSlots + ' pentes.');
     slotsUsados.forEach((si, n) => {
-      const mod = M.memoria(RAM, rgb);
+      const mod = M.memoria(RAM, rgb, fotoDe('memoria-lado', R.ids.memoria));
       orientar(mod, vdir('frente'), vdir('esquerda'), vdir('baixo'), mbPonto(MB.dimm.x[si], MB.dimm.y, 1.5));
       registrar('memoria-' + n, RAM.nome + ' (slot ' + ['A1', 'A2', 'B1', 'B2'][si] + ')', 'Memória', mod, {
         ignora: ['placaMae'],
@@ -222,7 +225,7 @@ window.PCBMontagem = function (THREE, M) {
     const zonaRadId = cfgC.local;
     const zonaRad = G.montagens[zonaRadId];
     const bombaPos = mbPonto(MB.soquete.x, MB.soquete.y, 9);
-    const bomba = M.bomba(CL.bomba, CL.cor, rgb, CL.estilo);
+    const bomba = M.bomba(CL.bomba, CL.cor, rgb, CL.estilo, fotoDe('bomba-topo', R.ids.cooler));
     orientar(bomba, vdir('frente'), vdir('cima'), vdir('esquerda'), bombaPos, 'y');
     registrar('bomba', 'Bomba — ' + CL.nome, 'Watercooler', bomba, {
       ignora: ['placaMae'],
@@ -258,7 +261,7 @@ window.PCBMontagem = function (THREE, M) {
       const saida = cfgC.fluxo !== 'entrada';
       const ar = n.clone().multiplyScalar(saida ? 1 : -1);
       for (let i = 0; i < CL.fans.quantidade; i++) {
-        const f = M.fan(R.coolerFan, { rgb, setaCor: saida ? COR_SAIDA : COR_ENTRADA });
+        const f = M.fan(R.coolerFan, { rgb, setaCor: saida ? COR_SAIDA : COR_ENTRADA, fotoCubo: fotoDe('fan-cubo', R.ids.coolerFan) });
         const centro = c.clone().addScaledVector(a, (i - (CL.fans.quantidade - 1) / 2) * R.coolerFan.tamanho);
         posicionarFan(f, centro, k, fanOff, Tf, ar, a);
         registrar('fanRad-' + i, R.coolerFan.nome + ' (radiador ' + (i + 1) + ')', 'Watercooler', f, {
@@ -296,7 +299,7 @@ window.PCBMontagem = function (THREE, M) {
     /* ---------- fonte ---------- */
     const PSU = R.fonte;
     const F = G.fonte;
-    const fonte = M.fonte(PSU);
+    const fonte = M.fonte(PSU, fotoDe('fonte-lado', R.ids.fonte));
     orientar(fonte, vdir(F.larguraPara), vdir(F.ventoinhaPara), vdir(F.comprimentoPara), Q.p(F.ancora.x, F.ancora.y, F.ancora.z));
     registrar('fonte', PSU.nome, 'Fonte', fonte, {
       ignora: ['caixaFonte'],
@@ -331,7 +334,9 @@ window.PCBMontagem = function (THREE, M) {
     f0.quantidade = Math.max(0, Math.min(3, Math.round(Number(f0.quantidade)) || 0));
     f0.espacamento = Math.max(0, Math.min(60, Number(f0.espacamento) || 0));
     f0.deslocamento = Math.max(-120, Math.min(120, Number(f0.deslocamento) || 0));
-    const gpu = M.placaDeVideo(GPU, cfgGpu, R.gpuFan, rgb);
+    const gpu = M.placaDeVideo(GPU, cfgGpu, R.gpuFan, rgb, {
+      frente: fotoDe('gpu-frente', R.ids.gpu), borda: fotoDe('gpu-borda', R.ids.gpu), backplate: fotoDe('gpu-backplate', R.ids.gpu), cubo: fotoDe('fan-cubo', R.ids.gpuFan)
+    });
     const slotY = topoY - slot0.y;
     const gv = G.gpuVertical;
     const num = (v) => (v == null || v === '' ? NaN : Number(v));
@@ -483,7 +488,7 @@ window.PCBMontagem = function (THREE, M) {
         if (!fid) continue;
         const fs = cat.fans[fid];
         if (!fs) { avisos.push('Fan “' + fid + '” não existe no catálogo.'); continue; }
-        const f = M.fan(fs, { rgb, setaCor: saida ? COR_SAIDA : COR_ENTRADA });
+        const f = M.fan(fs, { rgb, setaCor: saida ? COR_SAIDA : COR_ENTRADA, fotoCubo: fotoDe('fan-cubo', fid) });
         const centro = c.clone().addScaledVector(a, (i - (nV - 1) / 2) * tam);
         posicionarFan(f, centro, k, 0, fs.espessura, ar, a);
         const id = 'fan:' + zid + ':' + i;
