@@ -210,7 +210,8 @@ window.PCBFisica = function (THREE, CANNON) {
         la: lig.largura ? vLoc(ca, lig.largura) : null, lb: lig.largura ? vLoc(cb, lig.largura) : null,
         // comprimento útil: a corda estica até ~90% do comprimento (o resto vai nas curvas das pontas)
         max: Math.max(d0 + 5, (lig.comprimento || d0 * 1.4) * 0.9) * MM,
-        chave: ''
+        chave: '',
+        geo0: lig.obj.geometry // traçado original, volta ao remontar/sair
       });
     }
     const wA = new CANNON.Vec3(), wB = new CANNON.Vec3(), dAB = new CANNON.Vec3(), rA = new CANNON.Vec3(), rB = new CANNON.Vec3();
@@ -241,6 +242,12 @@ window.PCBFisica = function (THREE, CANNON) {
     }
     const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tDa = new THREE.Vector3(), tDb = new THREE.Vector3();
     const tLa = new THREE.Vector3(), tLb = new THREE.Vector3(), vTmp = new CANNON.Vec3();
+    function restaurarCordas() {
+      for (const k of cordas) {
+        if (k.lig.obj.geometry !== k.geo0) { k.lig.obj.geometry.dispose(); k.lig.obj.geometry = k.geo0; }
+        k.chave = '';
+      }
+    }
     function redesenharCordas() {
       for (const k of cordas) {
         const A = k.ca.body, B = k.cb.body;
@@ -255,6 +262,8 @@ window.PCBFisica = function (THREE, CANNON) {
         B.quaternion.vmult(k.db, vTmp); tDb.set(vTmp.x, vTmp.y, vTmp.z);
         if (k.la) { A.quaternion.vmult(k.la, vTmp); tLa.set(vTmp.x, vTmp.y, vTmp.z).normalize(); B.quaternion.vmult(k.lb, vTmp); tLb.set(vTmp.x, vTmp.y, vTmp.z).normalize(); }
         const folga = Math.max(0, k.max / MM - tA.distanceTo(tB));
+        // a original fica guardada (o refazer descarta a geometria atual)
+        if (k.lig.obj.geometry === k.geo0) k.lig.obj.geometry = k.geo0.clone();
         try { k.lig.refazer(tA, tDa, tB, tDb, folga, tLa, tLb); } catch (e) { /* segue sem redesenhar */ }
       }
     }
@@ -492,6 +501,7 @@ window.PCBFisica = function (THREE, CANNON) {
         c.solto = false;
       }
       sincronizar();
+      restaurarCordas();
       atualizarDependentes();
     }
 
@@ -506,6 +516,7 @@ window.PCBFisica = function (THREE, CANNON) {
         }
       }
       for (const d of dependentes) d.obj.visible = d.visivel;
+      restaurarCordas();
       while (world.bodies.length) world.removeBody(world.bodies[0]);
       corpos.length = 0;
     }

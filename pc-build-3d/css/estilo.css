@@ -739,6 +739,14 @@ details.fotos-reais.piscar { animation: piscar 1.5s ease-out; border-radius: 8px
   .menu-corpo { position: fixed; left: 0; right: auto; top: auto; width: calc(100vw - 48px); }
   .legenda-ar { bottom: 12px; }
   .resumo-build { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* física: barra compacta para sobrar 3D */
+  .barra-fisica { bottom: 8px; padding: 6px 6px 6px 10px; gap: 4px; }
+  .fisica-texto { font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .fisica-acoes { gap: 4px; }
+  .fisica-acoes .botao { padding: 4px 8px; font-size: 11px; }
+  .fisica-inclinar { padding: 0; }
+  .fisica-inclinar span { display: none; }
+  .fisica-inclinar input { width: 84px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .regua { animation: none; }
