@@ -308,8 +308,9 @@ window.PCB_CATALOGO = {
       radiador: { comprimento: 394, largura: 119, espessura: 27 },
       bomba: { largura: 72.8, profundidade: 72.8, altura: 65.1, tela: false },
       fans: { modelo: 'aorus-120-ice', quantidade: 3 },
+      mangueira: 380,
       estimado: [],
-      notas: 'Radiador de alumínio, 3 fans ARGB de 120 mm (inclusos).',
+      notas: 'Radiador de alumínio, 3 fans ARGB de 120 mm (inclusos). Mangueiras de borracha com malha de nylon, 380 mm.',
       fontes: [{ rotulo: 'GIGABYTE — especificações', url: 'https://www.gigabyte.com/CPU-Cooler/AORUS-WATERFORCE-II-360-ICE/sp' }]
     },
     'aorus-waterforce-x-ii-360-ice': {
@@ -319,8 +320,9 @@ window.PCB_CATALOGO = {
       radiador: { comprimento: 394, largura: 119, espessura: 27 },
       bomba: { largura: 87.6, profundidade: 87.6, altura: 77.7, tela: true },
       fans: { modelo: 'aorus-120-ice', quantidade: 3 },
-      estimado: [],
-      notas: 'Mesma medida de radiador; bomba maior com tela LCD.',
+      mangueira: 380,
+      estimado: ['mangueira'],
+      notas: 'Mesma medida de radiador; bomba maior com tela LCD. Comprimento das mangueiras assumido igual ao do II 360 ICE (380 mm).',
       fontes: [{ rotulo: 'GIGABYTE — especificações', url: 'https://www.gigabyte.com/CPU-Cooler/AORUS-WATERFORCE-X-II-360-ICE/sp' }]
     },
     'aio-240-generico': {
@@ -329,7 +331,8 @@ window.PCB_CATALOGO = {
       radiador: { comprimento: 277, largura: 120, espessura: 27 },
       bomba: { largura: 70, profundidade: 70, altura: 55, tela: false },
       fans: { modelo: 'generico-120', quantidade: 2 },
-      estimado: ['radiador', 'bomba'],
+      mangueira: 400,
+      estimado: ['radiador', 'bomba', 'mangueira'],
       fontes: []
     },
     'aio-420-generico': {
@@ -338,7 +341,8 @@ window.PCB_CATALOGO = {
       radiador: { comprimento: 458, largura: 140, espessura: 30 },
       bomba: { largura: 72, profundidade: 72, altura: 60, tela: false },
       fans: { modelo: 'generico-140', quantidade: 3 },
-      estimado: ['radiador', 'bomba'],
+      mangueira: 400,
+      estimado: ['radiador', 'bomba', 'mangueira'],
       fontes: []
     }
   },
@@ -443,7 +447,11 @@ window.PCB_CATALOGO = {
       corPas: '#1d1f23',
       rgb: true,
       pas: 9,
-      fontes: [{ rotulo: 'KitGuru — 5 fans Squama 140 mm inclusos', url: 'https://www.kitguru.net/components/cases/james-dawson/geometric-future-model-5-vent-case-review/' }]
+      cfm: 91.15, rpm: 2400,
+      fontes: [
+        { rotulo: 'KitGuru — 5 fans Squama 140 mm inclusos', url: 'https://www.kitguru.net/components/cases/james-dawson/geometric-future-model-5-vent-case-review/' },
+        { rotulo: 'PCPartPicker — Squama 2503 140 mm (91,15 CFM)', url: 'https://pcpartpicker.com/product/bPbRsY/geometric-future-squama-2503-9115-cfm-140-mm-fan-geo-s2503b-14s' }
+      ]
     },
     'arctic-p14-pro': {
       nome: 'ARCTIC P14 Pro',
@@ -454,8 +462,9 @@ window.PCB_CATALOGO = {
       corPas: '#1a1b1e',
       rgb: false,
       pas: 7,
+      cfm: 110, rpm: 2500, pressao: 5.2,
       fontes: [
-        { rotulo: 'ARCTIC — P14 Pro (140 × 140 × 27 mm)', url: 'https://www.arctic.de/us/P14-Pro/ACFAN00313A' },
+        { rotulo: 'ARCTIC — P14 Pro (140 × 140 × 27 mm, 110 CFM, 5,2 mmH₂O)', url: 'https://www.arctic.de/us/P14-Pro/ACFAN00313A' },
         { rotulo: 'HWCooling — P14 Pro (7 pás)', url: 'https://www.hwcooling.net/en/arctic-p14-pro-pst-the-best-price-to-performance-ratio-review/' }
       ]
     },
@@ -468,12 +477,16 @@ window.PCB_CATALOGO = {
       corPas: '#f6f7f8',
       rgb: true,
       pas: 9,
-      fontes: [{ rotulo: 'GIGABYTE — especificações', url: 'https://www.gigabyte.com/CPU-Cooler/AORUS-WATERFORCE-II-360-ICE/sp' }]
+      cfm: 64.95,
+      fontes: [
+        { rotulo: 'GIGABYTE — especificações', url: 'https://www.gigabyte.com/CPU-Cooler/AORUS-WATERFORCE-II-360-ICE/sp' },
+        { rotulo: 'PCPartPicker — 64,95 CFM', url: 'https://pcpartpicker.com/product/m7grxr/gigabyte-aorus-waterforce-ii-360-ice-6495-cfm-liquid-cpu-cooler-aorus-waterforce-ii-360-ice' }
+      ]
     },
-    'generico-120': { nome: 'Fan 120 mm genérico (preto)', tamanho: 120, espessura: 25, cor: '#151618', corPas: '#1b1c1f', rgb: false, pas: 7, fontes: [] },
-    'generico-120-branco': { nome: 'Fan 120 mm genérico (branco)', tamanho: 120, espessura: 25, cor: '#eef0f2', corPas: '#f5f6f7', rgb: true, pas: 9, fontes: [] },
-    'generico-140': { nome: 'Fan 140 mm genérico (preto)', tamanho: 140, espessura: 25, cor: '#151618', corPas: '#1b1c1f', rgb: false, pas: 7, fontes: [] },
-    'generico-140-branco': { nome: 'Fan 140 mm genérico (branco)', tamanho: 140, espessura: 25, cor: '#eef0f2', corPas: '#f5f6f7', rgb: true, pas: 9, fontes: [] },
-    'generico-160': { nome: 'Fan 160 mm genérico', tamanho: 160, espessura: 25, cor: '#151618', corPas: '#1b1c1f', rgb: false, pas: 7, fontes: [] }
+    'generico-120': { nome: 'Fan 120 mm genérico (preto)', tamanho: 120, espessura: 25, cor: '#151618', corPas: '#1b1c1f', rgb: false, pas: 7, cfm: 55, fontes: [] },
+    'generico-120-branco': { nome: 'Fan 120 mm genérico (branco)', tamanho: 120, espessura: 25, cor: '#eef0f2', corPas: '#f5f6f7', rgb: true, pas: 9, cfm: 55, fontes: [] },
+    'generico-140': { nome: 'Fan 140 mm genérico (preto)', tamanho: 140, espessura: 25, cor: '#151618', corPas: '#1b1c1f', rgb: false, pas: 7, cfm: 70, fontes: [] },
+    'generico-140-branco': { nome: 'Fan 140 mm genérico (branco)', tamanho: 140, espessura: 25, cor: '#eef0f2', corPas: '#f5f6f7', rgb: true, pas: 9, cfm: 70, fontes: [] },
+    'generico-160': { nome: 'Fan 160 mm genérico', tamanho: 160, espessura: 25, cor: '#151618', corPas: '#1b1c1f', rgb: false, pas: 7, cfm: 90, fontes: [] }
   }
 };

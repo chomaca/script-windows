@@ -10,6 +10,13 @@
 window.PCBMontagem = function (THREE, M) {
   'use strict';
 
+  const CABOS = window.PCBCabos ? window.PCBCabos(THREE, M) : null;
+  const ESTILOS_CABO = {
+    originais: { estilo: 'originais', cor: '#101113' },
+    brancos: { estilo: 'trancados', cor: '#eef0f2', pentes: true },
+    pretos: { estilo: 'trancados', cor: '#1c1d20', pentes: true }
+  };
+
   const DIRS = {
     frente: [0, 0, 1], traseira: [0, 0, -1], cima: [0, 1, 0],
     baixo: [0, -1, 0], direita: [1, 0, 0], esquerda: [-1, 0, 0]
@@ -42,7 +49,11 @@ window.PCBMontagem = function (THREE, M) {
 
   function comMedidas(spec, ajustes) {
     const s = clonar(spec);
-    for (const [k, v] of Object.entries(ajustes || {})) gravarCaminho(s, k, v);
+    if (!ajustes || typeof ajustes !== 'object') return s;
+    for (const [k, v] of Object.entries(ajustes)) {
+      // só medidas numéricas positivas, e só em campos que já são números no catálogo
+      if (typeof v === 'number' && isFinite(v) && v > 0 && typeof lerCaminho(spec, k) === 'number') gravarCaminho(s, k, v);
+    }
     return s;
   }
 
@@ -126,11 +137,25 @@ window.PCBMontagem = function (THREE, M) {
     return Object.keys(zona.vagas || {}).map(Number).sort((a, b) => a - b);
   }
 
+  const listaVagas = (zf) => (zf && Array.isArray(zf.vagas) ? zf.vagas.map((f) => (typeof f === 'string' ? f : null)) : []);
+
   function sobrepoe2D(a, b) {
     return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
   }
 
   function fmt(n) { return (Math.round(n * 10) / 10).toString().replace('.', ','); }
+
+  /* Vazão máxima do fan (CFM): do catálogo ou estimada pelo tamanho. */
+  function cfmDe(f) {
+    if (f && isFinite(f.cfm)) return f.cfm;
+    const t = (f && f.tamanho) || 120;
+    return t >= 160 ? 90 : t >= 140 ? 70 : t >= 120 ? 55 : 35;
+  }
+  function compLinha(pts) {
+    let c = 0;
+    for (let i = 1; i < pts.length; i++) c += pts[i].distanceTo(pts[i - 1]);
+    return c;
+  }
 
   /* ======================= MONTAR ======================= */
   function montar(build, cat, opts = {}) {
@@ -243,22 +268,26 @@ window.PCBMontagem = function (THREE, M) {
             fontes: R.coolerFan.fontes
           }
         });
-        aioFans.push({ tamanho: R.coolerFan.tamanho, saida });
+        aioFans.push({ tamanho: R.coolerFan.tamanho, saida, cfm: cfmDe(R.coolerFan), radiador: true, centro, ar: ar.clone() });
       }
       // tubos
       const portasRad = rad.userData.portas.map((p) => ({ pos: rad.localToWorld(p.pos.clone()), dir: p.dir.clone().transformDirection(rad.matrixWorld) }));
       const portasBomba = bomba.userData.portas.map((p) => ({ pos: bomba.localToWorld(p.pos.clone()), dir: p.dir.clone().transformDirection(bomba.matrixWorld) }));
       const tubos = new THREE.Group();
+      let retaMang = 0, trajetoMang = 0;
       for (let i = 0; i < 2; i++) {
         const A = portasRad[i], B = portasBomba[1 - i] || portasBomba[0];
         const p1 = A.pos.clone().addScaledVector(A.dir, 40);
         const p3 = B.pos.clone().addScaledVector(B.dir, 45);
         const meio = p1.clone().lerp(p3, 0.5);
         meio.x = Math.min(meio.x, faceX - 60 - i * 14);
-        tubos.add(M.tubo([A.pos, p1, meio, p3, B.pos], 6.2, CL.cor, null, CL.cor));
+        const pts = [A.pos, p1, meio, p3, B.pos];
+        tubos.add(M.tubo(pts, 6.2, CL.cor, null, CL.cor));
+        retaMang = Math.max(retaMang, A.pos.distanceTo(B.pos));
+        trajetoMang = Math.max(trajetoMang, compLinha(new THREE.CatmullRomCurve3(pts).getPoints(40)));
       }
       registrar('tubos', 'Mangueiras — ' + CL.nome, 'Watercooler', tubos, { colide: false, info: { notas: 'Traçado ilustrativo das mangueiras.' } });
-      radInfo = { zona: zonaRadId, classe, deslocamento: desloc, folgaEixo };
+      radInfo = { zona: zonaRadId, classe, deslocamento: desloc, folgaEixo, mangueira: { reta: retaMang, trajeto: trajetoMang, disponivel: CL.mangueira || null } };
       if (zonaRad.radiador && classe > zonaRad.radiador) avisos.push('Radiador ' + classe + ' mm maior que o suportado em ' + zonaRad.nome + ' (' + zonaRad.radiador + ' mm).');
     } else {
       avisos.push('O gabinete não tem a montagem “' + zonaRadId + '” para o radiador.');
@@ -298,13 +327,18 @@ window.PCBMontagem = function (THREE, M) {
       dedosX,
       fans: Object.assign({ quantidade: 2, espacamento: 4, deslocamento: 0 }, cg.fans || {})
     };
+    const f0 = cfgGpu.fans;
+    f0.quantidade = Math.max(0, Math.min(3, Math.round(Number(f0.quantidade)) || 0));
+    f0.espacamento = Math.max(0, Math.min(60, Number(f0.espacamento) || 0));
+    f0.deslocamento = Math.max(-120, Math.min(120, Number(f0.deslocamento) || 0));
     const gpu = M.placaDeVideo(GPU, cfgGpu, R.gpuFan, rgb);
     const slotY = topoY - slot0.y;
     const gv = G.gpuVertical;
-    let distancia = Number(cg.distanciaBandeja);
-    if (!isFinite(distancia)) distancia = 70;
-    let altura = Number(cg.alturaDoChao);
-    if (!isFinite(altura)) altura = gv.alturaMin + 10;
+    const num = (v) => (v == null || v === '' ? NaN : Number(v));
+    let distancia = num(cg.distanciaBandeja);
+    if (!isFinite(distancia)) distancia = gv.distanciaPadrao || 70;
+    let altura = num(cg.alturaDoChao);
+    if (!isFinite(altura)) altura = gv.alturaPadrao || gv.alturaMin + 10;
     if (vertical) {
       orientar(gpu, vdir('frente'), vdir('cima'), vdir('esquerda'), new THREE.Vector3(Q.X(G.bandeja.x + distancia), altura - 9, Q.Z(gv.suporteZ)));
     } else {
@@ -330,6 +364,7 @@ window.PCBMontagem = function (THREE, M) {
     }
 
     // riser
+    let riserInfo = null;
     if (vertical && cg.riser !== false) {
       const A = mbPonto(slot0.x + 44.5, slot0.y, 11);
       const Fd = gpu.localToWorld(new THREE.Vector3(dedosX + 44.5, 0, 3.3));
@@ -345,6 +380,7 @@ window.PCBMontagem = function (THREE, M) {
         new THREE.Vector3(Fd.x, Fd.y - 14, A.z)
       ];
       const fita = M.riser(pts, new THREE.Vector3(0, 0, 1), 64);
+      riserInfo = { comprimento: compLinha(new THREE.CatmullRomCurve3(pts).getPoints(60)) + 30 };
       registrar('riser', 'Cabo riser PCIe', 'Placa de vídeo', fita, { colide: false, info: { notas: 'Traçado ilustrativo do cabo riser (o comprimento real depende do modelo).' } });
       const con = new THREE.Group();
       con.add(M.caixa(Fd.x - 9, Fd.x + 9, Fd.y - 14, Fd.y + 7, Fd.z - 52, Fd.z + 52, M.std('#141518', 0.6, 0.1)));
@@ -353,18 +389,81 @@ window.PCBMontagem = function (THREE, M) {
       registrar('conectorRiser', 'Conector do riser', 'Placa de vídeo', con, { ignora: ['gpu', 'placaMae'], info: { notas: 'Encaixe do riser na placa de vídeo.' } });
     }
 
+    /* ---------- cabos da fonte (24 pinos, 2× EPS 8 pinos, 12V-2x6) ---------- */
+    const estiloCabo = ESTILOS_CABO[(build.fonte && build.fonte.cabos) || 'originais'];
+    if (CABOS && estiloCabo) {
+      try {
+        const cabos = montarCabos();
+        if (cabos) registrar('cabos', 'Cabos da fonte', 'Fonte', cabos, { colide: false, info: { notas: 'Traçado ilustrativo: 24 pinos, 2× EPS de 8 pinos e 12V-2x6 da placa de vídeo. Os cabos passam por trás da bandeja pelos recortes de borracha.' } });
+      } catch (e) { avisos.push('Não consegui desenhar os cabos: ' + e.message); }
+    }
+    function montarCabos() {
+      const g = new THREE.Group();
+      raiz.updateMatrixWorld(true);
+      const V = (x, y, z) => new THREE.Vector3(x, y, z);
+      const nMB = mb.localToWorld(V(0, 0, 1)).sub(mb.localToWorld(V(0, 0, 0))).normalize();
+      const zMB = mb.localToWorld(V(1, 0, 0)).sub(mb.localToWorld(V(0, 0, 0))).normalize();
+      // tomadas da fonte (face modular)
+      const W = PSU.largura, H = PSU.altura, L = PSU.comprimento;
+      const lxF = fonte.localToWorld(V(1, 0, 0)).sub(fonte.localToWorld(V(0, 0, 0))).normalize();
+      const tomada = (col, lin) => {
+        const bb = -H / 2 + 20 + lin * 22;
+        if (PSU.conectoresNaLateral) return { pos: fonte.localToWorld(V(-W / 2 - 1, bb, 29 + col * 26)), dir: fonte.localToWorld(V(-1, 0, 0)).sub(fonte.localToWorld(V(0, 0, 0))).normalize(), larg: fonte.localToWorld(V(0, 0, 1)).sub(fonte.localToWorld(V(0, 0, 0))).normalize() };
+        return { pos: fonte.localToWorld(V(-W / 2 + 27 + col * 24, bb, L + 1)), dir: fonte.localToWorld(V(0, 0, 1)).sub(fonte.localToWorld(V(0, 0, 0))).normalize(), larg: lxF };
+      };
+      const cfgBase = Object.assign({ raio: 1.55, passo: 3.5 }, estiloCabo);
+      const dentroX = (x) => Math.max(interior.min.x + 8, Math.min(interior.max.x - 6, x));
+      // 24 pinos: da fonte direto ao conector na borda da frente da placa
+      const t24 = tomada(0, 2);
+      const c24 = mbPonto(MB.largura - 6, MB.altura * 0.3 + 26, 16);
+      g.add(CABOS.chicote([
+        t24.pos.clone().addScaledVector(t24.dir, 11), t24.pos.clone().addScaledVector(t24.dir, 42),
+        c24.clone().addScaledVector(nMB, 48).addScaledVector(zMB, 14), c24.clone().addScaledVector(nMB, 13)
+      ], Object.assign({}, cfgBase, { fileiras: 2, fios: 12, largIni: t24.larg, largFim: V(0, 1, 0) })));
+      // EPS: passa por trás da bandeja e volta pelo recorte de cima
+      const zG = Q.Z(G.placaMae.traseira + MB.largura + 19);
+      const yTopo = topoY + 8.5;
+      [19, 36.5].forEach((xb, k) => {
+        const t = tomada(3 + k, 0);
+        const ce = mbPonto(xb, 7.5, 13);
+        const zT = ce.z + 22;
+        const yG = topoY - 45 - k * 18;
+        g.add(CABOS.chicote([
+          t.pos.clone().addScaledVector(t.dir, 11), t.pos.clone().addScaledVector(t.dir, 34),
+          V(dentroX(bandejaX - 16), yG, zG), V(dentroX(bandejaX + 14), yG, zG - 8),
+          V(dentroX(bandejaX + 16 + k * 9), yTopo - 16, (zG + zT) / 2), V(dentroX(bandejaX + 14), yTopo, zT + 12),
+          V(dentroX(bandejaX - 16), yTopo, zT), ce.clone().addScaledVector(nMB, 36).add(V(0, 5, 0)), ce.clone().addScaledVector(nMB, 13)
+        ], Object.assign({}, cfgBase, { fileiras: 2, fios: 4, largIni: t.larg, largFim: zMB })));
+      });
+      // 12V-2x6 da placa de vídeo
+      const c12 = gpu.userData.conector12v;
+      if (c12) {
+        const pos = gpu.localToWorld(c12.pos.clone());
+        const dir = gpu.localToWorld(c12.pos.clone().add(c12.dir)).sub(pos).normalize();
+        const larg = gpu.localToWorld(V(1, 0, 0)).sub(gpu.localToWorld(V(0, 0, 0))).normalize();
+        const t = tomada(2, 1);
+        const pa = pos.clone().addScaledVector(dir, 34);
+        g.add(CABOS.chicote([
+          t.pos.clone().addScaledVector(t.dir, 11), t.pos.clone().addScaledVector(t.dir, 40),
+          V(dentroX(Math.min(pa.x, faceX - 40)), (pa.y + t.pos.y) / 2 + 20, (pa.z + t.pos.z) / 2),
+          pa, pos.clone().addScaledVector(dir, 12)
+        ], Object.assign({}, cfgBase, { fileiras: 2, fios: 6, raio: 1.7, passo: 3.8, largIni: t.larg, largFim: larg })));
+      }
+      return g;
+    }
+
     /* ---------- fans do gabinete ---------- */
     const fansCaso = [];
     const cfgFans = build.fans || {};
     for (const [zid, zf] of Object.entries(cfgFans)) {
       const zona = G.montagens[zid];
-      if (!zf) continue;
+      if (!zf || typeof zf !== 'object') continue;
       if (!zona) {
-        const n = (zf.vagas || []).filter(Boolean).length;
+        const n = listaVagas(zf).filter(Boolean).length;
         if (n) avisos.push('Este gabinete não tem a posição “' + zid + '”; ' + n + ' fan(s) dessa posição ficaram de fora.');
         continue;
       }
-      const vagasCfg = (zf.vagas || []).filter(Boolean);
+      const vagasCfg = listaVagas(zf).filter(Boolean);
       if (radInfo && zid === radInfo.zona) {
         if (vagasCfg.length) avisos.push('Os fans em “' + zona.nome + '” foram ignorados: a posição está ocupada pelo radiador.');
         continue;
@@ -372,7 +471,7 @@ window.PCBMontagem = function (THREE, M) {
       const tam = Number(zf.tamanho) || tamanhosDaZona(zona)[0];
       const nV = vagasDaZona(zona, tam);
       if (!nV) { avisos.push(zona.nome + ' não aceita fans de ' + tam + ' mm.'); continue; }
-      const extra = (zf.vagas || []).slice(nV).filter(Boolean).length;
+      const extra = listaVagas(zf).slice(nV).filter(Boolean).length;
       if (extra) avisos.push(zona.nome + ' comporta ' + nV + '× ' + tam + ' mm; ' + extra + ' fan(s) a mais foram ignorados.');
       const n = vdir(zona.normal), a = vdir(zona.eixo);
       const k = n.clone().multiplyScalar(zona.montagem === 'fora' ? 1 : -1);
@@ -380,7 +479,7 @@ window.PCBMontagem = function (THREE, M) {
       const saida = zf.fluxo === 'saida';
       const ar = n.clone().multiplyScalar(saida ? 1 : -1);
       for (let i = 0; i < nV; i++) {
-        const fid = (zf.vagas || [])[i];
+        const fid = listaVagas(zf)[i];
         if (!fid) continue;
         const fs = cat.fans[fid];
         if (!fs) { avisos.push('Fan “' + fid + '” não existe no catálogo.'); continue; }
@@ -396,7 +495,7 @@ window.PCBMontagem = function (THREE, M) {
           }
         });
         if (fs.tamanho !== tam) avisos.push(zona.nome + ' ' + (i + 1) + ': o fan tem ' + fs.tamanho + ' mm, mas a posição está configurada para ' + tam + ' mm.');
-        fansCaso.push({ zona: zid, tamanho: fs.tamanho, saida });
+        fansCaso.push({ zona: zid, tamanho: fs.tamanho, saida, cfm: cfmDe(fs), id, centro: centro.clone(), ar: ar.clone() });
       }
     }
 
@@ -491,6 +590,44 @@ window.PCBMontagem = function (THREE, M) {
       else p.caixas = [new THREE.Box3().setFromObject(p.obj)];
     }
 
+    /* ---------- menos chamadas de desenho ---------- */
+    if (opts.fundir !== false) {
+      for (const p of caso.paineis) p.obj.userData.naoFundir = true;
+      for (const p of partes) if (p.obj) fundirMalhas(p.obj);
+    }
+
+    /* ---------- vagas de fan (para o site mostrar onde dá para colocar) ---------- */
+    const vagas = [];
+    const penetra = (a, b) => Math.min(a.max.x, b.max.x) - Math.max(a.min.x, b.min.x) > 0.4 && Math.min(a.max.y, b.max.y) - Math.max(a.min.y, b.min.y) > 0.4 && Math.min(a.max.z, b.max.z) - Math.max(a.min.z, b.min.z) > 0.4;
+    for (const [zid, zona] of Object.entries(G.montagens)) {
+      if (radInfo && radInfo.zona === zid) continue;
+      const zf = cfgFans[zid] || {};
+      const tams = tamanhosDaZona(zona);
+      const tam = Number(zf.tamanho) && tams.includes(Number(zf.tamanho)) ? Number(zf.tamanho) : (tams.includes(140) ? 140 : tams[0]);
+      const nV = vagasDaZona(zona, tam);
+      const n = vdir(zona.normal), a = vdir(zona.eixo);
+      const k = n.clone().multiplyScalar(zona.montagem === 'fora' ? 1 : -1);
+      const c = Q.p(zona.centro.x, zona.centro.y, zona.centro.z);
+      const saida = zf.fluxo ? zf.fluxo === 'saida' : ['topo', 'traseira'].includes(zid);
+      const ar = n.clone().multiplyScalar(saida ? 1 : -1);
+      for (let i = 0; i < nV; i++) {
+        const fid = listaVagas(zf)[i];
+        const ocupada = !!(fid && cat.fans[fid] && Number(zf.tamanho || tam) === tam);
+        const centro = c.clone().addScaledVector(a, (i - (nV - 1) / 2) * tam);
+        const dummy = new THREE.Object3D();
+        posicionarFan(dummy, centro, k, 0, 25, ar, a);
+        const caixa = new THREE.Box3(new THREE.Vector3(-tam / 2, -tam / 2, 0), new THREE.Vector3(tam / 2, tam / 2, 25)).applyMatrix4(dummy.matrixWorld);
+        let conflito = null;
+        if (!ocupada) {
+          for (const p of partes) {
+            if (!p.colide || !p.caixas.length || p.id === 'bandeja' || p.id.startsWith('fan:' + zid + ':')) continue;
+            if (p.caixas.some((b) => penetra(b, caixa))) { conflito = p.nome; break; }
+          }
+        }
+        vagas.push({ zona: zid, nomeZona: zona.nome, i, tamanho: tam, centro, normal: n.clone(), eixo: a.clone(), k: k.clone(), ar, saida, ocupada, conflito, quaternion: dummy.quaternion.clone(), posicao: dummy.position.clone() });
+      }
+    }
+
     /* ---------- folgas ---------- */
     const uniao = (ids) => {
       const b = new THREE.Box3();
@@ -500,41 +637,103 @@ window.PCBMontagem = function (THREE, M) {
     const vidroX = interior.min.x;
     const bGpu = uniao((p) => p.id === 'gpu');
     const folgas = [];
-    folgas.push({ nome: 'Placa de vídeo ↔ vidro lateral', valor: bGpu.min.x - vidroX, minimo: 10 });
+    const fansNoVidro = vertical && cfgGpu.modo === 'deshroud' && (gpu.userData.fansGPU || 0) > 0;
+    folgas.push({
+      nome: 'Placa de vídeo ↔ vidro lateral', valor: bGpu.min.x - vidroX, minimo: fansNoVidro ? 20 : 10, pecas: ['gpu'],
+      dica: fansNoVidro ? 'Os fans presos na placa puxam ar desse vão: com menos de ~20 mm eles ficam sufocados e fazem mais barulho.' : ''
+    });
     const bBomba = uniao((p) => p.id === 'bomba');
-    folgas.push({ nome: 'Topo da bomba ↔ vidro lateral', valor: bBomba.min.x - vidroX, minimo: 5 });
+    folgas.push({ nome: 'Topo da bomba ↔ vidro lateral', valor: bBomba.min.x - vidroX, minimo: 5, pecas: ['bomba'] });
     if (radInfo) {
       const bRad = uniao((p) => p.grupo === 'aio');
       if (G.montagens[radInfo.zona].normal === 'cima') {
-        folgas.push({ nome: 'Radiador + fans ↔ borda de cima da placa-mãe', valor: bRad.min.y - topoY, minimo: 3 });
+        folgas.push({ nome: 'Radiador + fans ↔ borda de cima da placa-mãe', valor: bRad.min.y - topoY, minimo: 3, pecas: ['radiador', 'placaMae'] });
         const bRam = uniao((p) => p.id.startsWith('memoria-'));
-        if (!bRam.isEmpty()) folgas.push({ nome: 'Memórias ↔ fans do radiador', valor: bRad.min.y - bRam.max.y, minimo: 3 });
+        if (!bRam.isEmpty()) folgas.push({ nome: 'Memórias ↔ fans do radiador', valor: bRad.min.y - bRam.max.y, minimo: 3, pecas: ['radiador', 'memoria-0'] });
       }
     }
     const bFundo = uniao((p) => p.id.startsWith('fan:fundo:'));
     const bGpuConj = uniao((p) => p.id === 'gpu' || p.id === 'conectorRiser');
-    if (!bFundo.isEmpty()) folgas.push({ nome: 'Placa de vídeo (com riser) ↔ fans do fundo', valor: bGpuConj.min.y - bFundo.max.y, minimo: 3 });
+    if (!bFundo.isEmpty()) folgas.push({ nome: 'Placa de vídeo (com riser) ↔ fans do fundo', valor: bGpuConj.min.y - bFundo.max.y, minimo: 3, pecas: ['gpu', 'fan:fundo:0'] });
     const sobrepoeXZ = (a, b) => a.min.x < b.max.x && b.min.x < a.max.x && a.min.z < b.max.z && b.min.z < a.max.z;
-    if (sobrepoeXZ(bGpu, caixaFonte) && caixaFonte.min.y >= bGpu.max.y - 1) folgas.push({ nome: 'Placa de vídeo ↔ compartimento da fonte', valor: caixaFonte.min.y - bGpu.max.y, minimo: 3 });
+    if (sobrepoeXZ(bGpu, caixaFonte) && caixaFonte.min.y >= bGpu.max.y - 1) folgas.push({ nome: 'Placa de vídeo ↔ compartimento da fonte', valor: caixaFonte.min.y - bGpu.max.y, minimo: 3, pecas: ['gpu', 'fonte'] });
     const eixoFonte = vdir(F.comprimentoPara);
     const tamCaixa = Math.abs(eixoFonte.x) * (caixaFonte.max.x - caixaFonte.min.x) + Math.abs(eixoFonte.y) * (caixaFonte.max.y - caixaFonte.min.y) + Math.abs(eixoFonte.z) * (caixaFonte.max.z - caixaFonte.min.z);
-    folgas.push({ nome: 'Espaço para cabos atrás da fonte', valor: tamCaixa - PSU.comprimento - 2, minimo: 15 });
+    folgas.push({ nome: 'Espaço para cabos atrás da fonte', valor: tamCaixa - PSU.comprimento - 2, minimo: 15, pecas: ['fonte'] });
 
     /* ---------- resumo do fluxo de ar ---------- */
     const peso = (s) => (s * s) / (120 * 120);
     const todos = fansCaso.concat(aioFans);
+    // radiador atrapalha a passagem do ar: ~30% a menos de vazão nos fans dele
+    const vazao = (f) => f.cfm * (f.radiador ? 0.7 : 1);
     const fluxo = {
       entrada: todos.filter((f) => !f.saida).length,
       saida: todos.filter((f) => f.saida).length,
       areaEntrada: todos.filter((f) => !f.saida).reduce((s, f) => s + peso(f.tamanho), 0),
-      areaSaida: todos.filter((f) => f.saida).reduce((s, f) => s + peso(f.tamanho), 0)
+      areaSaida: todos.filter((f) => f.saida).reduce((s, f) => s + peso(f.tamanho), 0),
+      cfmEntrada: todos.filter((f) => !f.saida).reduce((s, f) => s + vazao(f), 0),
+      cfmSaida: todos.filter((f) => f.saida).reduce((s, f) => s + vazao(f), 0),
+      fans: todos
     };
 
     return {
       raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo,
-      radInfo, vertical, distancia, altura,
+      radInfo, riserInfo, vertical, distancia, altura, vagas,
       contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, pentes: slotsUsados.length }
     };
+  }
+
+  /* Junta malhas irmãs com o mesmo material numa só (bem menos chamadas de
+     desenho). Roda antes do primeiro desenho, então nada vai para a GPU à toa.
+     Ficam de fora: LEDs RGB, rotores, setas, painéis, vidro e instâncias. */
+  function fundirMalhas(raiz) {
+    const tmp = new THREE.Matrix4();
+    raiz.traverse((pai) => {
+      if (pai.children.length < 2 || pai.userData.naoFundir) return;
+      const grupos = new Map();
+      for (const m of pai.children) {
+        if (!m.isMesh || m.isInstancedMesh || m.children.length || Array.isArray(m.material)) continue;
+        if (m.userData.rgb || m.userData.naoFundir || m.userData.fluxo || m.userData.rotor || m.material.transparent) continue;
+        const g = m.geometry;
+        const nomes = Object.keys(g.attributes);
+        if (!g.attributes.position || !g.attributes.normal || nomes.some((n) => n !== 'position' && n !== 'normal' && n !== 'uv')) continue;
+        const k = m.material.uuid + '|' + m.castShadow + m.receiveShadow + '|' + m.renderOrder + '|' + m.visible + '|' + (g.attributes.uv ? 1 : 0);
+        if (!grupos.has(k)) grupos.set(k, []);
+        grupos.get(k).push(m);
+      }
+      for (const lista of grupos.values()) {
+        if (lista.length < 2) continue;
+        const geos = lista.map((m) => {
+          m.updateMatrix();
+          const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+          g.applyMatrix4(tmp.copy(m.matrix));
+          return g;
+        });
+        const temUV = !!geos[0].attributes.uv;
+        let n = 0;
+        for (const g of geos) n += g.attributes.position.count;
+        const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = temUV ? new Float32Array(n * 2) : null;
+        let o = 0;
+        for (const g of geos) {
+          pos.set(g.attributes.position.array, o * 3);
+          nor.set(g.attributes.normal.array, o * 3);
+          if (uv) uv.set(g.attributes.uv.array, o * 2);
+          o += g.attributes.position.count;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        const base = lista[0];
+        const junto = new THREE.Mesh(geo, base.material);
+        junto.castShadow = base.castShadow;
+        junto.receiveShadow = base.receiveShadow;
+        junto.renderOrder = base.renderOrder;
+        junto.userData = Object.assign({}, base.userData);
+        for (const m of lista) pai.remove(m);
+        pai.add(junto);
+      }
+    });
   }
 
   /* Libera a memória da GPU ocupada por uma montagem antiga. */
@@ -547,5 +746,5 @@ window.PCBMontagem = function (THREE, M) {
     });
   }
 
-  return { montar, resolver, quadro, lerCaminho, gravarCaminho, vagasDaZona, tamanhosDaZona, descartar, CORES: { entrada: COR_ENTRADA, saida: COR_SAIDA } };
+  return { montar, resolver, quadro, cfmDe, lerCaminho, gravarCaminho, vagasDaZona, tamanhosDaZona, descartar, CORES: { entrada: COR_ENTRADA, saida: COR_SAIDA } };
 };

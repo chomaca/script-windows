@@ -72,28 +72,72 @@ As texturas são desenhadas pelo próprio site (não dependem de imagens baixada
   painel modular com os rótulos. Ao clicar em “Mostrar no 3D” da fonte, a tampa
   perfurada do gabinete é ocultada para ela aparecer.
 
-**Realismo:** em “Qualidade: alta” o site calcula sombras de contato entre as peças
-(oclusão de ambiente), faz o RGB brilhar (bloom) e usa sombras mais nítidas. Se o PC
-ficar lento, clique para mudar para “Qualidade: leve”.
+**Realismo:** iluminação de estúdio (softboxes que aparecem refletidas no vidro, no metal
+e na face espelhada da bomba), sombras suaves, sombra de contato sob o gabinete, oclusão de
+ambiente entre as peças, brilho do RGB (bloom) e **luz colorida dos LEDs iluminando as peças
+em volta**. Cabos da fonte desenhados fio a fio (24 pinos, 2× EPS de 8 pinos e 12V-2x6),
+originais pretos ou extensões trançadas brancas/pretas com pentes.
+
+### Qualidade gráfica (menu com a estrela)
+
+| Nível | O que liga |
+|---|---|
+| **Leve** | só o essencial — rápido em PC fraco e celular |
+| **Alta** | oclusão de ambiente, brilho do RGB, sombras 4K e até 6 luzes de LED |
+| **Ultra** | tudo da Alta, até 10 luzes de LED e **reflexo no chão** |
+
+Se o 3D ficar lento, o site avisa e oferece mudar para Leve.
 
 Para a placa-mãe ficar **idêntica** ao produto, use **Peças → Placa-mãe → Usar foto
 da placa**: envie a foto oficial de cima (vista reta, recortada rente às bordas). Ela é
 aplicada no topo da placa e de cada dissipador e fica salva no navegador.
-Na ficha de cada peça há **Aproximar** e **Ocultar** (ex.: ocultar a GPU para ver a
-placa-mãe inteira).
 
 ## Usando o site
 
-- **Peças:** troque cada componente, ajuste a posição da GPU vertical, a posição
-  do radiador, os fans presos na GPU e as medidas.
-- **Fans:** escolha tamanho, sentido (entrada/saída) e modelo de cada vaga do gabinete.
-- **Checagem:** lista o que cabe, o que encosta e as folgas medidas (ex.: GPU ↔ vidro).
-- **Medidas e fontes:** tabela com a origem de cada medida e salvar/carregar a montagem em JSON.
-- No 3D: arraste para girar, role para aproximar, clique numa peça para ver as medidas.
-  Os botões de cima mostram/escondem painéis, vidro, setas de fluxo de ar e cotas,
-  e “Explodir” afasta os painéis.
+- **Clique numa peça no 3D:** abre a ficha com **troca rápida** (modelo, cooler da GPU,
+  posição do radiador, cabos…), medidas e fontes; “Mais ajustes” abre a peça na lista.
+- **Peças:** lista em sanfona com um ponto de status em cada peça (verde cabe, amarelo
+  atenção, vermelho conflito) e, no topo, **encaixe, consumo e aquecimento do ar**.
+- **Fans:** cada posição do gabinete mostra as vagas como blocos; clique num bloco para
+  escolher o fan. No 3D, as **vagas livres aparecem com +**: clique para pôr um fan ali
+  (fica vermelha se o fan vai encostar em alguma peça). “Preencher as vazias” e “Tirar todos”
+  agilizam.
+- **Checagem:** tudo que cabe, encosta ou está apertado, com “Mostrar no 3D”.
+- **Salvas:** guarde várias versões da montagem com nome e miniatura (inclui a cor do RGB)
+  e abra qualquer uma com um clique. Aqui também ficam o JSON e “Voltar para a padrão”.
+- **Medidas:** tabela com a origem de cada medida (oficial ou estimada).
+- **Desfazer / refazer** (setas no topo da lista, ou Ctrl+Z / Ctrl+Shift+Z): toda troca
+  mostra um aviso com “Desfazer”; se a troca criar um conflito, o aviso diz qual.
+- **Medir** (régua no topo do 3D): clique em dois pontos de qualquer peça para ver a
+  distância em mm (com Δx, Δy, Δz). Segure Shift no segundo clique para medir reto num eixo.
+- **Camadas:** painéis, vidro, cotas, vagas de fan, **simulação do ar**, setas de fluxo,
+  fans girando, grade e “explodir” os painéis.
+- **RGB:** fixo, arco-íris, respirar ou desligado, com a cor que quiser.
+- Aperte **?** para ver todos os atalhos (1–5 vistas, P painéis, V vidro, A ar, M medir,
+  H ocultar a peça selecionada, Delete remove o fan selecionado…).
 
-A montagem fica salva no navegador automaticamente.
+A montagem, as camadas e a qualidade ficam salvas no navegador automaticamente.
+
+## Física e checagens
+
+- **Encaixe:** cada peça tem caixas de colisão em escala real (inclusive conexões do
+  radiador, abraçadeiras e heatpipes da GPU); o site confere colisões, peças saindo do
+  gabinete, limites do fabricante e folgas mínimas (ex.: os P14 presos na GPU precisam de
+  ~20 mm até o vidro para puxar ar).
+- **Mangueiras do watercooler:** distância reta entre a bomba e o radiador + folga para as
+  curvas, comparada com o comprimento das mangueiras (AORUS WATERFORCE II 360 ICE: 380 mm).
+- **Cabo riser:** comprimento necessário pelo caminho entre o slot e a placa de vídeo.
+- **Fluxo de ar:** vazão de catálogo em CFM (P14 Pro 110 CFM, Squama 2503 140 mm 91,15 CFM,
+  fans AORUS 64,95 CFM), com ~30% de perda nos fans do radiador; diz se a pressão é positiva,
+  negativa ou equilibrada.
+- **Aquecimento do ar:** ΔT = calor ÷ (densidade do ar × calor específico × vazão), com o
+  calor liberado dentro do gabinete (GPU + placa, memórias e SSD; a CPU entra quando o
+  radiador está em entrada) e os fans a ~60%. Na build padrão dá ~+7 °C em carga máxima.
+- **Simulação do ar (Camadas → Simular o ar):** partículas entram pelos fans de entrada,
+  desviam das peças, esquentam ao passar pela placa de vídeo e pelo radiador (azul → laranja),
+  sobem quando quentes e saem pelos fans de saída. É ilustrativa, mas mostra por onde o ar
+  passa e quanto dele atravessa a placa de vídeo.
+- **Energia:** CPU (PPT) + TGP da GPU + o resto, comparado com a potência da fonte.
 
 ## Cadastrar uma peça nova
 
@@ -112,6 +156,7 @@ Exemplo — um fan novo:
   tamanho: 140, espessura: 25,
   cor: '#f2f2f2', corPas: '#fafafa',
   rgb: true, pas: 9,
+  cfm: 58.5,        // vazão máxima (usada no fluxo de ar e no aquecimento)
   fontes: []
 },
 ```
@@ -139,9 +184,13 @@ pc-build-3d/
 ├── data/catalogo.js      peças e medidas (edite aqui)
 ├── data/build-padrao.js  a montagem que abre por padrão
 └── js/
-    ├── texturas.js       texturas desenhadas (placa-mãe, GPU, memória, fans)
+    ├── texturas.js       texturas desenhadas (placa-mãe, GPU, memória, fans, fonte)
     ├── modelos3d.js      desenho 3D de cada peça
-    ├── montagem.js       posiciona as peças no gabinete
-    ├── verificacao.js    colisões, limites, energia e fluxo de ar
+    ├── cabos.js          cabos da fonte, fio a fio
+    ├── montagem.js       posiciona as peças no gabinete e calcula folgas e vagas
+    ├── verificacao.js    colisões, limites, energia, fluxo e aquecimento do ar
+    ├── ambiente.js       estúdio (reflexos), chão com reflexo, luzes do RGB, qualidade
+    ├── ar.js             simulação do ar com partículas
+    ├── historico.js      desfazer/refazer e montagens salvas
     └── app.js            cena 3D e interface
 ```

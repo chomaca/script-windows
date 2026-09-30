@@ -20,7 +20,7 @@ window.PCB_BUILD_PADRAO = {
     tubos: 1,               // 1 = tubos para a frente/cima; -1 = para trás/baixo
     deslocamento: -10       // mm ao longo da montagem (negativo = para trás)
   },
-  fonte: { modelo: 'corsair-rm1200e' },
+  fonte: { modelo: 'corsair-rm1200e', cabos: 'originais' },  // cabos: 'originais', 'brancos', 'pretos' (extensões trançadas) ou 'ocultos'
   gpu: {
     modelo: 'zotac-rtx5090-amp-extreme-infinity',
     modo: 'deshroud',            // 'deshroud' ou 'original'

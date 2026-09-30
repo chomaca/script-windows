@@ -271,6 +271,15 @@ window.PCBModelos = function (THREE) {
     }, extra || {})));
   }
 
+  // Plástico brilhante/acetinado com verniz (bomba e radiador brancos).
+  function plasticoVerniz(cor, rough = 0.38, verniz = 0.6) {
+    const gr = T ? T.grao('#808080', 10, 5) : null;
+    return materialCache('verniz|' + cor + rough + verniz, () => new THREE.MeshPhysicalMaterial({
+      color: cor, roughness: rough, metalness: 0.02, clearcoat: verniz, clearcoatRoughness: 0.14,
+      bumpMap: gr ? gr.bump : null, bumpScale: 0.035
+    }));
+  }
+
   // Chapa pintada (pintura eletrostática): grão fino no relevo.
   function pintado(cor, rough = 0.62, metal = 0.15) {
     if (!T) return std(cor, rough, metal);
@@ -393,7 +402,7 @@ window.PCBModelos = function (THREE) {
     const nucleo = Math.min(L - 20, n * tamanhoFan);
     const tanque = (L - nucleo) / 2;
     const clara = new THREE.Color(cor).getHSL({ h: 0, s: 0, l: 0 }).l > 0.6;
-    const matCor = plastico(cor, 0.42);
+    const matCor = estilo === 'aorus-waterforce' ? plasticoVerniz(cor, 0.4, 0.45) : plastico(cor, 0.42);
     let matNucleo;
     if (T) {
       const tx = T.aletasRadiador(clara ? '#eef0f2' : '#3a3e44', clara ? '#a7adb4' : '#121416');
@@ -446,7 +455,7 @@ window.PCBModelos = function (THREE) {
       portas.push({ pos: new THREE.Vector3(L / 2 + 13, y, 0), dir: new THREE.Vector3(1, 0, 0) });
     }
     g.userData.portas = portas;
-    g.userData.colisores = [box3(-L / 2, L / 2, -W / 2, W / 2, -Tr / 2, Tr / 2)];
+    g.userData.colisores = [box3(-L / 2, L / 2, -W / 2, W / 2, -Tr / 2, Tr / 2), box3(L / 2, L / 2 + 14, -23.5, 23.5, -6.5, 6.5)];
     return g;
   }
 
@@ -456,7 +465,7 @@ window.PCBModelos = function (THREE) {
     const w = spec.largura, d = spec.profundidade, h = spec.altura;
     const g = new THREE.Group();
     const aorus = estilo === 'aorus-waterforce';
-    const corpoMat = plastico(cor, 0.45);
+    const corpoMat = aorus ? plasticoVerniz(cor, 0.34, 0.7) : plastico(cor, 0.45);
     const cromo = std('#dfe3e7', 0.12, 1);
     g.add(caixa(-w * 0.34, w * 0.34, -d * 0.34, d * 0.34, 0, 4, std('#b87333', 0.3, 0.9)));
     const corpo = extrudar(retArredondado(w, d, w * 0.2), h - 12, corpoMat, 1);
@@ -798,13 +807,13 @@ window.PCBModelos = function (THREE) {
       favo.position.set(-12, 0, -0.3);
       favo.rotation.y = Math.PI;
       g.add(favo);
-      g.add(caixa(W / 2 - 46, W / 2 - 16, -H / 2 + 8, -H / 2 + 32, -4, 0, std('#0b0c0d', 0.7, 0)));
-      g.add(caixa(W / 2 - 58, W / 2 - 50, -H / 2 + 12, -H / 2 + 28, -3, 0, std('#0b0c0d', 0.5, 0)));
+      g.add(caixa(W / 2 - 46, W / 2 - 16, -H / 2 + 8, -H / 2 + 32, -1.2, 0.5, std('#0b0c0d', 0.7, 0)));
+      g.add(caixa(W / 2 - 58, W / 2 - 50, -H / 2 + 12, -H / 2 + 28, -1.2, 0.5, std('#0b0c0d', 0.5, 0)));
       const con = std('#0d0e10', 0.7, 0);
       for (let lin = 0; lin < 3; lin++) {
         for (let col = 0; col < 5; col++) {
           const a = -W / 2 + 18 + col * 24, bb = -H / 2 + 14 + lin * 22;
-          g.add(caixa(a, a + 18, bb, bb + 12, L, L + 2, con));
+          g.add(caixa(a, a + 18, bb, bb + 12, L - 1, L + 1, con));
         }
       }
       g.userData.colisores = [box3(-W / 2, W / 2, -H / 2, H / 2, 0, L)];
@@ -829,16 +838,16 @@ window.PCBModelos = function (THREE) {
     favo.position.set(-12, 0, -0.3);
     favo.rotation.y = Math.PI;
     g.add(favo);
-    g.add(caixa(W / 2 - 46, W / 2 - 16, -H / 2 + 8, -H / 2 + 32, -4, 0, std('#0b0c0d', 0.7, 0)));
-    g.add(caixa(W / 2 - 58, W / 2 - 50, -H / 2 + 12, -H / 2 + 28, -3, 0, std('#0b0c0d', 0.5, 0)));
+    g.add(caixa(W / 2 - 46, W / 2 - 16, -H / 2 + 8, -H / 2 + 32, -1.2, 0.5, std('#0b0c0d', 0.7, 0)));
+    g.add(caixa(W / 2 - 58, W / 2 - 50, -H / 2 + 12, -H / 2 + 28, -1.2, 0.5, std('#0b0c0d', 0.5, 0)));
 
     const con = std('#0d0e10', 0.7, 0);
     const conectores = (face) => {
       for (let lin = 0; lin < 3; lin++) {
         for (let col = 0; col < 5; col++) {
           const a = -W / 2 + 18 + col * 24, bb = -H / 2 + 14 + lin * 22;
-          if (face === 'fundo') g.add(caixa(a, a + 18, bb, bb + 12, L, L + 2, con));
-          else g.add(caixa(-W / 2 - 2, -W / 2, bb, bb + 12, 20 + col * 26, 38 + col * 26, con));
+          if (face === 'fundo') g.add(caixa(a, a + 18, bb, bb + 12, L - 1, L + 1, con));
+          else g.add(caixa(-W / 2 - 1, -W / 2 + 1, bb, bb + 12, 20 + col * 26, 38 + col * 26, con));
         }
       }
     };
@@ -879,7 +888,7 @@ window.PCBModelos = function (THREE) {
     const texBp = T ? T.gpuBackplate(L, Hc - y0, pcbL) : null;
     if (texBp) {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(L, Hc - y0),
-        materialCache('bp|' + texBp.map.uuid, () => new THREE.MeshStandardMaterial({ map: texBp.map, alphaMap: texBp.alpha, alphaTest: 0.5, roughness: 0.42, metalness: 0.7, side: THREE.DoubleSide })));
+        materialCache('bp|' + texBp.map.uuid, () => new THREE.MeshPhysicalMaterial({ map: texBp.map, alphaMap: texBp.alpha, alphaTest: 0.5, roughness: 0.4, metalness: 0.72, clearcoat: 0.35, clearcoatRoughness: 0.22, side: THREE.DoubleSide })));
       face.rotation.y = Math.PI;
       face.position.set(L / 2, (y0 + Hc) / 2, 0.3);
       face.castShadow = true;
@@ -904,6 +913,8 @@ window.PCBModelos = function (THREE) {
     // conector 12V-2x6 na borda de cima
     g.add(caixa(pcbL - 34, pcbL - 12, Hc - 6, Hc + 5, 3, 11, std('#0d0e10', 0.6, 0)));
     g.add(caixa(pcbL - 26, pcbL - 20, Hc + 5, Hc + 7, 6, 8, std('#0d0e10', 0.6, 0)));
+    col.push(box3(pcbL - 34, pcbL - 12, Hc - 6, Hc + 7, 3, 11));
+    g.userData.conector12v = { pos: new THREE.Vector3(pcbL - 23, Hc + 5, 7), dir: new THREE.Vector3(0, 1, 0) };
 
     let espessuraTotal = Tc;
     if (deshroud) {
@@ -938,6 +949,9 @@ window.PCBModelos = function (THREE) {
         ];
         g.add(tubo(pts, 3, null, niquel));
       }
+      const xs = tubos.map((t) => t.x);
+      col.push(box3(Math.min(...xs.slice(0, 4)) - 3.5, Math.max(...xs.slice(0, 4)) + 3.5, Hc - 3, Hc + 10.5, zf, Tc));
+      col.push(box3(Math.min(...xs.slice(4)) - 3.5, Math.max(...xs.slice(4)) + 3.5, y0 - 10.5, y0 + 3, zf, Tc));
 
       const f = cfg.fans;
       const s = fanSpec.tamanho, ft = fanSpec.espessura;
@@ -950,6 +964,7 @@ window.PCBModelos = function (THREE) {
         const cx = xi + s / 2 + i * (s + f.espacamento);
         const fm = fan(fanSpec, { rgb, setaCor: '#4aa3ff' });
         fm.rotation.x = Math.PI;
+        if (fm.userData.rotor) fm.userData.rotor.rotation.z = Math.PI; // adesivo do cubo de pé, visto pelo vidro
         fm.position.set(cx, cy, Tc + ft);
         g.add(fm);
         col.push(box3(cx - s / 2, cx + s / 2, cy - s / 2, cy + s / 2, Tc, Tc + ft));
@@ -960,7 +975,9 @@ window.PCBModelos = function (THREE) {
           g.add(caixa(x - 2.3, x + 2.3, yMin, yMin + 1.2, -1.2, zTop + 1.2, amarra));
           g.add(caixa(x - 2.3, x + 2.3, yMin, yMax, -1.2, 0, amarra));
           g.add(caixa(x - 2.3, x + 2.3, yMin, yMax, zTop, zTop + 1.2, amarra));
-          g.add(caixa(x - 3.2, x + 3.2, yMax, yMax + 4, zTop - 6, zTop + 1.2, amarra));
+          // cabeça da trava no lado dos fans, perto da borda de cima
+          g.add(caixa(x - 3.2, x + 3.2, yMax - 11, yMax - 3, zTop + 1.2, zTop + 5.2, amarra));
+          col.push(box3(x - 3.2, x + 3.2, yMin, yMax, -1.2, zTop + 5.2));
         }
       }
       if (q > 0) espessuraTotal = Tc + fanSpec.espessura;
@@ -1217,7 +1234,7 @@ window.PCBModelos = function (THREE) {
   }
 
   return {
-    std, luz, vidro, tela, caixa, box3, cilindro, extrudar, retArredondado, seta,
+    std, luz, vidro, tela, caixa, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico,
     fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, riser, tubo, gabinete,
     layoutPlacaMae, texturas: T
   };
