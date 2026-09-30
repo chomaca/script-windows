@@ -156,13 +156,20 @@ A montagem, as camadas e a qualidade ficam salvas no navegador automaticamente.
 - **Modo Física** (botão *Física* no topo do 3D, ou tecla **X**): cada peça vira um corpo
   rígido com a **massa real** (catálogo) e as **mesmas caixas de colisão** da checagem
   (motor cannon-es, carregado só quando o modo é aberto).
-  - **Arraste uma peça** com o mouse: ela se solta do lugar, cai, **bate nas outras e no
-    gabinete** e para apoiada. Os **pontos de contato** aparecem em vermelho (maiores quanto
-    mais forte a batida) e a barra mostra a batida mais forte em m/s.
+  - **Arraste uma peça** com o mouse (a força máxima da “mão” é ~4× o peso da peça): ela se
+    solta do lugar, cai, **bate nas outras e no gabinete** e para apoiada. Os **pontos de
+    contato** aparecem em vermelho; cada **batida** vira uma bolha que cresce com a velocidade
+    do impacto, medida no instante do choque. A barra mostra a batida mais forte em m/s e a
+    altura de queda equivalente (h = v² / 2g) — um pente que cai 16 cm chega a ~1,75 m/s, como
+    na conta de √(2·g·h).
   - **Soltar tudo** tira todos os parafusos; **Chacoalhar** sacode o gabinete de um lado
     para o outro; **Inclinar** gira o gabinete em torno da borda dos pés e mostra o
     **centro de massa** (bolinha amarela com o fio até o chão) — se ele passar da borda,
     avisa que o PC tombaria; **Remontar** põe tudo no lugar.
+  - **Mangueiras e riser são cordas de verdade:** cada ponta fica presa na sua peça, o
+    traçado se redesenha quando elas se mexem e o comprimento é limitado (380 mm das
+    mangueiras do AORUS, ~230 mm do riser). Solte a bomba e ela fica **pendurada nas
+    mangueiras**; puxe a placa de vídeo e o riser a segura.
   - Com os painéis abertos (**P**) ou sem o vidro (**V**), as peças podem cair para fora.
   - Peças encaixadas (pente no slot, bomba na CPU) só passam a colidir depois de saírem do
     encaixe; peças muito leves usam no mínimo 150 g na simulação para ela não tremer.

@@ -2348,5 +2348,15 @@ window.PCBApp = (function () {
     return { x: r.left + (c.x + 1) / 2 * r.width, y: r.top + (1 - c.y) / 2 * r.height };
   }
 
-  return { iniciar, falha, diagnostico, naTela, vista: (d) => irVista(d, true) };
+  // câmera em posição exata (mm, mundo) — para testes e capturas
+  function olhar(pos, alvo) {
+    if (!camera) return;
+    tween = null;
+    camera.position.set(...pos);
+    controles.target.set(...alvo);
+    controles.update();
+    precisaRender = true;
+  }
+
+  return { iniciar, falha, diagnostico, naTela, olhar, vista: (d) => irVista(d, true) };
 })();

@@ -21,8 +21,9 @@ window.PCBFisica = function (THREE, CANNON) {
   const GRUPO = (p) => (p.grupo === 'aio' ? 'aio' : p.id === 'conectorRiser' ? 'gpu' : p.id);
   // peças do próprio gabinete: sempre presas a ele
   const FIXAS = new Set(['gabinete', 'bandeja', 'caixaFonte', 'fonte']);
-  // enfeites sem colisão que dependem de uma peça estar no lugar
-  const DEPENDE = { tubos: ['bomba', 'aio'], cabos: ['placaMae', 'gpu'], riser: ['gpu', 'placaMae'] };
+  // enfeites sem colisão que dependem de uma peça estar no lugar (mangueiras e riser
+  // não entram aqui: viram cordas e se redesenham entre as peças)
+  const DEPENDE = { cabos: ['placaMae', 'gpu'] };
 
   function criar(res, opts) {
     opts = opts || {};
@@ -68,6 +69,7 @@ window.PCBFisica = function (THREE, CANNON) {
     const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3(1, 1, 1);
     const corpos = [];
     const porBody = new Map();
+    const idDe = (parteId) => { const p = res.partes.find((x) => x.id === parteId); return p ? GRUPO(p) : parteId; };
 
     /* ---------- corpo a partir de caixas no mundo (mm) ---------- */
     function montarCorpo(id, nome, caixas, objs, massaG, fixo, cgMundo) {
@@ -190,6 +192,73 @@ window.PCBFisica = function (THREE, CANNON) {
       if (p && p.obj) dependentes.push({ obj: p.obj, deps, visivel: p.obj.visible });
     }
 
+    /* ---------- conexões flexíveis: mangueiras e riser viram cordas ----------
+       Cada ponta fica presa na sua peça; se a distância passar do comprimento
+       útil, uma mola puxa as duas pontas (a bomba pendura nas mangueiras). */
+    const cordas = [];
+    const vLoc = (c, v) => c.body.quaternion.conjugate().vmult(paraM(v));
+    for (const lig of res.ligacoes || []) {
+      const ca = corpos.find((c) => c.id === idDe(lig.partes[0])), cb = corpos.find((c) => c.id === idDe(lig.partes[1]));
+      if (!ca || !cb || !lig.obj) continue;
+      const pa = new CANNON.Vec3(), pb = new CANNON.Vec3();
+      ca.body.pointToLocalFrame(paraM(lig.a.pos), pa);
+      cb.body.pointToLocalFrame(paraM(lig.b.pos), pb);
+      const d0 = lig.a.pos.distanceTo(lig.b.pos);
+      cordas.push({
+        lig, ca, cb, pa, pb,
+        da: vLoc(ca, lig.a.dir), db: vLoc(cb, lig.b.dir),
+        la: lig.largura ? vLoc(ca, lig.largura) : null, lb: lig.largura ? vLoc(cb, lig.largura) : null,
+        // comprimento útil: a corda estica até ~90% do comprimento (o resto vai nas curvas das pontas)
+        max: Math.max(d0 + 5, (lig.comprimento || d0 * 1.4) * 0.9) * MM,
+        chave: ''
+      });
+    }
+    const wA = new CANNON.Vec3(), wB = new CANNON.Vec3(), dAB = new CANNON.Vec3(), rA = new CANNON.Vec3(), rB = new CANNON.Vec3();
+    const vPA = new CANNON.Vec3(), vPB = new CANNON.Vec3(), forca = new CANNON.Vec3();
+    function puxarCordas() {
+      for (const k of cordas) {
+        const A = k.ca.body, B = k.cb.body;
+        if (A.type !== DINAMICO && B.type !== DINAMICO) continue;
+        A.pointToWorldFrame(k.pa, wA);
+        B.pointToWorldFrame(k.pb, wB);
+        wB.vsub(wA, dAB);
+        const d = dAB.length();
+        if (d <= k.max || d < 1e-6) continue;
+        dAB.scale(1 / d, dAB);
+        wA.vsub(A.position, rA);
+        wB.vsub(B.position, rB);
+        A.angularVelocity.cross(rA, vPA); vPA.vadd(A.velocity, vPA);
+        B.angularVelocity.cross(rB, vPB); vPB.vadd(B.velocity, vPB);
+        vPB.vsub(vPA, vPB);
+        const vRel = vPB.dot(dAB);
+        // mola rígida + amortecedor (N): a mangueira não estica, só dobra
+        const f = Math.max(0, 2500 * (d - k.max) + 40 * vRel);
+        dAB.scale(f, forca);
+        if (A.type === DINAMICO) A.applyForce(forca, rA);
+        forca.negate(forca);
+        if (B.type === DINAMICO) B.applyForce(forca, rB);
+      }
+    }
+    const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tDa = new THREE.Vector3(), tDb = new THREE.Vector3();
+    const tLa = new THREE.Vector3(), tLb = new THREE.Vector3(), vTmp = new CANNON.Vec3();
+    function redesenharCordas() {
+      for (const k of cordas) {
+        const A = k.ca.body, B = k.cb.body;
+        const ch = [A.position, A.quaternion, B.position, B.quaternion].map((v) => [v.x, v.y, v.z, v.w || 0].map((n) => n.toFixed(5)).join(',')).join('|');
+        if (ch === k.chave) continue;
+        const primeira = !k.chave;
+        k.chave = ch;
+        if (primeira && !k.ca.solto && !k.cb.solto) continue; // montado: mantém o traçado original
+        paraMM(A.pointToWorldFrame(k.pa, wA), tA);
+        paraMM(B.pointToWorldFrame(k.pb, wB), tB);
+        A.quaternion.vmult(k.da, vTmp); tDa.set(vTmp.x, vTmp.y, vTmp.z);
+        B.quaternion.vmult(k.db, vTmp); tDb.set(vTmp.x, vTmp.y, vTmp.z);
+        if (k.la) { A.quaternion.vmult(k.la, vTmp); tLa.set(vTmp.x, vTmp.y, vTmp.z).normalize(); B.quaternion.vmult(k.lb, vTmp); tLb.set(vTmp.x, vTmp.y, vTmp.z).normalize(); }
+        const folga = Math.max(0, k.max / MM - tA.distanceTo(tB));
+        try { k.lig.refazer(tA, tDa, tB, tDb, folga, tLa, tLb); } catch (e) { /* segue sem redesenhar */ }
+      }
+    }
+
     /* ---------- pares que começam encostados ---------- */
     const sobrepoe = (a, b, m) => a.min.x < b.max.x - m && b.min.x < a.max.x - m && a.min.y < b.max.y - m && b.min.y < a.max.y - m && a.min.z < b.max.z - m && b.min.z < a.max.z - m;
     for (let i = 0; i < corpos.length; i++) {
@@ -264,8 +333,9 @@ window.PCBFisica = function (THREE, CANNON) {
       // ainda gira ao ser puxada pela ponta, mas sem virar um cata-vento
       local.scale(0.5, local);
       junta.position.copy(p);
-      // força máxima ~4× o peso da peça: dá para puxar, mas ela ainda bate e trava nas outras
-      const r = new CANNON.PointToPointConstraint(c.body, local, junta, new CANNON.Vec3(), c.massa * 9.81 * 4 + 4);
+      // força máxima ~4× o peso da peça: dá para puxar, mas ela ainda bate e trava nas outras.
+      // (o solver do cannon limita IMPULSO por passo: força × dt)
+      const r = new CANNON.PointToPointConstraint(c.body, local, junta, new CANNON.Vec3(), (c.massa * 9.81 * 4 + 4) * PASSO);
       world.addConstraint(r);
       c.body.linearDamping = 0.6;
       c.body.angularDamping = 0.95;
@@ -348,6 +418,7 @@ window.PCBFisica = function (THREE, CANNON) {
       while (acumulado >= PASSO && n < 8) {
         mexeu = moverPresos(PASSO) || mexeu;
         moverMao(PASSO);
+        puxarCordas();
         world.step(PASSO);
         acumulado -= PASSO;
         n++;
@@ -358,6 +429,7 @@ window.PCBFisica = function (THREE, CANNON) {
       }
       acumulado = Math.min(acumulado, PASSO * 2); // PC lento: a simulação fica mais lenta, sem acumular atraso
       sincronizar();
+      redesenharCordas();
       return mexeu || corpos.some((c) => c.solto && c.body.sleepState !== CANNON.Body.SLEEPING) || !!arrasto;
     }
     // teto de velocidade (m/s) e rotação (rad/s) da peça na mão
@@ -451,10 +523,9 @@ window.PCBFisica = function (THREE, CANNON) {
       };
     }
 
-    const idDe = (parteId) => { const p = res.partes.find((x) => x.id === parteId); return p ? GRUPO(p) : parteId; };
     return {
       passo, soltar: (id) => soltar(corpos.find((c) => c.id === idDe(id))), soltarTudo, pegar: (id, p) => pegar(idDe(id), p), mover, largar, pontoArrasto,
-      chacoalhar, inclinar, remontar, descartar, estado, contatos, batidas, arrastando: () => !!arrasto, definirParedes, reaplicarOcultos: atualizarDependentes,
+      chacoalhar, inclinar, remontar, descartar, estado, contatos, batidas, cordas, arrastando: () => !!arrasto, definirParedes, reaplicarOcultos: atualizarDependentes,
       pode: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return !!(c && !c.fixo); },
       nomeDe: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return c ? c.nome : ''; },
       massaDe: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return c ? c.massaG : 0; },

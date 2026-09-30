@@ -959,7 +959,8 @@ window.PCBModelos = function (THREE) {
         const dentro = new THREE.Mesh(new THREE.BoxGeometry(W - 1.4, 26, L - 1.4), std('#060607', 0.9, 0, { side: THREE.BackSide }));
         dentro.position.set(0, H / 2 - 13.6, L / 2);
         g.add(dentro);
-        const fm = fan({ tamanho: 135, espessura: 25, cor: '#0b0b0c', corPas: '#121315', pas: 9 });
+        const tamFan = Math.min(135, Math.min(W, L) - 12); // fontes curtas usam ventoinha menor
+        const fm = fan({ tamanho: tamFan, espessura: 25, cor: '#0b0b0c', corPas: '#121315', pas: 9 });
         const rotor = fm.userData.rotor;
         fm.remove(rotor);
         const suporteRotor = new THREE.Group();
@@ -1296,7 +1297,14 @@ window.PCBModelos = function (THREE) {
       const mtx = new THREE.Matrix4();
       for (const { p, xs } of grupos.values()) {
         const fins = new THREE.InstancedMesh(aletaGeo(p.zi, p.ya, p.yb), matAleta, xs.length);
-        xs.forEach((x, i) => { mtx.makeTranslation(x, 0, 0); fins.setMatrixAt(i, mtx); });
+        // cada aleta reflete um pouco diferente (chapas estampadas nunca ficam 100% planas)
+        const tom = new THREE.Color();
+        xs.forEach((x, i) => {
+          mtx.makeTranslation(x, 0, 0);
+          fins.setMatrixAt(i, mtx);
+          const k = 0.93 + 0.1 * Math.abs(Math.sin(x * 12.9898) * 43758.5453 % 1);
+          fins.setColorAt(i, tom.setRGB(k, k, k));
+        });
         fins.castShadow = true;
         fins.receiveShadow = true;
         g.add(fins);
@@ -1410,13 +1418,20 @@ window.PCBModelos = function (THREE) {
   /* ---------------- RISER (cabo flat) ----------------
    * pontos: lista de Vector3 (mundo); largura ao longo de `eixoLargura`. */
   function riser(pontos, eixoLargura, largura) {
+    const m = new THREE.Mesh(riserGeo(pontos, eixoLargura, largura), new THREE.MeshStandardMaterial({ color: '#1b1c20', roughness: 0.45, metalness: 0.4, side: THREE.DoubleSide }));
+    m.castShadow = true;
+    return m;
+  }
+  // fita chata do riser ao longo da curva (eixoLargura pode ser um vetor ou uma função t → vetor)
+  function riserGeo(pontos, eixoLargura, largura) {
     const curva = new THREE.CatmullRomCurve3(pontos, false, 'centripetal');
     const n = 60;
     const pos = [];
     const idx = [];
-    const meia = eixoLargura.clone().multiplyScalar(largura / 2);
+    const meia = typeof eixoLargura === 'function' ? new THREE.Vector3() : eixoLargura.clone().multiplyScalar(largura / 2);
     for (let i = 0; i <= n; i++) {
       const p = curva.getPoint(i / n);
+      if (typeof eixoLargura === 'function') meia.copy(eixoLargura(i / n)).multiplyScalar(largura / 2);
       const a = p.clone().add(meia), b = p.clone().sub(meia);
       pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
       if (i < n) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
@@ -1425,9 +1440,7 @@ window.PCBModelos = function (THREE) {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#1b1c20', roughness: 0.45, metalness: 0.4, side: THREE.DoubleSide }));
-    m.castShadow = true;
-    return m;
+    return geo;
   }
 
   function tubo(pontos, raio, cor, mat, trancadoCor) {
@@ -1813,7 +1826,7 @@ window.PCBModelos = function (THREE) {
 
   return {
     std, luz, vidro, tela, caixa, caixaR, geoCaixaR, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico, liberarFoto,
-    fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, riser, tubo, gabinete,
+    fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, riser, riserGeo, tubo, gabinete,
     layoutPlacaMae, texturas: T
   };
 };

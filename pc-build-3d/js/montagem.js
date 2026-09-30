@@ -221,6 +221,9 @@ window.PCBMontagem = function (THREE, M) {
       });
     });
 
+    // conexões flexíveis (mangueiras, riser): cordas na física
+    const ligacoes = [];
+
     /* ---------- watercooler ---------- */
     const CL = R.cooler;
     const cfgC = build.refrigeracao || {};
@@ -285,6 +288,7 @@ window.PCBMontagem = function (THREE, M) {
       const portasBomba = bomba.userData.portas.map((p) => ({ pos: bomba.localToWorld(p.pos.clone()), dir: p.dir.clone().transformDirection(bomba.matrixWorld) }));
       const tubos = new THREE.Group();
       let retaMang = 0, trajetoMang = 0;
+      const xMax = (i) => faceX - 60 - i * 14;
       for (let i = 0; i < 2; i++) {
         const A = portasRad[i], B = portasBomba[1 - i] || portasBomba[0];
         const p1 = A.pos.clone().addScaledVector(A.dir, 40);
@@ -292,7 +296,21 @@ window.PCBMontagem = function (THREE, M) {
         const meio = p1.clone().lerp(p3, 0.5);
         meio.x = Math.min(meio.x, faceX - 60 - i * 14);
         const pts = [A.pos, p1, meio, p3, B.pos];
-        tubos.add(M.tubo(pts, 6.2, CL.cor, null, CL.cor));
+        const mTubo = M.tubo(pts, 6.2, CL.cor, null, CL.cor);
+        tubos.add(mTubo);
+        // na física a mangueira vira uma corda: segura a bomba e se redesenha entre as conexões
+        ligacoes.push({
+          tipo: 'mangueira', obj: mTubo, partes: ['radiador', 'bomba'], comprimento: CL.mangueira || 400,
+          a: { pos: A.pos.clone(), dir: A.dir.clone() }, b: { pos: B.pos.clone(), dir: B.dir.clone() },
+          refazer(pa, da, pb, db, folga) {
+            const q1 = pa.clone().addScaledVector(da, 40), q3 = pb.clone().addScaledVector(db, 45);
+            const m = q1.clone().lerp(q3, 0.5);
+            m.y -= folga * 0.45;
+            const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([pa, q1, m, q3, pb], false, 'centripetal'), 60, 6.2, 12, false);
+            mTubo.geometry.dispose();
+            mTubo.geometry = g;
+          }
+        });
         retaMang = Math.max(retaMang, A.pos.distanceTo(B.pos));
         trajetoMang = Math.max(trajetoMang, compLinha(new THREE.CatmullRomCurve3(pts).getPoints(40)));
       }
@@ -384,6 +402,8 @@ window.PCBMontagem = function (THREE, M) {
     // riser
     let riserInfo = null;
     if (vertical && cg.riser !== false) {
+      mb.updateMatrixWorld(true);
+      gpu.updateMatrixWorld(true);
       const A = mbPonto(slot0.x + 44.5, slot0.y, 11);
       const Fd = gpu.localToWorld(new THREE.Vector3(dedosX + 44.5, 0, 3.3));
       const xm = (faceX + Q.X(G.bandeja.x + distancia)) / 2;
@@ -402,7 +422,27 @@ window.PCBMontagem = function (THREE, M) {
       registrar('riser', 'Cabo riser PCIe', 'Placa de vídeo', fita, { colide: false, massa: 70, massaEstimada: true, info: { notas: 'Traçado ilustrativo do cabo riser (o comprimento real depende do modelo).' } });
       const con = new THREE.Group();
       con.add(M.caixa(Fd.x - 9, Fd.x + 9, Fd.y - 14, Fd.y + 7, Fd.z - 52, Fd.z + 52, M.std('#141518', 0.6, 0.1)));
-      con.add(M.caixa(A.x - 14, A.x, A.y - 5, A.y + 5, A.z - 48, A.z + 48, M.std('#141518', 0.6, 0.1)));
+      // a ponta do riser que entra no slot da placa-mãe fica presa na placa (acompanha ela na física)
+      const conMB = M.caixa(A.x - 14, A.x, A.y - 5, A.y + 5, A.z - 48, A.z + 48, M.std('#141518', 0.6, 0.1));
+      raiz.add(conMB);
+      conMB.updateMatrixWorld(true);
+      mb.attach(conMB);
+      conMB.traverse((o) => { o.userData.parteId = 'placaMae'; });
+      const nMBr = mb.localToWorld(new THREE.Vector3(0, 0, 1)).sub(mb.localToWorld(new THREE.Vector3(0, 0, 0))).normalize();
+      const baixoGpu = gpu.localToWorld(new THREE.Vector3(0, -1, 0)).sub(gpu.localToWorld(new THREE.Vector3(0, 0, 0))).normalize();
+      ligacoes.push({
+        tipo: 'riser', obj: fita, partes: ['placaMae', 'gpu'], comprimento: riserInfo.comprimento,
+        a: { pos: A.clone(), dir: nMBr }, b: { pos: Fd.clone().addScaledVector(baixoGpu, 14), dir: baixoGpu },
+        largura: gpu.localToWorld(new THREE.Vector3(1, 0, 0)).sub(gpu.localToWorld(new THREE.Vector3(0, 0, 0))).normalize(),
+        refazer(pa, da, pb, db, folga, la, lb) {
+          const q1 = pa.clone().addScaledVector(da, 14), q3 = pb.clone().addScaledVector(db, 22);
+          const m = q1.clone().lerp(q3, 0.5);
+          m.y -= folga * 0.4;
+          const geo = M.riserGeo([pa, q1, m, q3, pb], (t) => la.clone().lerp(lb, t).normalize(), 64);
+          fita.geometry.dispose();
+          fita.geometry = geo;
+        }
+      });
       con.userData.colisores = [new THREE.Box3(new THREE.Vector3(Fd.x - 9, Fd.y - 14, Fd.z - 52), new THREE.Vector3(Fd.x + 9, Fd.y + 7, Fd.z + 52))];
       registrar('conectorRiser', 'Conector do riser', 'Placa de vídeo', con, { ignora: ['gpu', 'placaMae'], info: { notas: 'Encaixe do riser na placa de vídeo.' } });
     }
@@ -786,7 +826,7 @@ window.PCBMontagem = function (THREE, M) {
     };
 
     return {
-      raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo, massas,
+      raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo, massas, ligacoes,
       radInfo, riserInfo, vertical, distancia, altura, vagas,
       contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, pentes: slotsUsados.length }
     };
