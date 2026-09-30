@@ -530,6 +530,30 @@ window.PCBTexturas = function (THREE) {
   }
 
 
+  /* Dedos PCIe x16 (uma face): 11 contatos, chave, 71 contatos; passo 1,0 mm.
+     Canvas: x = 0 no lado do suporte; y de cima (junto ao PCB) para baixo (borda). */
+  function gpuDedos(comp, alt) {
+    return memo('dedos|' + comp + '|' + alt, () => {
+      const S = 14;
+      const c = criar(Math.round(comp * S), Math.round(alt * S));
+      const a = criar(c.width, c.height);
+      const g = c.getContext('2d'), ga = a.getContext('2d');
+      g.fillStyle = '#0f1113'; g.fillRect(0, 0, c.width, c.height);
+      ga.fillStyle = '#000'; ga.fillRect(0, 0, a.width, a.height);
+      const ouro = g.createLinearGradient(0, 0, 0, c.height);
+      ouro.addColorStop(0, '#b8913a'); ouro.addColorStop(0.5, '#e6c46a'); ouro.addColorStop(1, '#c79d45');
+      const pad = (xc, longo) => {
+        const w = 0.7, y1 = alt - 0.55, y0 = alt - (longo ? 5.1 : 4.3);
+        g.fillStyle = ouro; g.fillRect((xc - w / 2) * S, y0 * S, w * S, (y1 - y0) * S);
+        ga.fillStyle = '#fff'; ga.fillRect((xc - w / 2) * S, y0 * S, w * S, (y1 - y0) * S);
+      };
+      for (let i = 0; i < 11; i++) pad(0.8 + i, i === 0 || i === 4);
+      for (let i = 0; i < 71; i++) pad(14.05 + i, i === 69);
+      granular(c, 6, 71);
+      return { map: tex(c), alpha: tex(a, { cor: false }) };
+    });
+  }
+
   /* ================= superfícies genéricas ================= */
   // Grão fino (pintura eletrostática / plástico fosco): mapa de cor + relevo, repetível.
   function grao(cor, forca = 14, seed = 3) {
@@ -576,6 +600,33 @@ window.PCBTexturas = function (THREE) {
       for (const t of textos) {
         texto(g, t.s, t.x * S + 0.3 * S, t.y * S + 0.3 * S, t.tam * S, 'rgba(0,0,0,0.6)', { fonte: F_PESADA, peso: '900', alinhar: t.alinhar || 'center', espaco: (t.espaco || 0.6) * S });
         texto(g, t.s, t.x * S, t.y * S, t.tam * S, t.cor || '#8a8f96', { fonte: F_PESADA, peso: '900', alinhar: t.alinhar || 'center', espaco: (t.espaco || 0.6) * S });
+      }
+      return { map: tex(c), alpha: tex(a, { cor: false }) };
+    });
+  }
+
+  /* Chapa com grade de furos quadrados (traseira do Model 5 Vent). solidos/furos em mm. */
+  function gradeQuadrada(chave, w, h, cor, { passo = 11, furo = 8.5, borda = 8, solidos = [], raio = 1.2 } = {}) {
+    return memo('gradeQ|' + chave + '|' + w + '|' + h + '|' + cor, () => {
+      const S = 2048 / Math.max(w, h);
+      const c = criar(w * S, h * S), a = criar(c.width, c.height);
+      const g = c.getContext('2d'), ga = a.getContext('2d');
+      g.fillStyle = cor; g.fillRect(0, 0, c.width, c.height);
+      granular(c, 12, 29);
+      ga.fillStyle = '#fff'; ga.fillRect(0, 0, a.width, a.height);
+      const livre = (x0, y0, x1, y1) => !solidos.some((r) => x0 < r.x1 && x1 > r.x0 && y0 < r.y1 && y1 > r.y0);
+      const nx = Math.floor((w - 2 * borda + (passo - furo)) / passo), ny = Math.floor((h - 2 * borda + (passo - furo)) / passo);
+      const ox = (w - (nx * passo - (passo - furo))) / 2, oy = (h - (ny * passo - (passo - furo))) / 2;
+      ga.fillStyle = '#000';
+      for (let j = 0; j < ny; j++) {
+        for (let i = 0; i < nx; i++) {
+          const x0 = ox + i * passo, y0 = oy + j * passo;
+          if (!livre(x0, y0, x0 + furo, y0 + furo)) continue;
+          const r = raio * S;
+          const X = x0 * S, Y = (h - y0 - furo) * S, L = furo * S;
+          ga.beginPath(); ga.moveTo(X + r, Y); ga.arcTo(X + L, Y, X + L, Y + L, r); ga.arcTo(X + L, Y + L, X, Y + L, r); ga.arcTo(X, Y + L, X, Y, r); ga.arcTo(X, Y, X + L, Y, r); ga.fill();
+          g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(X - 0.6 * S, Y - 0.6 * S, L + 1.2 * S, L + 1.2 * S);
+        }
       }
       return { map: tex(c), alpha: tex(a, { cor: false }) };
     });
@@ -791,8 +842,8 @@ window.PCBTexturas = function (THREE) {
   }
 
   return {
-    escovadoRepetivel, placaMaeTopo, placaMaeIO, memoriaLado, adesivoFan, gpuBackplate, gpuSuporte,
-    grao, painelPerfurado, aorusEspelho, aorusTanque, aletasRadiador, trancado, memoriaEtiqueta,
+    escovadoRepetivel, placaMaeTopo, placaMaeIO, memoriaLado, adesivoFan, gpuBackplate, gpuSuporte, gpuDedos,
+    grao, painelPerfurado, gradeQuadrada, aorusEspelho, aorusTanque, aletasRadiador, trancado, memoriaEtiqueta,
     corsairGrade, corsairLateral, corsairEspecificacao, corsairModular
   };
 };

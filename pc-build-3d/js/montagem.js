@@ -514,9 +514,11 @@ window.PCBMontagem = function (THREE, M) {
       furosTraseira.push(f);
       return true;
     };
-    if (G.traseira.rearIO) addFuro({ x0: faceX - 42.15, x1: faceX + 2.3, y0: topoY + 18 - 158.75, y1: topoY + 18, r: 1 });
+    const ioAcima = G.traseira.ioTopoAcima != null ? G.traseira.ioTopoAcima : 18;
+    if (G.traseira.rearIO) addFuro({ x0: faceX - 42.15, x1: faceX + 2.3, y0: topoY + ioAcima - 158.75, y1: topoY + ioAcima, r: 1, io: true });
     const zt = G.montagens.traseira;
-    if (zt) {
+    const gradeTraseira = !!G.traseira.grade;
+    if (zt && !gradeTraseira) {
       const s = Math.max(...tamanhosDaZona(zt));
       const cx = Q.X(zt.centro.x), cy = zt.centro.y;
       addFuro({ x0: cx - s / 2 + 4, x1: cx + s / 2 - 4, y0: cy - s / 2 + 4, y1: cy + s / 2 - 4, r: 6, tela: true });
@@ -527,11 +529,30 @@ window.PCBMontagem = function (THREE, M) {
     }
     const suporte = new THREE.Box3(new THREE.Vector3(-1.6, 2, -3), new THREE.Vector3(0, 121, GPU.slots * PASSO_SLOT - 3)).applyMatrix4(gpu.matrixWorld);
     const furoGpu = { x0: suporte.min.x + 2, x1: suporte.max.x - 2, y0: suporte.min.y + 2, y1: suporte.max.y - 2, r: 1 };
-    addFuro(furoGpu);
+    const PS = G.traseira.placaSlots;
+    if (!PS) addFuro(furoGpu);
     const tampasSlot = [];
     const tampasVerticais = [];
     const nSlotsCaso = G.traseira.slots || 7;
-    if (vertical) {
+    let placaSlots = null;
+    if (PS) {
+      // placa de 7 slots removível: deitada (GPU horizontal) ou girada (GPU vertical)
+      placaSlots = { x0: Q.X(PS.x[1]), x1: Q.X(PS.x[0]), y0: PS.y[0], y1: PS.y[1], vertical };
+      const slotBase = gv.slotBaseX != null ? gv.slotBaseX : PS.x[0] - 7;
+      for (let i = 0; i < nSlotsCaso; i++) {
+        let t;
+        if (vertical) {
+          const cx = Q.X(slotBase + PASSO_SLOT / 2 + i * PASSO_SLOT);
+          t = { x0: cx - 8.4, x1: cx + 8.4, y0: PS.y[0] + 6, y1: PS.y[1] - 6 };
+        } else {
+          const cy = G.traseira.slot1Y - i * PASSO_SLOT;
+          t = { x0: placaSlots.x0 + 6, x1: placaSlots.x1 - 6, y0: cy - 8.4, y1: cy + 8.4 };
+        }
+        (vertical ? tampasVerticais : tampasSlot).push(Object.assign(t, { ocupada: sobrepoe2D(t, furoGpu) }));
+      }
+      const dentro = furoGpu.x0 >= placaSlots.x0 - 3 && furoGpu.x1 <= placaSlots.x1 + 3 && furoGpu.y0 >= placaSlots.y0 - 3 && furoGpu.y1 <= placaSlots.y1 + 3;
+      if (!dentro) avisos.push('O suporte (bracket) da placa de vídeo não fica alinhado com a placa de slots do gabinete: ajuste a distância/altura da GPU vertical.');
+    } else if (vertical) {
       for (let i = 0; i < nSlotsCaso; i++) {
         const cx = Q.X(G.bandeja.x + 16 + i * PASSO_SLOT);
         const t = { x0: cx - 8.5, x1: cx + 8.5, y0: gv.alturaMin - 2, y1: gv.alturaMin + 122 };
@@ -546,9 +567,12 @@ window.PCBMontagem = function (THREE, M) {
         if (!sobrepoe2D(t, furoGpu)) tampasSlot.push(t);
       }
     }
+    // grade de furos quadrados da traseira (fica sólida perto dos recortes)
+    const traseiraGrade = gradeTraseira ? Object.assign({}, G.traseira.grade, { placa: placaSlots }) : null;
     const trs = G.placaMae.traseira;
     const furosBandeja = [];
-    const limBandeja = { x0: P.traseira.espessura + 4, x1: Q.D - P.frente.espessura - 4, y0: G.pes + P.fundo.espessura + 4, y1: Q.H - P.topo.espessura - 4 };
+    const bandejaAte = G.bandeja.ateZ || Q.D - P.frente.espessura;
+    const limBandeja = { x0: P.traseira.espessura + 4, x1: bandejaAte - 4, y0: G.pes + P.fundo.espessura + 4, y1: Q.H - P.topo.espessura - 4 };
     const addFuroBandeja = (f) => {
       const r = f.circulo ? { x0: f.u - f.r, x1: f.u + f.r, y0: f.v - f.r, y1: f.v + f.r } : { x0: f.u0, x1: f.u1, y0: f.v0, y1: f.v1 };
       if (r.x0 < limBandeja.x0 || r.x1 > limBandeja.x1 || r.y0 < limBandeja.y0 || r.y1 > limBandeja.y1) return;
@@ -557,14 +581,23 @@ window.PCBMontagem = function (THREE, M) {
       furosBandeja.push(f);
     };
     addFuroBandeja({ u0: trs + 50, u1: trs + 170, v0: topoY - 140, v1: topoY - 25, r: 6 });
-    for (const [a, b] of [[25, 95], [115, 200], [220, 300]]) addFuroBandeja({ u0: trs + 256, u1: trs + 272, v0: topoY - b, v1: topoY - a, r: 6 });
-    for (const [a, b] of [[30, 110], [130, 210]]) addFuroBandeja({ u0: trs + a, u1: trs + b, v0: topoY + 5, v1: topoY + 12, r: 3 });
+    // recortes de cabo na frente da placa (2 grandes, como na foto) e em cima da placa (EPS e fans do topo)
+    const uFrente = Math.min(bandejaAte - 30, trs + MB.largura + 22);
+    for (const [a, b] of [[20, 110], [130, 230]]) addFuroBandeja({ u0: uFrente, u1: uFrente + 18, v0: topoY - b, v1: topoY - a, r: 7 });
+    for (let i = 0; i < 4; i++) addFuroBandeja({ u0: trs + 12 + i * 58, u1: trs + 58 + i * 58, v0: topoY + 8, v1: topoY + 26, r: 8 });
+    for (const a of [30, 150]) addFuroBandeja({ u0: trs + a, u1: trs + a + 55, v0: topoY - MB.altura - 26, v1: topoY - MB.altura - 12, r: 4 });
     const zl = G.montagens.lateral;
     if (zl) addFuroBandeja({ circulo: true, grade: true, u: zl.centro.z, v: zl.centro.y, r: Math.max(...tamanhosDaZona(zl)) * 0.46 });
 
+    // suporte do fan da lateral direita (na frente da bandeja, sob a fonte)
+    let suporteLateral = null;
+    if (zl && G.bandeja.ateZ && zl.normal === 'direita') {
+      const zc = Q.Z(zl.centro.z);
+      suporteLateral = { x: Q.X(zl.centro.x), z0: Math.max(Q.Z(G.bandeja.ateZ) + 2, zc - 88), z1: Math.min(interior.max.z - 2, zc + 88), y0: interior.min.y + 2, y1: Math.min(caixaFonte.min.y - 2, zl.centro.y + 92) };
+    }
     const caso = M.gabinete(G, Q, (build.gabinete && build.gabinete.cor) || G.cor, {
-      furosTraseira, tampasSlot, tampasVerticais, furosBandeja,
-      bandejaMundoX: bandejaX,
+      furosTraseira, tampasSlot, tampasVerticais, furosBandeja, traseiraGrade, suporteLateral,
+      bandejaMundoX: bandejaX, bandejaAteZ: bandejaAte,
       caixaFonte: { box: caixaFonte, faces: facesFonte }
     });
     const pCaixa = partes.find((p) => p.id === 'caixaFonte');
@@ -582,7 +615,7 @@ window.PCBMontagem = function (THREE, M) {
       }
     });
     registrar('bandeja', 'Bandeja da placa-mãe', 'Gabinete', null, {
-      caixas: [new THREE.Box3(new THREE.Vector3(bandejaX, interior.min.y, interior.min.z), new THREE.Vector3(bandejaX + 1.2, interior.max.y, interior.max.z))],
+      caixas: [new THREE.Box3(new THREE.Vector3(bandejaX, interior.min.y, interior.min.z), new THREE.Vector3(bandejaX + 1.2, interior.max.y, Q.Z(bandejaAte)))],
       ignora: ['placaMae']
     });
 

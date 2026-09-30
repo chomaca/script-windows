@@ -12,7 +12,7 @@ window.PCBApp = (function () {
   const PADRAO = window.PCB_BUILD_PADRAO;
   const TOQUE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   const VIS_PADRAO = {
-    paineis: true, vidro: true, fluxo: false, ar: false, cotas: true, girar: true, vagas: false, grade: true,
+    paineis: true, vidro: true, fluxo: false, ar: false, cotas: true, girar: true, vagas: false, grade: true, soGabinete: false,
     rgb: '#7cc8ff', rgbModo: 'fixo', qualidade: TOQUE ? 'leve' : 'alta'
   };
   const TONS = { neutro: 'NeutralToneMapping', aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping' };
@@ -98,6 +98,9 @@ window.PCBApp = (function () {
       const t = localStorage.getItem(CHAVE);
       if (t) {
         const o = JSON.parse(t);
+        // versão 1 → 2: posição da GPU vertical passou a seguir a placa de slots do gabinete
+        const g0 = o.build && o.build.gpu;
+        if (g0 && (o.build.versao || 1) < 2 && g0.distanciaBandeja === 70 && g0.alturaDoChao === 81) { g0.distanciaBandeja = 56; g0.alturaDoChao = 76; }
         const vis = Object.assign({}, VIS_PADRAO, o.vis || {});
         if (!AMB.QUALIDADES[vis.qualidade]) vis.qualidade = VIS_PADRAO.qualidade;
         return { build: normalizar(o.build), vis, aba: o.aba || 'pecas', abertas: Array.isArray(o.abertas) ? o.abertas : null };
@@ -283,6 +286,8 @@ window.PCBApp = (function () {
     if (!cena) return;
     const base = new THREE.Color(token('--palco'));
     const escuro = temaEscuro();
+    cena.environment = AMB.ambienteEstudio(renderer, !escuro);
+    cena.environmentIntensity = escuro ? 1 : 0.9;
     const centro = base.clone().lerp(new THREE.Color(escuro ? '#3a3f47' : '#ffffff'), escuro ? 0.32 : 0.55);
     const borda = base.clone().lerp(new THREE.Color('#000000'), escuro ? 0.35 : 0.08);
     cena.background = AMB.fundo('#' + centro.getHexString(), '#' + borda.getHexString());
@@ -382,7 +387,8 @@ window.PCBApp = (function () {
     if (!atual) return;
     for (const p of atual.paineis) p.obj.visible = E.vis.paineis && (p.tipo !== 'vidro' || E.vis.vidro);
     const ligada = (id) => (id === 'riser' || id === 'conectorRiser' ? !E.ocultas.has('gpu') : true);
-    for (const p of atual.partes) if (p.obj && p.id !== 'gabinete') p.obj.visible = !E.ocultas.has(p.id) && ligada(p.id);
+    const soCaso = (id) => !E.vis.soGabinete || id === 'caixaFonte';
+    for (const p of atual.partes) if (p.obj && p.id !== 'gabinete') p.obj.visible = !E.ocultas.has(p.id) && ligada(p.id) && soCaso(p.id);
     const mt = $('#mostrar-tudo');
     if (mt) mt.hidden = !E.ocultas.size;
     atual.raiz.traverse((o) => { if (o.userData.fluxo) o.visible = E.vis.fluxo; });
@@ -733,14 +739,14 @@ window.PCBApp = (function () {
     traseira: [0.02, 0.14, -1], topo: [0.001, 1, 0.02]
   };
   function irVista(nome, instantaneo) {
-    if (!atual || !VISTAS[nome]) return;
+    if (!atual || (!VISTAS[nome] && !Array.isArray(nome))) return;
     const { W, H, D } = atual.Q;
     const alvo = new THREE.Vector3(0, H * 0.46, 0);
     const raioCena = Math.sqrt(W * W + H * H + D * D) / 2;
     const meio = THREE.MathUtils.degToRad(camera.fov / 2);
     let dist = (raioCena / Math.sin(meio)) * 1.08;
     if (camera.aspect < 1) dist /= Math.max(0.55, camera.aspect);
-    const dir = new THREE.Vector3(...VISTAS[nome]).normalize();
+    const dir = new THREE.Vector3(...(Array.isArray(nome) ? nome : VISTAS[nome])).normalize();
     const pos = alvo.clone().addScaledVector(dir, dist);
     for (const b of $$('[data-vista]')) b.setAttribute('aria-pressed', String(b.dataset.vista === nome));
     if (instantaneo) {
@@ -1176,7 +1182,7 @@ window.PCBApp = (function () {
         campoSeg('Cooler', seg('gpu.modo', b.gpu.modo, [['deshroud', 'Sem shroud'], ['original', 'Com shroud']], 'Cooler da placa de vídeo')),
         campoSeg('Montagem', seg('gpu.orientacao', b.gpu.orientacao, [['vertical', 'Vertical (riser)'], ['horizontal', 'Horizontal']], 'Orientação da placa de vídeo')),
         vertical ? slider('r-gpu-dist', 'gpu.distanciaBandeja', b.gpu.distanciaBandeja, gv.distanciaMin, gv.distanciaMax, 1, 'Distância da bandeja até a backplate') : '',
-        vertical ? slider('r-gpu-alt', 'gpu.alturaDoChao', b.gpu.alturaDoChao, gv.alturaMin, Math.round(G.medidas.altura * 0.5), 1, 'Altura da borda de baixo da placa (do chão)') : '',
+        vertical ? slider('r-gpu-alt', 'gpu.alturaDoChao', b.gpu.alturaDoChao, gv.alturaMin, gv.alturaMax || Math.round(G.medidas.altura * 0.5), 1, 'Altura da borda de baixo da placa (do chão)') : '',
         vertical && atual && atual.riserInfo ? '<p class="nota">Cabo riser: precisa de ~' + fmt(atual.riserInfo.comprimento, 0) + ' mm pelo caminho mostrado.</p>' : '',
         deshroud ? [
           campoSelect('s-gpu-fan', 'gpu.fans.modelo', 'Fans presos no dissipador', opcoes(CAT.fans, b.gpu.fans.modelo)),
@@ -1859,7 +1865,7 @@ window.PCBApp = (function () {
     if (digitando || e.altKey || $$('.modal').some((m) => !m.hidden)) return;
     const k = e.key;
     const vistas = { 1: 'iso', 2: 'vidro', 3: 'frente', 4: 'traseira', 5: 'topo' };
-    const togg = { p: 'paineis', v: 'vidro', c: 'cotas', f: 'fluxo', a: 'ar', g: 'girar', n: 'vagas' };
+    const togg = { p: 'paineis', v: 'vidro', c: 'cotas', f: 'fluxo', a: 'ar', g: 'girar', n: 'vagas', o: 'soGabinete' };
     if (vistas[k]) irVista(vistas[k]);
     else if (togg[k.toLowerCase()] && !e.shiftKey) alternarVis(togg[k.toLowerCase()]);
     else if (k === 'm' || k === 'M') modoMedir(!E.medir.ativo);
@@ -2026,5 +2032,5 @@ window.PCBApp = (function () {
     };
   }
 
-  return { iniciar, falha, diagnostico };
+  return { iniciar, falha, diagnostico, vista: (d) => irVista(d, true) };
 })();

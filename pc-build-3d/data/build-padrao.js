@@ -7,7 +7,7 @@
  * ficam salvas no navegador e podem ser exportadas em JSON.
  */
 window.PCB_BUILD_PADRAO = {
-  versao: 1,
+  versao: 2,
   gabinete: { modelo: 'gf-model5-vent', cor: '#1c1e21' },
   placaMae: { modelo: 'maxsun-b850m-pro-wifi-branca' },
   cpu: { modelo: 'am5-a-definir' },
@@ -25,8 +25,8 @@ window.PCB_BUILD_PADRAO = {
     modelo: 'zotac-rtx5090-amp-extreme-infinity',
     modo: 'deshroud',            // 'deshroud' ou 'original'
     orientacao: 'vertical',      // 'vertical' (riser) ou 'horizontal' (no slot)
-    distanciaBandeja: 70,        // mm da bandeja até a backplate (vertical)
-    alturaDoChao: 81,            // mm do chão até a borda de baixo da placa (vertical)
+    distanciaBandeja: 56,        // mm da bandeja até a backplate (vertical; suporte nos 4 últimos slots da placa girada)
+    alturaDoChao: 76,            // mm do chão até a borda de baixo da placa (vertical)
     fans: { modelo: 'arctic-p14-pro', quantidade: 2, espacamento: 4, deslocamento: 0 },
     riser: true
   },

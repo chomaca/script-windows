@@ -33,44 +33,55 @@ window.PCB_CATALOGO = {
       paineis: {
         esquerdo: { tipo: 'vidro', espessura: 4 },
         direito: { tipo: 'tela', espessura: 3, faixa: [0.43, 0.56], logo: 'GEOMETRIC FUTURE' },
-        frente: { tipo: 'tela', espessura: 14, rodape: 0.13, logo: 'GEOMETRIC FUTURE' },
+        // frente: tela sobre a coluna de fans + faixa sólida de 88 mm à direita com o painel de I/O no meio da altura
+        frente: { tipo: 'tela', espessura: 14, faixaLateral: 88, io: 0.5, suporteFans: true },
         topo: { tipo: 'tela', espessura: 12 },
         traseira: { tipo: 'metal', espessura: 2 },
         fundo: { tipo: 'tela', espessura: 5 }
       },
       semColuna: false, // true = canto frontal-esquerdo sem coluna (vidro com vidro)
+      chapa: 1.2,       // aço de 0,8 a 1,2 mm (oficial)
+      massa: 8500,      // g, sem peças (estimado: o Model 5 de vidro pesa 8,75 kg)
       limites: {
         placaMae: ['E-ATX', 'ATX', 'mATX', 'Mini-ITX'],
         gpuComprimento: 430,
         coolerAltura: 180,
         fonteComprimento: 160
       },
-      bandeja: { x: 42 },
-      placaMae: { traseira: 14, topoY: 362, standoff: 6.35 },
+      // bandeja a 34 mm da lateral direita (medido pela foto traseira: I/O a 40–83 mm da lateral);
+      // ela vai da traseira até os 2 recortes de cabo na frente da placa (z ≈ 318)
+      bandeja: { x: 34, ateZ: 318 },
+      placaMae: { traseira: 14, topoY: 351, standoff: 6.35 },
+      // fonte no canto frontal superior, baia de 200 mm de profundidade (TweakTown), ventoinha virada para a lateral direita
       fonte: {
-        caixa: { x: [42, 134], y: [218, 370], z: [292, 462] },
-        ancora: { x: 87, y: 294, z: 460 },
+        caixa: { x: [8, 100], y: [214, 372], z: [291, 491] },
+        ancora: { x: 54, y: 293, z: 488 },
         comprimentoPara: 'traseira',
         larguraPara: 'cima',
         ventoinhaPara: 'direita',
-        entradaAC: { x: 22, y: 402, lado: 30 }
+        entradaAC: { x: 53, y: 393, lado: 28 }
       },
+      // traseira em grade de furos quadrados; placa de 7 slots removível que gira para a GPU vertical
       traseira: {
         slots: 7,
-        slot1Y: 211,
-        rearIO: true
+        slot1Y: 187,
+        rearIO: true,
+        grade: { passo: 14, furo: 11 },
+        placaSlots: { x: [30, 170], y: [48, 196] },
+        ioTopoAcima: 3
       },
-      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaPadrao: 81, distanciaMin: 25, distanciaMax: 150, distanciaPadrao: 70 },
+      // suporte vertical (incluso): o suporte da placa (3,5 slots) precisa caber na placa de slots girada
+      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaMax: 84, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
       montagens: {
         topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
-        frente: { nome: 'Frente', centro: { x: 123, y: 225, z: 490 }, normal: 'frente', eixo: 'cima', vagas: { 120: 3, 140: 2 }, radiador: 360 },
+        frente: { nome: 'Frente', centro: { x: 163, y: 225, z: 490 }, normal: 'frente', eixo: 'cima', vagas: { 120: 3, 140: 2 }, radiador: 360 },
         traseira: { nome: 'Traseira', centro: { x: 162, y: 290, z: 2 }, normal: 'traseira', eixo: 'cima', vagas: { 120: 1, 140: 1 }, radiador: 140 },
         fundo: { nome: 'Fundo', centro: { x: 140, y: 25, z: 237 }, normal: 'baixo', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 360 },
-        lateral: { nome: 'Lateral (sob a fonte)', centro: { x: 42, y: 135, z: 377 }, normal: 'direita', eixo: 'frente', vagas: { 120: 1, 140: 1, 160: 1 }, radiador: 0, montagem: 'fora' },
-        atrasBandeja: { nome: 'Atrás da bandeja', centro: { x: 42, y: 240, z: 132 }, normal: 'direita', eixo: 'frente', vagas: { 120: 2 }, radiador: 0, montagem: 'fora' }
+        lateral: { nome: 'Lateral direita (frente, sob a fonte)', centro: { x: 28, y: 125, z: 400 }, normal: 'direita', eixo: 'frente', vagas: { 120: 1, 140: 1, 160: 1 }, radiador: 0, montagem: 'fora' },
+        atrasBandeja: { nome: 'Atrás da bandeja', centro: { x: 34, y: 228, z: 150 }, normal: 'direita', eixo: 'frente', vagas: { 120: 2 }, radiador: 0, montagem: 'fora' }
       },
-      estimado: ['pes', 'paineis', 'bandeja', 'placaMae', 'fonte', 'traseira', 'gpuVertical', 'montagens'],
-      notas: 'Medidas externas e limites oficiais. Posições internas estimadas pelas fotos do fabricante e pelas especificações (fonte no canto frontal superior, fan de 120/140/160 mm sob a fonte).',
+      estimado: ['pes', 'paineis', 'bandeja', 'placaMae', 'fonte', 'traseira', 'gpuVertical', 'montagens', 'massa'],
+      notas: 'Medidas externas, limites, aço de 0,8–1,2 mm e vidro de 4 mm oficiais. Vagas oficiais: 3 no topo, 3 na frente, 1 na lateral direita frontal (até 160 mm), 1 traseira, 3 no fundo e 2 atrás da bandeja. Frente com tela sobre os fans e faixa sólida à direita com o I/O; lateral direita em tela com faixa sólida e o nome. Posições internas estimadas pelas fotos.',
       fontes: [
         { rotulo: 'Página oficial Model 5 Vent', url: 'https://www.geometricfuture.com/product-1/34.html' },
         { rotulo: 'PCPartPicker (505 × 242 × 440 mm)', url: 'https://pcpartpicker.com/product/QWMMnQ/geometric-future-model-5-vent-atx-mid-tower-case-geo-m5vf-b' },
@@ -78,7 +89,8 @@ window.PCB_CATALOGO = {
         { rotulo: 'Guru3D (cooler 180 mm, fonte 160 mm)', url: 'https://www.guru3d.com/story/geometric-future-model-5-pc-case-features-and-specifications/' },
         { rotulo: 'TechPowerUp (fonte no canto frontal)', url: 'https://www.techpowerup.com/review/geometic-future-model-5/' },
         { rotulo: 'KitGuru (posição dos 5 fans)', url: 'https://www.kitguru.net/components/cases/james-dawson/geometric-future-model-5-vent-case-review/' },
-        { rotulo: 'TweakTown (GPU vertical)', url: 'https://www.tweaktown.com/reviews/11066/geometric-future-model-5-vent-mid-tower-chassis/index.html' }
+        { rotulo: 'TweakTown (GPU vertical)', url: 'https://www.tweaktown.com/reviews/11066/geometric-future-model-5-vent-mid-tower-chassis/index.html' },
+        { rotulo: 'Guru3D (vagas de fan, aço 0,8–1,2 mm, vidro 4 mm)', url: 'https://www.guru3d.com/story/geometric-future-model-5-pc-case-features-and-specifications/' }
       ]
     },
 
@@ -102,24 +114,25 @@ window.PCB_CATALOGO = {
         coolerAltura: 180,
         fonteComprimento: 160
       },
-      bandeja: { x: 42 },
-      placaMae: { traseira: 14, topoY: 362, standoff: 6.35 },
+      // mesmo chassi do Model 5 Vent, com a frente de vidro (25 mm mais raso)
+      bandeja: { x: 34, ateZ: 306 },
+      placaMae: { traseira: 14, topoY: 351, standoff: 6.35 },
       fonte: {
-        caixa: { x: [42, 134], y: [218, 370], z: [292, 470] },
-        ancora: { x: 87, y: 294, z: 468 },
+        caixa: { x: [8, 100], y: [214, 372], z: [270, 470] },
+        ancora: { x: 54, y: 293, z: 467 },
         comprimentoPara: 'traseira',
         larguraPara: 'cima',
         ventoinhaPara: 'direita',
-        entradaAC: { x: 22, y: 402, lado: 30 }
+        entradaAC: { x: 53, y: 393, lado: 28 }
       },
-      traseira: { slots: 7, slot1Y: 211, rearIO: true },
-      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaPadrao: 81, distanciaMin: 25, distanciaMax: 150, distanciaPadrao: 70 },
+      traseira: { slots: 7, slot1Y: 187, rearIO: true, grade: { passo: 14, furo: 11 }, placaSlots: { x: [30, 170], y: [48, 196] }, ioTopoAcima: 3 },
+      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaMax: 84, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
       montagens: {
         topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         traseira: { nome: 'Traseira', centro: { x: 162, y: 290, z: 2 }, normal: 'traseira', eixo: 'cima', vagas: { 120: 1, 140: 1 }, radiador: 140 },
         fundo: { nome: 'Fundo', centro: { x: 140, y: 25, z: 237 }, normal: 'baixo', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 360 },
-        lateral: { nome: 'Lateral (sob a fonte)', centro: { x: 42, y: 135, z: 377 }, normal: 'direita', eixo: 'frente', vagas: { 120: 1, 140: 1, 160: 1 }, radiador: 0, montagem: 'fora' },
-        atrasBandeja: { nome: 'Atrás da bandeja', centro: { x: 42, y: 240, z: 132 }, normal: 'direita', eixo: 'frente', vagas: { 120: 2 }, radiador: 0, montagem: 'fora' }
+        lateral: { nome: 'Lateral direita (frente, sob a fonte)', centro: { x: 28, y: 125, z: 385 }, normal: 'direita', eixo: 'frente', vagas: { 120: 1, 140: 1, 160: 1 }, radiador: 0, montagem: 'fora' },
+        atrasBandeja: { nome: 'Atrás da bandeja', centro: { x: 34, y: 228, z: 150 }, normal: 'direita', eixo: 'frente', vagas: { 120: 2 }, radiador: 0, montagem: 'fora' }
       },
       estimado: ['pes', 'paineis', 'bandeja', 'placaMae', 'fonte', 'traseira', 'gpuVertical', 'montagens'],
       notas: 'Versão com frente de vidro (sem suporte a fans frontais). Posições internas estimadas.',
@@ -185,17 +198,19 @@ window.PCB_CATALOGO = {
       altura: 245,
       espessura: 1.6,
       estilo: 'maxsun-terminator',
+      massa: 950,
       corPCB: '#16181b',
       corArmadura: '#e6e7e9',
       corAcento: '#7a1d26',
       corDetalhe: '#b9bdc3',
       soquete: { x: 110, y: 80 },
       dimm: { x: [152, 160, 168, 176], y: 78 },
+      // x16 alinhado à 1ª posição de slot do gabinete (passo 20,32 mm); o 2º, três slots abaixo
       pcie: [
-        { x: 46, y: 151, nome: 'PCIe 5.0 x16', reforcado: true },
-        { x: 46, y: 212, nome: 'PCIe 4.0 x4 (físico x16)', reforcado: false }
+        { x: 46, y: 164, nome: 'PCIe 5.0 x16', reforcado: true },
+        { x: 46, y: 225, nome: 'PCIe 4.0 x4 (físico x16)', reforcado: false }
       ],
-      estimado: ['soquete', 'dimm', 'pcie'],
+      estimado: ['soquete', 'dimm', 'pcie', 'massa'],
       notas: 'Formato Micro-ATX 245 × 245 mm (oficial). PCB preto com armadura prata-branca jateada e escovada e linhas vermelho-escuras; 4 slots DDR5, 3 M.2, 2 PCIe x16, 2 SATA e 2 EPS 8 pinos. Posições internas seguem o padrão mATX. Para ficar idêntica ao produto, use a opção de foto do topo.',
       fontes: [
         { rotulo: 'MAXSUN — Terminator B850M PRO WIFI', url: 'https://www.maxsun.com/products/terminator-b850m-pro-wifi' },
@@ -266,9 +281,10 @@ window.PCB_CATALOGO = {
       altura: 34.9,
       comprimento: 133.35,
       espessura: 7,
+      massa: 36,
       cor: '#18191b',
       rgb: false,
-      estimado: ['espessura'],
+      estimado: ['espessura', 'massa'],
       fontes: [{ rotulo: 'Kingston FURY Beast DDR5 (34,9 mm)', url: 'https://www.kingston.com/en/memory/gaming/kingston-fury-beast-ddr5-memory' }]
     },
     'kingston-fury-beast-ddr5-rgb-32': {
@@ -309,7 +325,8 @@ window.PCB_CATALOGO = {
       bomba: { largura: 72.8, profundidade: 72.8, altura: 65.1, tela: false },
       fans: { modelo: 'aorus-120-ice', quantidade: 3 },
       mangueira: 380,
-      estimado: [],
+      massa: { radiador: 640, bomba: 430 },   // g sem os fans (estimado; caixa completa: 2,52 kg)
+      estimado: ['massa'],
       notas: 'Radiador de alumínio, 3 fans ARGB de 120 mm (inclusos). Mangueiras de borracha com malha de nylon, 380 mm.',
       fontes: [{ rotulo: 'GIGABYTE — especificações', url: 'https://www.gigabyte.com/CPU-Cooler/AORUS-WATERFORCE-II-360-ICE/sp' }]
     },
@@ -356,6 +373,7 @@ window.PCB_CATALOGO = {
       nome: 'Corsair RM1200e (2023)',
       estilo: 'corsair-rme',
       potencia: 1200,
+      massa: 1810,
       largura: 150,
       altura: 86,
       comprimento: 150,
@@ -407,16 +425,24 @@ window.PCB_CATALOGO = {
       espessura: 69.6,
       slots: 3.5,
       tgp: 575,
+      massa: 2880,          // g com shroud e fans (oficial)
+      massaShroud: 390,     // g do shroud + 3 fans de 100 mm + espelho (estimado)
+      heatpipes: 9,         // heatpipes compostos de cobre (Overclocking.com)
+      pcb: { comprimento: 228 },
       estilo: 'zotac-amp-extreme',
       cor: '#2a2d31',
       corPCB: '#0f1113',
       corBackplate: '#34373c',
-      deshroud: { comprimento: 325, altura: 128, espessura: 52 },
-      estimado: ['deshroud'],
-      notas: 'Medidas com shroud são oficiais. Sem shroud: PCB preto, estrutura intermediária preta, aletas de alumínio prateadas sobre câmara de vapor, heatpipes niquelados e backplate de metal fundido. As medidas do dissipador sem shroud são estimadas: meça o seu e ajuste em “Editar medidas”.',
+      // sem shroud: 332,1 − ~7 mm de shroud na ponta; 137,5 − ~5,5 mm de borda do shroud;
+      // 69,6 − ~15 mm dos fans de 100 mm − ~2,6 mm da tampa com espelho
+      deshroud: { comprimento: 325, altura: 132, espessura: 52 },
+      estimado: ['deshroud', 'massaShroud', 'pcb'],
+      notas: 'Medidas com shroud (332,1 × 137,5 × 69,6 mm, 2,88 kg) são oficiais. Por dentro: câmara de vapor 34% maior, dissipador de alumínio com 9 heatpipes compostos de cobre, aletas mais longas que o PCB (o terceiro fan sopra direto através delas), estrutura intermediária reforçada e backplate de metal fundido com 7 pads térmicos. O mesmo PCB da versão SOLID (329,7 × 137,8 × 67,8 mm). As medidas sem shroud são estimadas a partir das oficiais: meça a sua e ajuste em “Editar medidas”.',
       fontes: [
         { rotulo: 'ZOTAC — página do produto', url: 'https://www.zotac.com/us/product/graphics_card/zotac-gaming-geforce-rtx-5090-amp-extreme-infinity' },
-        { rotulo: 'ZOTAC — ficha técnica (PDF)', url: 'https://www.zotac.com/download/mediadrivers/External/GraphicsCard/5090/Brochure/ZT-B50900B-10P-brochure.pdf' }
+        { rotulo: 'ZOTAC — ficha técnica (PDF, 2,88 kg)', url: 'https://www.zotac.com/download/mediadrivers/External/GraphicsCard/5090/Brochure/ZT-B50900B-10P-brochure.pdf' },
+        { rotulo: 'Overclocking.com — desmontagem (9 heatpipes)', url: 'https://overclocking.com/test-zotac-rtx-5090-amp-extreme-infinity/3/' },
+        { rotulo: 'ZOTAC — RTX 5090 SOLID (mesmo PCB)', url: 'https://www.zotac.com/download/mediadrivers/External/GraphicsCard/5090/Brochure/ZT-B50900D-10P-brochure.pdf' }
       ]
     },
     'gpu-2slot-generica': {
@@ -447,7 +473,7 @@ window.PCB_CATALOGO = {
       corPas: '#1d1f23',
       rgb: true,
       pas: 9,
-      cfm: 91.15, rpm: 2400,
+      cfm: 91.15, rpm: 2400, massa: 170,
       fontes: [
         { rotulo: 'KitGuru — 5 fans Squama 140 mm inclusos', url: 'https://www.kitguru.net/components/cases/james-dawson/geometric-future-model-5-vent-case-review/' },
         { rotulo: 'PCPartPicker — Squama 2503 140 mm (91,15 CFM)', url: 'https://pcpartpicker.com/product/bPbRsY/geometric-future-squama-2503-9115-cfm-140-mm-fan-geo-s2503b-14s' }
@@ -462,8 +488,9 @@ window.PCB_CATALOGO = {
       corPas: '#1a1b1e',
       rgb: false,
       pas: 7,
-      cfm: 110, rpm: 2500, pressao: 5.2,
+      cfm: 110, rpm: 2500, pressao: 5.2, massa: 240,
       fontes: [
+        { rotulo: 'ARCTIC — ficha técnica P14 Pro (240 g)', url: 'https://www.arctic.de/media/ac/2f/6a/1753621498/Spec_Sheet_P14_Pro_EN.pdf' },
         { rotulo: 'ARCTIC — P14 Pro (140 × 140 × 27 mm, 110 CFM, 5,2 mmH₂O)', url: 'https://www.arctic.de/us/P14-Pro/ACFAN00313A' },
         { rotulo: 'HWCooling — P14 Pro (7 pás)', url: 'https://www.hwcooling.net/en/arctic-p14-pro-pst-the-best-price-to-performance-ratio-review/' }
       ]
@@ -477,7 +504,7 @@ window.PCB_CATALOGO = {
       corPas: '#f6f7f8',
       rgb: true,
       pas: 9,
-      cfm: 64.95,
+      cfm: 64.95, massa: 140,
       fontes: [
         { rotulo: 'GIGABYTE — especificações', url: 'https://www.gigabyte.com/CPU-Cooler/AORUS-WATERFORCE-II-360-ICE/sp' },
         { rotulo: 'PCPartPicker — 64,95 CFM', url: 'https://pcpartpicker.com/product/m7grxr/gigabyte-aorus-waterforce-ii-360-ice-6495-cfm-liquid-cpu-cooler-aorus-waterforce-ii-360-ice' }

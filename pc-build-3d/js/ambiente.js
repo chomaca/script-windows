@@ -11,13 +11,14 @@ window.PCBAmbiente = function (THREE, deps) {
    * Uma sala escura com painéis de luz (valores > 1 = HDR). O PMREM
    * transforma isso no mapa que as peças metálicas e o vidro refletem.
    * Mundo: vidro em −X, frente em +Z.                                   */
-  function cenaEstudio() {
+  function cenaEstudio(claro) {
     const cena = new THREE.Scene();
     const basico = (cor, k = 1, lado = THREE.FrontSide) => new THREE.MeshBasicMaterial({ color: new THREE.Color(cor).multiplyScalar(k), side: lado });
-    const sala = new THREE.Mesh(new THREE.BoxGeometry(36, 18, 36), basico('#1b1c1f', 1, THREE.BackSide));
+    // claro = estúdio de foto de produto (fundo infinito branco); escuro = sala escura com softboxes
+    const sala = new THREE.Mesh(new THREE.BoxGeometry(36, 18, 36), basico(claro ? '#c4c7cc' : '#1b1c1f', claro ? 1.1 : 1, THREE.BackSide));
     sala.position.y = 6;
     cena.add(sala);
-    const chao = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), basico('#2b2d31'));
+    const chao = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), basico(claro ? '#d9dbde' : '#2b2d31', claro ? 1.1 : 1));
     chao.rotation.x = -Math.PI / 2;
     chao.position.y = -2.9;
     cena.add(chao);
@@ -37,15 +38,16 @@ window.PCBAmbiente = function (THREE, deps) {
     return cena;
   }
 
-  let envTex = null;
-  function ambienteEstudio(renderer) {
-    if (envTex) return envTex;
+  const envTex = {};
+  function ambienteEstudio(renderer, claro) {
+    const k = claro ? 'claro' : 'escuro';
+    if (envTex[k]) return envTex[k];
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const cena = cenaEstudio();
-    envTex = pmrem.fromScene(cena, 0.035, 0.1, 100).texture;
+    const cena = cenaEstudio(!!claro);
+    envTex[k] = pmrem.fromScene(cena, 0.035, 0.1, 100).texture;
     cena.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     pmrem.dispose();
-    return envTex;
+    return envTex[k];
   }
 
   /* ---------------- fundo em degradê (vinheta de estúdio) ---------------- */

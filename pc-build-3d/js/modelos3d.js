@@ -139,6 +139,37 @@ window.PCBModelos = function (THREE) {
     return m;
   }
 
+  /* Caixa com todas as arestas arredondadas (raio r, 'seg' segmentos por curva).
+     Mantém os 6 grupos de material da BoxGeometry (faces +X, −X, +Y, −Y, +Z, −Z). */
+  const cacheGeoR = new Map();
+  function geoCaixaR(w, h, d, r, seg = 3) {
+    const n = seg * 2 + 1;
+    r = Math.max(0.05, Math.min(r, w / 2 - 0.01, h / 2 - 0.01, d / 2 - 0.01));
+    const k = [w, h, d, r, seg].map((v) => Math.round(v * 100)).join('|');
+    const c = cacheGeoR.get(k);
+    if (c) return c.clone();
+    const geo = new THREE.BoxGeometry(1, 1, 1, n, n, n).toNonIndexed();
+    const pos = geo.attributes.position, nor = geo.attributes.normal;
+    const bx = w / 2 - r, by = h / 2 - r, bz = d / 2 - r;
+    const meio = 0.5 / n;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      v.set(x - Math.sign(x) * meio, y - Math.sign(y) * meio, z - Math.sign(z) * meio).normalize();
+      pos.setXYZ(i, bx * Math.sign(x) + v.x * r, by * Math.sign(y) + v.y * r, bz * Math.sign(z) + v.z * r);
+      nor.setXYZ(i, v.x, v.y, v.z);
+    }
+    cacheGeoR.set(k, geo);
+    return geo.clone();
+  }
+  function caixaR(x0, x1, y0, y1, z0, z1, r, mat, seg) {
+    const m = new THREE.Mesh(geoCaixaR(Math.abs(x1 - x0) || 0.01, Math.abs(y1 - y0) || 0.01, Math.abs(z1 - z0) || 0.01, r, seg), mat);
+    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    return m;
+  }
+
   function box3(x0, x1, y0, y1, z0, z1) {
     return new THREE.Box3(new THREE.Vector3(Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)),
       new THREE.Vector3(Math.max(x0, x1), Math.max(y0, y1), Math.max(z0, z1)));
@@ -945,61 +976,220 @@ window.PCBModelos = function (THREE) {
       g.add(caixa(0, L, y0, Hc, 0, 2.5, bpLado));
     }
     col.push(box3(0, L, y0, Hc, 0, 2.5));
-    g.add(caixa(0, pcbL, y0, Math.min(Hc - 4, 124), 2.5, 4.1, std(corPCB, 0.55, 0.15)));
-    g.add(caixa(dx, dx + 89, 0, y0, 2.7, 3.9, std('#c9a54b', 0.3, 0.9)));
-    // suporte (bracket) com as saídas de vídeo desenhadas
+    // PCB (1,57 mm) e dedos PCIe x16: 11 contatos, chave de 1,9 mm, 71 contatos (passo de 1,0 mm)
+    const matPCB = std(corPCB, 0.55, 0.15);
+    g.add(caixa(0, pcbL, y0, Math.min(Hc - 4, 124), 2.5, 4.07, matPCB));
+    {
+      for (const [a, b] of [[0, 11.65], [13.55, 89]]) g.add(caixa(dx + a, dx + b, 0.6, y0, 2.5, 4.07, matPCB));
+      const texD = T && T.gpuDedos ? T.gpuDedos(89, y0) : null;
+      const matD = texD
+        ? materialCache('dedos|' + texD.map.uuid, () => new THREE.MeshStandardMaterial({ map: texD.map, alphaMap: texD.alpha, alphaTest: 0.5, roughness: 0.28, metalness: 0.8 }))
+        : std('#c9a54b', 0.3, 0.9);
+      for (const lado of [1, -1]) {
+        const geo = new THREE.PlaneGeometry(89, y0);
+        if (lado < 0) { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, 1 - uv.getX(i)); }
+        const pl = new THREE.Mesh(geo, matD);
+        if (lado < 0) pl.rotation.y = Math.PI;
+        pl.position.set(dx + 44.5, y0 / 2, lado > 0 ? 4.09 : 2.48);
+        g.add(pl);
+      }
+    }
+    // suporte (bracket) de 3,5 slots: chapa, aba dobrada com os rasgos dos parafusos e as saídas de vídeo
     const larg = spec.slots * 20.32;
+    const zS0 = -3, zS1 = larg - 3;
     const metalSup = std('#c7cbd0', 0.32, 0.9);
     const texSup = T ? T.gpuSuporte(larg, 119) : null;
     const faceSup = texSup ? materialCache('sup|' + texSup.uuid, () => new THREE.MeshStandardMaterial({ map: texSup, roughness: 0.32, metalness: 0.85 })) : metalSup;
     const sup = new THREE.Mesh(new THREE.BoxGeometry(1.6, 119, larg), [metalSup, faceSup, metalSup, metalSup, metalSup, metalSup]);
-    sup.position.set(-0.8, 61.5, larg / 2 - 3);
+    sup.position.set(-0.8, 61.5, (zS0 + zS1) / 2);
     sup.castShadow = true;
     g.add(sup);
-    col.push(box3(-1.6, 0, 2, 121, -3, larg - 3));
-    // conector 12V-2x6 na borda de cima
-    g.add(caixa(pcbL - 34, pcbL - 12, Hc - 6, Hc + 5, 3, 11, std('#0d0e10', 0.6, 0)));
-    g.add(caixa(pcbL - 26, pcbL - 20, Hc + 5, Hc + 7, 6, 8, std('#0d0e10', 0.6, 0)));
-    col.push(box3(pcbL - 34, pcbL - 12, Hc - 6, Hc + 7, 3, 11));
-    g.userData.conector12v = { pos: new THREE.Vector3(pcbL - 23, Hc + 5, 7), dir: new THREE.Vector3(0, 1, 0) };
+    {
+      // aba de cima: dobrada para dentro (lado da placa), um rasgo em U por slot
+      const aba = new THREE.Shape();
+      aba.moveTo(0, zS0); aba.lineTo(10.5, zS0);
+      const nSl = Math.ceil(spec.slots);
+      for (let i = 0; i < nSl; i++) {
+        const zc = zS0 + 20.32 * (i + 0.5);
+        if (zc + 2.3 > zS1 - 1) break;
+        aba.lineTo(10.5, zc - 2.3); aba.lineTo(4.8, zc - 2.3);
+        aba.absarc(4.8, zc, 2.3, -Math.PI / 2, -Math.PI * 1.5, true);
+        aba.lineTo(10.5, zc + 2.3);
+      }
+      aba.lineTo(10.5, zS1); aba.lineTo(0, zS1); aba.closePath();
+      const mAba = extrudar(aba, 1.2, metalSup);
+      mAba.rotation.x = Math.PI / 2; // (u, v, w) → (u, −w, v): chapa horizontal, espessura para baixo
+      mAba.position.y = 121;
+      g.add(mAba);
+      col.push(box3(0, 10.5, 119.8, 121, zS0, zS1));
+      // saídas: 3× DisplayPort 2.1b + 1× HDMI 2.1b (mesmas posições da textura do suporte)
+      const matShell = std('#d4d7db', 0.22, 1);
+      const matPorta = std('#0c0d0f', 0.6, 0.1);
+      const zp0 = zS0 + 3.5, zp1 = zS0 + 20;
+      [[19.5, true], [33.5, true], [47.5, true], [61.5, false]].forEach(([ya, dp]) => {
+        const yb = ya + 6.5;
+        const contorno = (s, e) => {
+          const p = s || new THREE.Path();
+          if (dp) { p.moveTo(zp0 - e, ya - e); p.lineTo(zp1 + e, ya - e); p.lineTo(zp1 + e, yb - 2 + e * 0.4); p.lineTo(zp1 - 2 + e * 0.4, yb + e); p.lineTo(zp0 - e, yb + e); }
+          else { p.moveTo(zp0 - e, yb + e); p.lineTo(zp1 + e, yb + e); p.lineTo(zp1 - 1.5 + e, ya - e); p.lineTo(zp0 + 1.5 - e, ya - e); }
+          p.closePath();
+          return p;
+        };
+        const casca = contorno(new THREE.Shape(), 0.7);
+        casca.holes.push(contorno(null, 0));
+        const m = extrudar(casca, 0.7, matShell);
+        m.rotation.y = -Math.PI / 2; // (u, v, w) → (−w, v, u): sai para fora do suporte
+        m.position.x = -1.6;
+        g.add(m);
+        // corpo do conector atrás do suporte, sobre o PCB
+        g.add(caixa(0, 15.5, ya + 0.3, yb - 0.3, zp0 + 0.4, zp1 - 0.4, matShell));
+        g.add(caixa(-1.2, 0, ya + 2, ya + 4.2, zp0 + 2.5, zp1 - 2.5, matPorta));
+      });
+      col.push(box3(-2.3, 0, 18.8, 68.7, zp0 - 0.7, zp1 + 0.7));
+    }
+    col.push(box3(-1.6, 0, 2, 121, zS0, zS1));
+    // conector 12V-2x6 (16 pinos: 12 de força + 4 de sinal) na borda de cima, trava para fora
+    const xc0 = pcbL - 34, xc1 = pcbL - 12;
+    {
+      const pret = std('#0d0e10', 0.6, 0);
+      g.add(caixaR(xc0, xc1, Hc - 18, Hc + 5, 4.1, 13.5, 0.8, pret, 2));
+      g.add(caixa(xc0 + 8, xc0 + 14, Hc + 5, Hc + 7, 6.5, 9.5, pret));
+      const furo = std('#030304', 0.9, 0);
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) g.add(caixa(xc0 + 2.2 + i * 3, xc0 + 4.4 + i * 3, Hc + 5, Hc + 5.05, 5.6 + j * 3.6, 8.2 + j * 3.6, furo));
+      for (let i = 0; i < 4; i++) g.add(caixa(xc0 + 4 + i * 4, xc0 + 5.4 + i * 4, Hc + 5, Hc + 5.05, 12.2, 13.1, furo));
+    }
+    col.push(box3(xc0, xc1, Hc - 18, Hc + 7, 4.1, 13.5));
+    g.userData.conector12v = { pos: new THREE.Vector3((xc0 + xc1) / 2, Hc + 5, 8.8), dir: new THREE.Vector3(0, 1, 0) };
+    // parafusos do backplate: 4 da trava do chip (com mola) e os da borda
+    {
+      const xcore = pcbL * 0.26 + 51, ycore = (y0 + 18 + Hc - 16) / 2;
+      const cab = std('#1a1b1e', 0.35, 0.8);
+      const parafuso = (x, y, r) => {
+        const p = cilindro(r, 1.1, cab, 20);
+        p.rotation.x = Math.PI / 2;
+        p.position.set(x, y, -0.45);
+        g.add(p);
+        const fenda = caixa(x - r * 0.6, x + r * 0.6, y - 0.3, y + 0.3, -1.05, -0.95, std('#050506', 0.8, 0));
+        const fenda2 = fenda.clone(); fenda2.rotation.z = Math.PI / 2;
+        g.add(fenda, fenda2);
+      };
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) parafuso(xcore + sx * 28, ycore + sy * 28, 3.1);
+      for (const [x, y] of [[8, y0 + 7], [8, Hc - 8], [pcbL * 0.55, y0 + 6], [pcbL * 0.55, Hc - 7], [pcbL - 6, y0 + 7], [pcbL - 6, Hc - 8]]) parafuso(x, y, 2);
+      col.push(box3(xcore - 31.5, xcore + 31.5, ycore - 31.5, ycore + 31.5, -1, 0));
+    }
 
     let espessuraTotal = Tc;
     if (deshroud) {
-      const z0 = 4.1, zf = 8;
-      // estrutura intermediária preta (mid-frame)
-      g.add(caixa(0, L, y0, Hc, z0, zf, std('#1a1c1f', 0.5, 0.35)));
-      // pilha de aletas de alumínio (prateado)
-      const passo = 2.1;
-      const n = Math.floor((L - 4) / passo);
-      const finGeo = new THREE.BoxGeometry(0.4, Hc - y0 - 2, Tc - zf);
-      const fins = new THREE.InstancedMesh(finGeo, std('#d3d7dc', 0.26, 0.92), n);
+      const zBase = 4.07, zVC = 8, zAleta = 11.5;
+      const matFrame = std('#15171a', 0.4, 0.5);
+      const niquel = std('#dde1e6', 0.13, 1);
+      const xVC0 = pcbL * 0.26, xVC1 = xVC0 + 102;
+      // estrutura intermediária reforçada: moldura com nervuras (janelas entre elas)
+      {
+        const f = new THREE.Shape();
+        f.moveTo(16.5, y0); f.lineTo(pcbL, y0); f.lineTo(pcbL, Hc - 6); f.lineTo(16.5, Hc - 6); f.closePath();
+        const nj = 4, xa = 22, xb = pcbL - 6, wj = (xb - xa - (nj - 1) * 9) / nj;
+        for (let i = 0; i < nj; i++) {
+          const a0 = xa + i * (wj + 9);
+          if (a0 + wj < xVC0 - 2 || a0 > xVC1 + 2) f.holes.push(furoRet(a0, y0 + 8, a0 + wj, Hc - 14, 4));
+        }
+        const frame = extrudar(f, zVC - zBase, matFrame, 0.4);
+        frame.position.z = zBase;
+        g.add(frame);
+        // tampa preta sobre os conectores de vídeo (entre o suporte e as aletas)
+        g.add(caixaR(1, 16.5, y0 + 2, 118, zBase, 23.5, 1.4, matFrame, 2));
+      }
+      // câmara de vapor (cobre niquelado) sobre o chip e as memórias
+      g.add(caixaR(xVC0, xVC1, y0 + 18, Hc - 16, zVC - 0.6, zAleta, 1.2, niquel));
+      // aletas de alumínio (0,34 mm, passo 2,05 mm): chapas finas com a borda do lado dos fans serrilhada
+      const cacheAleta = new Map();
+      const aletaGeo = (zIni, ya, yb) => {
+        const k = [zIni, ya, yb].join('|');
+        if (cacheAleta.has(k)) return cacheAleta.get(k);
+        const sh = new THREE.Shape();
+        sh.moveTo(ya, zIni); sh.lineTo(yb, zIni); sh.lineTo(yb, Tc - 1.6);
+        const dente = 9.6;
+        for (let yy = yb; yy > ya + 0.1; yy -= dente) {
+          const y1 = Math.max(ya, yy - dente);
+          sh.lineTo(yy - (yy - y1) * 0.25, Tc);
+          sh.lineTo(yy - (yy - y1) * 0.75, Tc);
+          sh.lineTo(y1, Tc - 1.6);
+        }
+        sh.closePath();
+        const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.34, bevelEnabled: false, curveSegments: 1 });
+        // (u, v, profundidade) → (x = profundidade, y = u, z = v): permutação cíclica, mantém a orientação
+        for (const nome of ['position', 'normal']) {
+          const at = geo.attributes[nome];
+          for (let i = 0; i < at.count; i++) { const u = at.getX(i), v = at.getY(i), w = at.getZ(i); at.setXYZ(i, w, u, v); }
+        }
+        cacheAleta.set(k, geo);
+        return geo;
+      };
+      // heatpipes: 5 fazem a curva na borda de cima e 4 na de baixo (dentro da altura do dissipador)
+      const rHp = 3;
+      const topo = [], baixo = [];
+      for (let i = 0; i < 5; i++) topo.push(xVC0 - 12 + i * 17);
+      for (let i = 0; i < 4; i++) baixo.push(xVC0 - 3.5 + i * 17);
+      const faixaT = [topo[0] - 7, topo[4] + 7], faixaB = [baixo[0] - 7, baixo[3] + 7];
+      const yTopo = Hc - 6, yTopoHp = Hc - 2 * rHp - 12, yBaixo = y0 + 2, yBaixoHp = y0 + 2 * rHp + 12;
+      const perfil = (x) => {
+        if (x < 16.5) return { zi: 24, ya: yBaixo, yb: 118 };
+        const pass = x > pcbL;
+        let yb = yTopo, ya = yBaixo;
+        if (x > xc0 - 2 && x < xc1 + 2) yb = Hc - 20;
+        else if (x > faixaT[0] && x < faixaT[1]) yb = yTopoHp;
+        if (x > faixaB[0] && x < faixaB[1]) ya = yBaixoHp;
+        return { zi: pass ? 2.6 : zAleta, ya, yb };
+      };
+      const matAleta = std('#d0d4d9', 0.28, 0.9);
+      const passo = 2.05;
+      const grupos = new Map();
+      for (let x = 3.5; x < L - 1.6; x += passo) {
+        if (x > pcbL - 1.2 && x < pcbL + 1) continue;
+        const p = perfil(x + 0.17);
+        const k = p.zi + '|' + p.ya + '|' + p.yb;
+        if (!grupos.has(k)) grupos.set(k, { p, xs: [] });
+        grupos.get(k).xs.push(x);
+      }
       const mtx = new THREE.Matrix4();
-      for (let i = 0; i < n; i++) {
-        mtx.makeTranslation(2 + i * passo, (y0 + Hc) / 2, (zf + Tc) / 2);
-        fins.setMatrixAt(i, mtx);
+      for (const { p, xs } of grupos.values()) {
+        const fins = new THREE.InstancedMesh(aletaGeo(p.zi, p.ya, p.yb), matAleta, xs.length);
+        xs.forEach((x, i) => { mtx.makeTranslation(x, 0, 0); fins.setMatrixAt(i, mtx); });
+        fins.castShadow = true;
+        fins.receiveShadow = true;
+        g.add(fins);
       }
-      fins.castShadow = true;
-      fins.receiveShadow = true;
-      g.add(fins);
-      col.push(box3(0, L, y0, Hc, 0, Tc));
-      // heatpipes niquelados saindo pelas bordas de cima e de baixo
-      const niquel = std('#e1e5e9', 0.14, 1);
-      const zm = (zf + Tc) / 2;
-      const tubos = [];
-      for (let i = 0; i < 4; i++) tubos.push({ x: pcbL * 0.22 + i * 15, borda: Hc, s: 1 });
-      for (let i = 0; i < 3; i++) tubos.push({ x: pcbL * 0.3 + i * 15 + 7, borda: y0, s: -1 });
-      for (const tb of tubos) {
-        const yb = tb.borda, sg = tb.s;
+      // placa da ponta (fecha a pilha de aletas)
+      g.add(caixa(L - 1.6, L, yBaixo, yTopo, 2.6, Tc - 1, matAleta));
+      col.push(box3(1, L, y0, yTopo, zBase, Tc));
+      const zm = (zAleta + Tc) / 2;
+      const zLo = zAleta + rHp + 0.4, zHi = Tc - rHp - 7;
+      const rCurva = (zHi - zLo) / 2;
+      const hp = (x, lado, i) => {
+        // lado +1: curva em cima (borda Hc); −1: curva embaixo (borda y0)
+        const yF = lado > 0 ? yTopoHp : yBaixoHp;           // onde as aletas terminam
+        const yC = yF + lado * (rCurva * 0.35);               // centro da curva (curva achatada, cabe na altura)
+        const yApice = lado > 0 ? Hc - rHp : y0 + rHp;
+        const ycore = (y0 + 18 + Hc - 16) / 2;
+        const dirX = i % 2 ? 1 : -1;
         const pts = [
-          new THREE.Vector3(tb.x, yb - sg * 14, zf + 2), new THREE.Vector3(tb.x, yb + sg * 3, zf + 4),
-          new THREE.Vector3(tb.x, yb + sg * 7, zm), new THREE.Vector3(tb.x, yb + sg * 3, Tc - 6), new THREE.Vector3(tb.x, yb - sg * 14, Tc - 4)
+          new THREE.Vector3(x, ycore + lado * 8, zLo), new THREE.Vector3(x, yF - lado * 6, zLo), new THREE.Vector3(x, yC, zLo + 0.6),
+          new THREE.Vector3(x, yApice, zm - 3), new THREE.Vector3(x, yC, zHi - 0.6), new THREE.Vector3(x, yF - lado * 6, zHi),
+          new THREE.Vector3(x + dirX * 7, yF - lado * 13, zHi), new THREE.Vector3(Math.max(24, Math.min(pcbL - 6, x + dirX * (60 + i * 9))), yF - lado * 14, zHi)
         ];
-        g.add(tubo(pts, 3, null, niquel));
+        g.add(tubo(pts, rHp, null, niquel));
+      };
+      topo.forEach((x, i) => hp(x, 1, i));
+      baixo.forEach((x, i) => hp(x, -1, i));
+      col.push(box3(faixaT[0], faixaT[1], yTopoHp, Hc, zAleta, Tc));
+      col.push(box3(faixaB[0], faixaB[1], y0, yBaixoHp, zAleta, Tc));
+      // bosses de fixação do shroud (ficam no dissipador sem o shroud)
+      for (const [bx, by] of [[20, y0 + 5], [20, yTopo - 5], [pcbL * 0.62, y0 + 4], [pcbL * 0.62, yTopo - 4], [L - 6, y0 + 5], [L - 6, yTopo - 5]]) {
+        const b = cilindro(2.6, 3.2, matFrame, 16);
+        b.rotation.x = Math.PI / 2;
+        b.position.set(bx, by, Tc - 1.2);
+        g.add(b);
       }
-      const xs = tubos.map((t) => t.x);
-      col.push(box3(Math.min(...xs.slice(0, 4)) - 3.5, Math.max(...xs.slice(0, 4)) + 3.5, Hc - 3, Hc + 10.5, zf, Tc));
-      col.push(box3(Math.min(...xs.slice(4)) - 3.5, Math.max(...xs.slice(4)) + 3.5, y0 - 10.5, y0 + 3, zf, Tc));
-
       const f = cfg.fans;
       const s = fanSpec.tamanho, ft = fanSpec.espessura;
       const q = Math.max(0, f.quantidade | 0);
@@ -1123,7 +1313,7 @@ window.PCBModelos = function (THREE) {
     const { W, H, D } = Q;
     const P = spec.paineis;
     const pes = spec.pes;
-    const aco = pintado(cor, 0.6, 0.15);
+    const aco = pintado(cor, 0.48, 0.32);
     const acoEscuro = std(new THREE.Color(cor).multiplyScalar(0.7).getStyle(), 0.6, 0.35);
     const borrachaPe = std('#0e0f10', 0.95, 0);
     const x0 = -W / 2, x1 = W / 2, z0 = -D / 2, z1 = D / 2;
@@ -1143,9 +1333,11 @@ window.PCBModelos = function (THREE) {
         solidos.push({ x0: 0, x1: w, y0: h * (1 - p.rodape), y1: h });
         if (p.logo) textos.push({ s: p.logo, x: w / 2, y: h * (1 - p.rodape / 2), tam: Math.min(7, w / 26) });
       }
-      const tx = T.painelPerfurado(nome + (p.faixa || '') + (p.rodape || ''), Math.round(w), Math.round(h), cor, { solidos, textos, passo: p.passo || 5, furo: p.furo || 3.4 });
+      // tela vista de longe fica cinza: a chapa perfurada brilha nas bordas dos furos
+      const corTela = '#' + new THREE.Color(cor).lerp(new THREE.Color('#8a8f96'), 0.16).getHexString();
+      const tx = T.painelPerfurado(nome + (p.faixa || '') + (p.rodape || ''), Math.round(w), Math.round(h), corTela, { solidos, textos, passo: p.passo || 5, furo: p.furo || 3.4 });
       const mat = materialCache('painel|' + tx.map.uuid, () => {
-        const m = new THREE.MeshStandardMaterial({ map: tx.map, alphaMap: tx.alpha, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.62, metalness: 0.15 });
+        const m = new THREE.MeshStandardMaterial({ map: tx.map, alphaMap: tx.alpha, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.46, metalness: 0.34 });
         m.userData.tipo = 'tela';
         return m;
       });
@@ -1162,23 +1354,36 @@ window.PCBModelos = function (THREE) {
       return g;
     };
 
-    // base: pés e piso
-    for (const xa of [x0 + 6, x1 - 24]) {
-      grupo.add(caixa(xa, xa + 18, 4, pes, z0 + 8, z1 - 8, acoEscuro));
-      for (const za of [z0 + 12, z1 - 42]) grupo.add(caixa(xa + 1, xa + 17, 0, 4, za, za + 30, borrachaPe));
+    // base: dois trilhos laterais, cada um com um pé na frente e outro atrás
+    // (pontas chanfradas, como nas fotos) e sapatas de borracha
+    const pe = (xa, xb, za, zb) => {
+      const f = new THREE.Shape();
+      const L = zb - za, h = pes - 2, ch = 7;
+      f.moveTo(ch, 0); f.lineTo(L - ch, 0); f.lineTo(L, h); f.lineTo(0, h); f.closePath();
+      const m = extrudar(f, xb - xa, acoEscuro, 0.6);
+      m.rotation.y = -Math.PI / 2;
+      m.position.set(xb, 0, za);
+      grupo.add(m);
+      grupo.add(caixaR(xa + 1.5, xb - 1.5, 0, 2.2, za + ch + 2, zb - ch - 2, 0.8, borrachaPe, 2));
+    };
+    for (const [xa, xb] of [[x0 + 10, x0 + 34], [x1 - 34, x1 - 10]]) {
+      pe(xa, xb, z0 + 18, z0 + 96);
+      pe(xa, xb, z1 - 96, z1 - 18);
+      grupo.add(caixaR(xa, xb, pes - 8, pes - 2, z0 + 60, z1 - 60, 1.2, acoEscuro, 2));
     }
     const piso = caixa(x0 + tL, x1 - tR, pes, pes + tB, z0 + tRe, z1 - tF, P.fundo.tipo === 'tela' ? tela(cor, W, D) : aco);
     grupo.add(piso);
-    grupo.add(caixa(x0, x1, pes - 2, pes, z0, z1, acoEscuro));
+    grupo.add(caixaR(x0, x1, pes - 2.5, pes + 0.2, z0, z1, 1.5, acoEscuro, 2));
 
-    // estrutura (colunas e travessas)
-    const e = 7;
+    // estrutura (colunas e travessas) com arestas arredondadas
+    const e = 7, re = 2.2;
     const colunas = [[x0, z0], [x1 - e, z0], [x1 - e, z1 - e]];
     if (!spec.semColuna) colunas.push([x0, z1 - e]);
-    for (const [cx, cz] of colunas) grupo.add(caixa(cx, cx + e, pes, H, cz, cz + e, aco));
-    for (const cz of [z0, z1 - e]) grupo.add(caixa(x0, x1, H - e, H, cz, cz + e, aco));
-    for (const cx of [x0, x1 - e]) grupo.add(caixa(cx, cx + e, H - e, H, z0, z1, aco));
-    grupo.add(caixa(x0, x1, pes, pes + e, z1 - e, z1, aco));
+    for (const [cx, cz] of colunas) grupo.add(caixaR(cx, cx + e, pes, H, cz, cz + e, re, aco));
+    for (const cz of [z0, z1 - e]) grupo.add(caixaR(x0, x1, H - e, H, cz, cz + e, re, aco));
+    for (const cx of [x0, x1 - e]) grupo.add(caixaR(cx, cx + e, H - e, H, z0, z1, re, aco));
+    grupo.add(caixaR(x0, x1, pes, pes + e, z1 - e, z1, re, aco));
+    grupo.add(caixaR(x0, x1, pes, pes + e, z0, z0 + e, re, aco));
 
     // painel esquerdo (vidro) com borda serigrafada
     {
@@ -1194,10 +1399,31 @@ window.PCBModelos = function (THREE) {
     }
     // painel direito
     if (P.direito.tipo === 'tela') {
+      const gd = new THREE.Group();
       const m = painelTela('direito', P.direito, D, H - pes);
       m.rotation.y = Math.PI / 2;
       m.position.set(x1 - 0.8, (pes + H) / 2, 0);
-      addPainel('direito', new THREE.Vector3(1, 0, 0), m, 'tela');
+      gd.add(m);
+      // faixa sólida em relevo com o nome (como nas fotos)
+      if (P.direito.faixa) {
+        const ya = pes + (H - pes) * (1 - P.direito.faixa[1]), yb = pes + (H - pes) * (1 - P.direito.faixa[0]);
+        gd.add(caixaR(x1 - 1.2, x1 + 0.9, ya, yb, z0 + 6, z1 - 6, 0.9, aco, 2));
+        if (P.direito.logo && T) {
+          const tx = canvasTex('logoLateral|' + P.direito.logo, 512, 64, (g, w, h) => {
+            g.clearRect(0, 0, w, h);
+            g.fillStyle = '#9ca1a8';
+            g.font = '900 38px "Arial Black", Arial, sans-serif';
+            g.textAlign = 'center'; g.textBaseline = 'middle';
+            if ('letterSpacing' in g) g.letterSpacing = '6px';
+            g.fillText(P.direito.logo, w / 2, h / 2 + 2);
+          }, { cor: true });
+          const logo = new THREE.Mesh(new THREE.PlaneGeometry(88, 11), materialCache('logoLat|' + tx.uuid, () => new THREE.MeshStandardMaterial({ map: tx, transparent: true, roughness: 0.4, metalness: 0.5 })));
+          logo.rotation.y = Math.PI / 2;
+          logo.position.set(x1 + 0.95, (ya + yb) / 2, z0 + 70);
+          gd.add(logo);
+        }
+      }
+      addPainel('direito', new THREE.Vector3(1, 0, 0), gd, 'tela');
     } else addPainel('direito', new THREE.Vector3(1, 0, 0), caixa(x1 - tR, x1, pes, H, z0, z1, matPainel(P.direito, D, H - pes)), P.direito.tipo);
     // topo
     if (P.topo.tipo === 'tela') {
@@ -1206,53 +1432,166 @@ window.PCBModelos = function (THREE) {
       m.position.set(0, H - 1.2, 0);
       addPainel('topo', new THREE.Vector3(0, 1, 0), m, 'tela');
     } else addPainel('topo', new THREE.Vector3(0, 1, 0), caixa(x0 + e, x1 - e, H - tT, H - 0.5, z0 + e, z1 - e, matPainel(P.topo, W, D)), P.topo.tipo);
-    // frente
+    // frente: tela sobre a coluna de fans + faixa sólida à direita com o painel de I/O
     {
-      let m;
-      if (P.frente.tipo === 'tela') {
-        m = painelTela('frente', P.frente, W, H - pes);
-        m.position.set(0, (pes + H) / 2, z1 - 0.8);
-      } else m = caixa(x0, x1, pes, H, z1 - tF, z1, matPainel(P.frente, W, H - pes));
-      if (P.frente.tipo === 'vidro') m.castShadow = false;
-      const g = addPainel('frente', new THREE.Vector3(0, 0, 1), m, P.frente.tipo);
-      if (P.frente.tipo !== 'vidro') {
-        g.add(caixa(x1 - 30, x1 - 6, H * 0.5, H * 0.5 + 58, z1 - 0.5, z1 + 1.5, std('#101113', 0.4, 0.3)));
-        const botao = cilindro(4.5, 2, luz('#e9eef2', 0.6), 20);
-        botao.rotation.x = Math.PI / 2;
-        botao.position.set(x1 - 18, H * 0.5 + 48, z1 + 1.8);
-        g.add(botao);
-        for (let i = 0; i < 3; i++) g.add(caixa(x1 - 22, x1 - 14, H * 0.5 + 6 + i * 11, H * 0.5 + 10 + i * 11, z1 + 1.5, z1 + 2, std('#050506', 0.5, 0)));
+      const F = P.frente;
+      const g = new THREE.Group();
+      const fl = F.tipo === 'tela' ? F.faixaLateral || 0 : 0;
+      const wm = W - fl;
+      if (F.tipo === 'tela') {
+        const m = painelTela('frente', F, wm, H - pes);
+        m.position.set(x0 + wm / 2, (pes + H) / 2, z1 - 0.8);
+        g.add(m);
+        // moldura da tela (chapa dobrada nas bordas)
+        g.add(caixaR(x0, x0 + wm, H - 4, H, z1 - 3, z1, 1, aco, 2), caixaR(x0, x0 + wm, pes, pes + 4, z1 - 3, z1, 1, aco, 2), caixaR(x0, x0 + 4, pes, H, z1 - 3, z1, 1, aco, 2));
+      } else {
+        const m = F.tipo === 'vidro' ? caixa(x0, x1, pes, H, z1 - tF, z1, matPainel(F, W, H - pes)) : caixaR(x0, x1, pes, H, z1 - tF, z1, 1.5, aco);
+        if (F.tipo === 'vidro') m.castShadow = false;
+        g.add(m);
       }
+      if (fl) {
+        const xs = x1 - fl;
+        g.add(caixaR(xs, x1, pes, H, z1 - 3.2, z1, 1.4, aco));
+        g.add(caixa(xs - 1.2, xs, pes, H, z1 - tF, z1 - 0.4, acoEscuro));
+        g.add(caixa(xs, x1, pes, H, z1 - tF, z1 - 3.2, acoEscuro));
+        // painel de I/O: botão liga com anel de LED, USB-C, 2× USB-A e P2 combo
+        const yc = pes + (H - pes) * (F.io || 0.5);
+        const cx = xs + fl / 2;
+        const moldura = std('#0b0c0e', 0.4, 0.3);
+        g.add(caixaR(cx - 36, cx + 36, yc - 9.5, yc + 9.5, z1 - 1, z1 + 0.9, 3, moldura));
+        const furo = std('#030304', 0.9, 0);
+        const lingueta = std('#1b1d21', 0.5, 0.2);
+        let px = cx - 27;
+        const botao = cilindro(5.2, 2.2, std('#15171a', 0.25, 0.7), 32);
+        botao.rotation.x = Math.PI / 2;
+        botao.position.set(px, yc, z1 + 1.6);
+        g.add(botao);
+        const anel = new THREE.Mesh(new THREE.TorusGeometry(5.9, 0.55, 8, 40), luz('#dfe8ff', 1.2));
+        anel.position.set(px, yc, z1 + 1.1);
+        g.add(anel);
+        px += 13;
+        g.add(caixaR(px - 4.5, px + 4.5, yc - 1.8, yc + 1.8, z1 + 0.2, z1 + 1.2, 1.7, furo, 2)); // USB-C
+        px += 12;
+        for (let i = 0; i < 2; i++) {
+          g.add(caixa(px - 6.5, px + 6.5, yc - 3, yc + 3, z1 + 0.6, z1 + 1.1, furo));
+          g.add(caixa(px - 5.5, px + 5.5, yc + 0.2, yc + 1.8, z1 + 0.8, z1 + 1.15, lingueta));
+          px += 15;
+        }
+        const p2 = cilindro(2.1, 1.2, furo, 20);
+        p2.rotation.x = Math.PI / 2;
+        p2.position.set(px - 2, yc, z1 + 0.8);
+        g.add(p2);
+      }
+      // suporte dos fans da frente: chapa com janelas arredondadas (aparece através da tela)
+      if (F.suporteFans && F.tipo === 'tela') {
+        const u0 = x0 + tL, u1 = x0 + wm - 1, v0 = pes + tB, v1 = H - tT;
+        const forma = new THREE.Shape();
+        forma.moveTo(u0, v0); forma.lineTo(u1, v0); forma.lineTo(u1, v1); forma.lineTo(u0, v1); forma.closePath();
+        const cols = 2, lins = 5, mg = 8, gx = 6, gy = 6;
+        const jw = (u1 - u0 - 2 * mg - (cols - 1) * gx) / cols, jh = (v1 - v0 - 2 * mg - (lins - 1) * gy) / lins;
+        for (let c = 0; c < cols; c++) {
+          for (let l = 0; l < lins; l++) {
+            const a0 = u0 + mg + c * (jw + gx), b0 = v0 + mg + l * (jh + gy);
+            forma.holes.push(furoRet(a0, b0, a0 + jw, b0 + jh, 9));
+          }
+        }
+        const sup = extrudar(forma, 1.2, acoEscuro);
+        sup.position.z = z1 - tF - 1.2;
+        g.add(sup);
+      }
+      addPainel('frente', new THREE.Vector3(0, 0, 1), g, F.tipo);
     }
-    // traseira (chapa com recortes)
+    // traseira: chapa com recortes; no Model 5 Vent é uma grade de furos quadrados
     {
+      const G = extras.traseiraGrade;
       const forma = new THREE.Shape();
       forma.moveTo(x0 + tL, pes);
       forma.lineTo(x1 - tR, pes);
       forma.lineTo(x1 - tR, H - tT);
       forma.lineTo(x0 + tL, H - tT);
       forma.lineTo(x0 + tL, pes);
-      for (const f of extras.furosTraseira) forma.holes.push(furoRet(f.x0, f.y0, f.x1, f.y1, f.r || 0));
-      const m = extrudar(forma, tRe, aco);
-      m.position.z = z0;
-      const g = addPainel('traseira', new THREE.Vector3(0, 0, -1), m, 'metal');
+      const recortes = extras.furosTraseira.filter((f) => !(G && f.tela));
+      for (const f of recortes) forma.holes.push(furoRet(f.x0, f.y0, f.x1, f.y1, f.r || 0));
+      if (G && G.placa) forma.holes.push(furoRet(G.placa.x0, G.placa.y0, G.placa.x1, G.placa.y1, 2));
+      const g = new THREE.Group();
+      if (G && T) {
+        const geo = new THREE.ShapeGeometry(forma, 6);
+        const uv = geo.attributes.uv, ps = geo.attributes.position;
+        for (let i = 0; i < ps.count; i++) uv.setXY(i, (ps.getX(i) - x0) / W, (ps.getY(i) - pes) / (H - pes));
+        // zonas sem furos: em volta dos recortes e da placa de slots, e a faixa do lado da bandeja
+        const solidos = recortes.map((f) => ({ x0: f.x0 - x0 - 5, x1: f.x1 - x0 + 5, y0: f.y0 - pes - 5, y1: f.y1 - pes + 5 }));
+        // a coluna do I/O e da tomada (lado da bandeja) é chapa lisa, como na foto
+        const io = recortes.find((f) => f.io);
+        if (io) solidos.push({ x0: io.x0 - x0 - 6, x1: W, y0: (G.placa ? G.placa.y1 : io.y0) - pes + 4, y1: H - pes });
+        if (G.placa) solidos.push({ x0: G.placa.x0 - x0 - 5, x1: G.placa.x1 - x0 + 5, y0: G.placa.y0 - pes - 5, y1: G.placa.y1 - pes + 5 });
+        const tx = T.gradeQuadrada('traseira' + JSON.stringify(solidos.map((r) => Math.round(r.x0) + ',' + Math.round(r.y0))), Math.round(W), Math.round(H - pes), cor, { passo: G.passo, furo: G.furo, solidos });
+        const mat = materialCache('traseiraGrade|' + tx.map.uuid, () => new THREE.MeshStandardMaterial({ map: tx.map, alphaMap: tx.alpha, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.48, metalness: 0.32 }));
+        for (const dz of [0.2, tRe - 0.2]) {
+          const m = new THREE.Mesh(geo, mat);
+          m.position.z = z0 + dz;
+          g.add(m);
+        }
+        // placa de slots (7), deitada ou girada, com as tampas
+        if (G.placa) {
+          const pl = G.placa;
+          const fp = new THREE.Shape();
+          fp.moveTo(pl.x0, pl.y0); fp.lineTo(pl.x1, pl.y0); fp.lineTo(pl.x1, pl.y1); fp.lineTo(pl.x0, pl.y1); fp.closePath();
+          const tampas = pl.vertical ? extras.tampasVerticais : extras.tampasSlot;
+          for (const t of tampas) fp.holes.push(furoRet(t.x0, t.y0, t.x1, t.y1, 1));
+          const placa = extrudar(fp, 1.4, aco);
+          placa.position.z = z0 - 1.4;
+          g.add(placa);
+          const matTampa = pintado(cor, 0.45, 0.35);
+          for (const t of tampas) {
+            if (t.ocupada) continue;
+            g.add(caixa(t.x0 + 0.4, t.x1 - 0.4, t.y0 + 0.4, t.y1 - 0.4, z0 - 1.9, z0 - 0.6, matTampa));
+            // furinhos de ventilação da tampa
+            const alongado = pl.vertical;
+            const n = 6;
+            for (let k = 0; k < n; k++) {
+              const f = (k + 0.5) / n;
+              if (alongado) { const y = t.y0 + 12 + f * (t.y1 - t.y0 - 24); g.add(caixa(t.x0 + 5, t.x1 - 5, y - 2.5, y + 2.5, z0 - 2, z0 - 1.85, std('#050506', 0.8, 0))); }
+              else { const x = t.x0 + 12 + f * (t.x1 - t.x0 - 24); g.add(caixa(x - 2.5, x + 2.5, t.y0 + 5, t.y1 - 5, z0 - 2, z0 - 1.85, std('#050506', 0.8, 0))); }
+            }
+            // parafuso borboleta
+            const pf = cilindro(3.2, 3, std('#1a1b1e', 0.4, 0.8), 16);
+            pf.rotation.x = Math.PI / 2;
+            if (alongado) pf.position.set((t.x0 + t.x1) / 2, t.y1 + 4.5, z0 - 3.2);
+            else pf.position.set(t.x1 + 4.5, (t.y0 + t.y1) / 2, z0 - 3.2);
+            g.add(pf);
+          }
+        }
+        // moldura da traseira
+        g.add(caixaR(x0 + tL, x1 - tR, H - tT - 6, H - tT, z0, z0 + tRe + 1, 1, aco, 2), caixaR(x0 + tL, x1 - tR, pes, pes + 6, z0, z0 + tRe + 1, 1, aco, 2));
+      } else {
+        const m = extrudar(forma, tRe, aco);
+        m.position.z = z0;
+        g.add(m);
+        for (const t of extras.tampasSlot) if (!t.ocupada) g.add(caixa(t.x0, t.x1, t.y0, t.y1, z0 - 1.2, z0, std(cor, 0.4, 0.6)));
+      }
       for (const f of extras.furosTraseira) {
-        if (f.tela) {
+        if (f.tela && !G) {
           const w = Math.abs(f.x1 - f.x0), h = Math.abs(f.y1 - f.y0);
           const pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), tela(cor, w, h, 5));
           pl.position.set((f.x0 + f.x1) / 2, (f.y0 + f.y1) / 2, z0 + tRe / 2);
           g.add(pl);
         }
-        if (f.ac) g.add(caixa(f.x0 + 3, f.x1 - 3, f.y0 + 5, f.y1 - 5, z0 - 1, z0 + tRe + 14, std('#0b0c0d', 0.7, 0)));
+        if (f.ac) {
+          // tomada C14 (extensão para a fonte lá na frente)
+          const w = f.x1 - f.x0, hh = f.y1 - f.y0, cx = (f.x0 + f.x1) / 2, cy = (f.y0 + f.y1) / 2;
+          g.add(caixaR(f.x0 - 1, f.x1 + 1, f.y0 - 1, f.y1 + 1, z0 - 2.2, z0 + 1, 1.5, std('#0d0e10', 0.55, 0.1), 2));
+          g.add(caixa(cx - w * 0.36, cx + w * 0.36, cy - hh * 0.28, cy + hh * 0.28, z0 - 2.4, z0 - 2.2, std('#020203', 0.9, 0)));
+          for (const dx of [-0.2, 0, 0.2]) g.add(caixa(cx + dx * w - 0.9, cx + dx * w + 0.9, cy - 3, cy + 3, z0 - 2.3, z0 - 1.2, std('#b9bdc3', 0.3, 0.9)));
+        }
       }
-      for (const tampa of extras.tampasSlot) g.add(caixa(tampa.x0, tampa.x1, tampa.y0, tampa.y1, z0 - 1.2, z0, std(cor, 0.4, 0.6)));
+      addPainel('traseira', new THREE.Vector3(0, 0, -1), g, 'metal');
     }
 
     // bandeja da placa-mãe (com recortes)
     {
       const Bx = extras.bandejaMundoX;
       const forma = new THREE.Shape();
-      const u0 = tRe, u1 = D - tF, v0 = pes + tB, v1 = H - tT;
+      const u0 = tRe, u1 = extras.bandejaAteZ || D - tF, v0 = pes + tB, v1 = H - tT;
       forma.moveTo(u0, v0); forma.lineTo(u1, v0); forma.lineTo(u1, v1); forma.lineTo(u0, v1); forma.lineTo(u0, v0);
       for (const f of extras.furosBandeja) {
         if (f.circulo) forma.holes.push(furoCirculo(f.u, f.v, f.r));
@@ -1272,6 +1611,23 @@ window.PCBModelos = function (THREE) {
       }
     }
 
+    // suporte do fan da lateral direita: chapa com 4 × 4 furos quadrados grandes
+    if (extras.suporteLateral) {
+      const sl = extras.suporteLateral;
+      const f = new THREE.Shape();
+      f.moveTo(sl.z0, sl.y0); f.lineTo(sl.z1, sl.y0); f.lineTo(sl.z1, sl.y1); f.lineTo(sl.z0, sl.y1); f.closePath();
+      const n = 4, mg = 7, gap = 5;
+      const lw = (sl.z1 - sl.z0 - 2 * mg - (n - 1) * gap) / n, lh = (sl.y1 - sl.y0 - 2 * mg - (n - 1) * gap) / n;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        const a0 = sl.z0 + mg + i * (lw + gap), b0 = sl.y0 + mg + j * (lh + gap);
+        f.holes.push(furoRet(a0, b0, a0 + lw, b0 + lh, 4));
+      }
+      const chapa = extrudar(f, 1.2, aco);
+      chapa.rotation.y = -Math.PI / 2;
+      chapa.position.set(sl.x, 0, 0);
+      grupo.add(chapa);
+    }
+
     // caixa da fonte (chapa perfurada)
     if (extras.caixaFonte) {
       const cf = extras.caixaFonte;
@@ -1281,7 +1637,24 @@ window.PCBModelos = function (THREE) {
       const faces = cf.faces;
       var grupoCaixa = new THREE.Group();
       const add = (m) => { m.castShadow = false; grupoCaixa.add(m); };
-      if (faces.includes('esquerda')) add(caixa(bx.min.x, bx.min.x + 1, bx.min.y, bx.max.y, bx.min.z, bx.max.z, mat(dd, h)));
+      if (faces.includes('esquerda')) {
+        const f = new THREE.Shape();
+        f.moveTo(bx.min.z, bx.min.y); f.lineTo(bx.max.z, bx.min.y); f.lineTo(bx.max.z, bx.max.y); f.lineTo(bx.min.z, bx.max.y); f.closePath();
+        // janela curva (como a das fotos) com tela atrás
+        const jan = new THREE.Path();
+        const zc = bx.min.z + dd * 0.52, yc = (bx.min.y + bx.max.y) / 2, rj = Math.min(dd, h) * 0.34;
+        jan.absellipse(zc, yc, rj * 1.25, rj, 0, Math.PI * 2, true);
+        f.holes.push(jan);
+        const chapa = extrudar(f, 1.2, aco);
+        chapa.rotation.y = -Math.PI / 2;
+        chapa.position.set(bx.min.x, 0, 0);
+        grupoCaixa = grupoCaixa || new THREE.Group();
+        add(chapa);
+        const telaJ = new THREE.Mesh(new THREE.PlaneGeometry(rj * 2.6, rj * 2.1), mat(rj * 2.6, rj * 2.1));
+        telaJ.rotation.y = -Math.PI / 2;
+        telaJ.position.set(bx.min.x + 0.8, yc, zc);
+        add(telaJ);
+      }
       if (faces.includes('direita')) add(caixa(bx.max.x - 1, bx.max.x, bx.min.y, bx.max.y, bx.min.z, bx.max.z, mat(dd, h)));
       if (faces.includes('baixo')) add(caixa(bx.min.x, bx.max.x, bx.min.y, bx.min.y + 1, bx.min.z, bx.max.z, mat(w, dd)));
       if (faces.includes('cima')) add(caixa(bx.min.x, bx.max.x, bx.max.y - 1, bx.max.y, bx.min.z, bx.max.z, mat(w, dd)));
@@ -1290,14 +1663,14 @@ window.PCBModelos = function (THREE) {
     }
 
     // suporte vertical da GPU (tampas verticais)
-    for (const tp of extras.tampasVerticais) grupo.add(caixa(tp.x0, tp.x1, tp.y0, tp.y1, z0 + tRe, z0 + tRe + 1.2, std(cor, 0.4, 0.6)));
+    if (!extras.traseiraGrade) for (const tp of extras.tampasVerticais) if (!tp.ocupada) grupo.add(caixa(tp.x0, tp.x1, tp.y0, tp.y1, z0 + tRe, z0 + tRe + 1.2, std(cor, 0.4, 0.6)));
 
     grupo.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
     return { grupo, paineis, caixaFonte: typeof grupoCaixa !== 'undefined' ? grupoCaixa : null };
   }
 
   return {
-    std, luz, vidro, tela, caixa, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico, liberarFoto,
+    std, luz, vidro, tela, caixa, caixaR, geoCaixaR, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico, liberarFoto,
     fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, riser, tubo, gabinete,
     layoutPlacaMae, texturas: T
   };
