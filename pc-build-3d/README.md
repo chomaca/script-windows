@@ -168,7 +168,9 @@ A montagem, as camadas e a qualidade ficam salvas no navegador automaticamente.
     encaixe; peças muito leves usam no mínimo 150 g na simulação para ela não tremer.
 - **Pontos de contato (onde não cabe):** quando duas peças ocupam o mesmo espaço, ou uma
   peça atravessa o gabinete, o **volume da sobreposição aparece em vermelho** no 3D com a
-  medida (“Invade 3,2 mm”) e o nome das peças (Camadas → Pontos de contato, tecla **K**).
+  medida (“Invade 3,2 mm”) e o nome das peças; quando duas peças **quase se tocam** (folga
+  abaixo do mínimo), o vão aparece em **amarelo** (“Folga 2,5 mm”). Camadas → Pontos de
+  contato, tecla **K**.
 - **Massas e estabilidade:** peso de cada peça e do PC inteiro (~17,6 kg na build padrão),
   altura do centro de massa e o ângulo em que ele tomba (aba **Checagem** e **Medidas**).
   Com a placa de vídeo na horizontal, o site calcula o **torque no slot PCIe** (peso ×

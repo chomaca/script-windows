@@ -46,6 +46,24 @@ window.PCBFisica = function (THREE, CANNON) {
     // só interessa contato em que ao menos uma das peças está solta
     bp.needBroadphaseCollision = (a, b) => (a.type === DINAMICO || b.type === DINAMICO) && baseBp(a, b) && !ignorar.has(chave(a, b));
 
+    /* batidas: velocidade de aproximação no primeiro instante do contato
+       (evento do cannon antes do solver, então é a velocidade do impacto) */
+    const batidas = [];
+    let maiorImpacto = null;
+    const pImp = new CANNON.Vec3();
+    function aoColidir(e) {
+      const eq = e.contact;
+      if (!eq || e.target !== eq.bi) return; // o evento chega nos dois corpos
+      const A = porBody.get(eq.bi), B = porBody.get(eq.bj);
+      if ((!A || !A.solto) && (!B || !B.solto)) return;
+      const v = Math.abs(eq.getImpactVelocityAlongNormal());
+      if (!(v > 0.04)) return;
+      eq.bi.position.vadd(eq.ri, pImp);
+      const nomeA = A ? A.nome : 'Chão', nomeB = B ? B.nome : 'Chão';
+      if (batidas.length < 40) batidas.push({ pos: paraMM(pImp), v, idade: 0 });
+      if (!maiorImpacto || v > maiorImpacto.impacto) maiorImpacto = { impacto: v, a: nomeA, b: nomeB };
+    }
+
     const inv = new THREE.Matrix4();
     const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3(1, 1, 1);
     const corpos = [];
@@ -92,6 +110,7 @@ window.PCBFisica = function (THREE, CANNON) {
           orig: { p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() }
         };
       });
+      body.addEventListener('collide', aoColidir);
       const c = {
         id, nome, body, massa, massaG: massaG || 0, fixo: !!fixo, solto: false, visuais, caixas,
         inicio: { p: body.position.clone(), q: body.quaternion.clone() },
@@ -103,9 +122,11 @@ window.PCBFisica = function (THREE, CANNON) {
     }
 
     /* ---------- gabinete: paredes (somem com o painel aberto), bandeja, compartimento da fonte ---------- */
-    // paredes de colisão: da face interna até a face externa do gabinete (mín. 6 mm)
+    // paredes de colisão: da face interna para fora, com 30 mm (chapa fina deixa peça
+    // rápida atravessar entre dois passos da simulação)
     const I = res.interior, Qd = res.Q;
-    const O = { x0: Math.min(-Qd.W / 2, I.min.x - 6), x1: Math.max(Qd.W / 2, I.max.x + 6), y0: Math.min(0, I.min.y - 6), y1: Math.max(Qd.H, I.max.y + 6), z0: Math.min(-Qd.D / 2, I.min.z - 6), z1: Math.max(Qd.D / 2, I.max.z + 6) };
+    const E = 30;
+    const O = { x0: I.min.x - E, x1: I.max.x + E, y0: Math.min(0, I.min.y - E), y1: I.max.y + E, z0: I.min.z - E, z1: I.max.z + E };
     const cx = (x0, x1, y0, y1, z0, z1) => new THREE.Box3(new THREE.Vector3(x0, y0, z0), new THREE.Vector3(x1, y1, z1));
     const paredes = {
       esquerdo: cx(O.x0, I.min.x, O.y0, O.y1, O.z0, O.z1),
@@ -117,11 +138,12 @@ window.PCBFisica = function (THREE, CANNON) {
     };
     // o fundo leva o gabinete (visual e massa); cada painel é um corpo que some quando o painel abre
     const pGab = res.partes.find((p) => p.id === 'gabinete');
+    const NOMES_PAREDE = { esquerdo: 'Vidro lateral', direito: 'Painel direito', topo: 'Teto', traseira: 'Traseira do gabinete', frente: 'Frente do gabinete' };
     const corposParede = {};
     for (const [k, b] of Object.entries(paredes)) {
       corposParede[k] = k === 'fundo'
         ? montarCorpo('gabinete', pGab ? pGab.nome : 'Gabinete', [b], [pGab && pGab.obj], pGab && pGab.massa, true, new THREE.Vector3(0, Qd.H * 0.44, 0))
-        : montarCorpo('parede:' + k, 'Painel ' + k, [b], [], 0, true);
+        : montarCorpo('parede:' + k, NOMES_PAREDE[k] || k, [b], [], 0, true);
     }
     function definirParedes(abertos) {
       const a = new Set(abertos || []);
@@ -133,7 +155,11 @@ window.PCBFisica = function (THREE, CANNON) {
     }
     definirParedes(opts.paineisAbertos);
     const pBand = res.partes.find((p) => p.id === 'bandeja');
-    if (pBand && pBand.caixas.length) montarCorpo('bandeja', pBand.nome, pBand.caixas, [], 0, true);
+    if (pBand && pBand.caixas.length) {
+      // bandeja com 4 mm (a chapa de 1,2 mm cresce para o lado dos cabos)
+      const bt = pBand.caixas.map((c) => { const b = c.clone(); b.max.x = Math.max(b.max.x, b.min.x + 4); return b; });
+      montarCorpo('bandeja', pBand.nome, bt, [], 0, true);
+    }
     const pCx = res.partes.find((p) => p.id === 'caixaFonte');
     const pFonte = res.partes.find((p) => p.id === 'fonte');
     if (pCx && pCx.caixas.length) montarCorpo('caixaFonte', 'Fonte no compartimento', pCx.caixas, [pCx.obj, pFonte && pFonte.obj], pFonte && pFonte.massa, true);
@@ -141,6 +167,7 @@ window.PCBFisica = function (THREE, CANNON) {
     const chao = new CANNON.Body({ mass: 0, type: ESTATICO });
     chao.addShape(new CANNON.Plane());
     chao.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    chao.addEventListener('collide', aoColidir);
     world.addBody(chao);
 
     /* ---------- peças ---------- */
@@ -233,12 +260,15 @@ window.PCBFisica = function (THREE, CANNON) {
       const p = paraM(pontoMM);
       const local = new CANNON.Vec3();
       c.body.pointToLocalFrame(p, local);
+      // segura a meio caminho entre o ponto clicado e o centro de massa: a peça
+      // ainda gira ao ser puxada pela ponta, mas sem virar um cata-vento
+      local.scale(0.5, local);
       junta.position.copy(p);
       // força máxima ~4× o peso da peça: dá para puxar, mas ela ainda bate e trava nas outras
       const r = new CANNON.PointToPointConstraint(c.body, local, junta, new CANNON.Vec3(), c.massa * 9.81 * 4 + 4);
       world.addConstraint(r);
       c.body.linearDamping = 0.6;
-      c.body.angularDamping = 0.7;
+      c.body.angularDamping = 0.95;
       arrasto = { c, r, alvo: p.clone() };
       return true;
     }
@@ -310,8 +340,7 @@ window.PCBFisica = function (THREE, CANNON) {
     /* ---------- passo ---------- */
     let acumulado = 0, nPasso = 0;
     const contatos = [];
-    let maiorImpacto = null;
-    const va = new CANNON.Vec3(), vb = new CANNON.Vec3(), tmpC = new CANNON.Vec3();
+    const tmpC = new CANNON.Vec3();
     function passo(dt) {
       acumulado += Math.min(dt, 1 / 20);
       let n = 0;
@@ -322,11 +351,20 @@ window.PCBFisica = function (THREE, CANNON) {
         world.step(PASSO);
         acumulado -= PASSO;
         n++;
+        if (arrasto) limitar(arrasto.c.body, 2, 5);
         if (++nPasso % 6 === 0) revisarIgnorados();
         coletarContatos();
+        for (let i = batidas.length - 1; i >= 0; i--) if ((batidas[i].idade += PASSO) > 0.7) batidas.splice(i, 1);
       }
+      acumulado = Math.min(acumulado, PASSO * 2); // PC lento: a simulação fica mais lenta, sem acumular atraso
       sincronizar();
       return mexeu || corpos.some((c) => c.solto && c.body.sleepState !== CANNON.Body.SLEEPING) || !!arrasto;
+    }
+    // teto de velocidade (m/s) e rotação (rad/s) da peça na mão
+    function limitar(b, vMax, wMax) {
+      const v = b.velocity.length(), w = b.angularVelocity.length();
+      if (v > vMax) b.velocity.scale(vMax / v, b.velocity);
+      if (w > wMax) b.angularVelocity.scale(wMax / w, b.angularVelocity);
     }
     function coletarContatos() {
       contatos.length = 0;
@@ -335,13 +373,7 @@ window.PCBFisica = function (THREE, CANNON) {
         const nomeA = A ? A.nome : 'Chão', nomeB = B ? B.nome : 'Chão';
         if ((!A || A.fixo || !A.solto) && (!B || B.fixo || !B.solto)) continue;
         eq.bi.position.vadd(eq.ri, tmpC); // (vadd/vsub com destino não devolvem nada)
-        // velocidade relativa na direção da normal (impacto)
-        eq.bi.angularVelocity.cross(eq.ri, va); va.vadd(eq.bi.velocity, va);
-        eq.bj.angularVelocity.cross(eq.rj, vb); vb.vadd(eq.bj.velocity, vb);
-        vb.vsub(va, vb);
-        const imp = Math.abs(vb.dot(eq.ni));
-        contatos.push({ pos: paraMM(tmpC), impacto: imp, a: nomeA, b: nomeB });
-        if (imp > 0.05 && (!maiorImpacto || imp > maiorImpacto.impacto)) maiorImpacto = { impacto: imp, a: nomeA, b: nomeB };
+        contatos.push({ pos: paraMM(tmpC), a: nomeA, b: nomeB });
       }
     }
     function sincronizar() {
@@ -422,9 +454,11 @@ window.PCBFisica = function (THREE, CANNON) {
     const idDe = (parteId) => { const p = res.partes.find((x) => x.id === parteId); return p ? GRUPO(p) : parteId; };
     return {
       passo, soltar: (id) => soltar(corpos.find((c) => c.id === idDe(id))), soltarTudo, pegar: (id, p) => pegar(idDe(id), p), mover, largar, pontoArrasto,
-      chacoalhar, inclinar, remontar, descartar, estado, contatos, arrastando: () => !!arrasto, definirParedes, reaplicarOcultos: atualizarDependentes,
+      chacoalhar, inclinar, remontar, descartar, estado, contatos, batidas, arrastando: () => !!arrasto, definirParedes, reaplicarOcultos: atualizarDependentes,
       pode: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return !!(c && !c.fixo); },
       nomeDe: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return c ? c.nome : ''; },
+      massaDe: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return c ? c.massaG : 0; },
+      arrastado: () => (arrasto ? { nome: arrasto.c.nome, gramas: arrasto.c.massaG, velocidade: arrasto.c.body.velocity.length() } : null),
       corpos
     };
   }

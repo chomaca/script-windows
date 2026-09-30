@@ -699,7 +699,7 @@ window.PCBApp = (function () {
       }
       const id = parteNoPonto(e.clientX, e.clientY);
       if (fis.ativo && fis.sim) {
-        if (id && fis.sim.pode(id)) { mostrar('Arraste para soltar: ' + curto(fis.sim.nomeDe(id).split(' — ')[0])); cv.style.cursor = 'grab'; } else { tip.hidden = true; cv.style.cursor = ''; }
+        if (id && fis.sim.pode(id)) { mostrar('Arraste para soltar: ' + curto(fis.sim.nomeDe(id).split(' — ')[0]) + ' · ' + pesoTxt(fis.sim.massaDe(id))); cv.style.cursor = 'grab'; } else { tip.hidden = true; cv.style.cursor = ''; }
         return;
       }
       const p = id && atual.partes.find((x) => x.id === id);
@@ -888,7 +888,7 @@ window.PCBApp = (function () {
     fis.sim = null;
     fis.ativo = false;
     limparGrupo(grupoFisica);
-    fis.pontos = fis.cg = fis.corda = null;
+    fis.pontos = fis.cg = fis.corda = fis.rotuloMao = null;
     $('#fisica').setAttribute('aria-pressed', 'false');
     $('#barra-fisica').hidden = true;
     $('#dica').hidden = E.medir.ativo;
@@ -923,7 +923,12 @@ window.PCBApp = (function () {
     fis.corda = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), m.linha);
     fis.corda.renderOrder = 46;
     fis.corda.visible = false;
-    grupoFisica.add(fis.pontos, cg, fis.corda);
+    // etiqueta da peça que está na mão (nome, peso e velocidade)
+    const elM = document.createElement('div');
+    elM.className = 'rotulo-cg';
+    fis.rotuloMao = new CSS2DObject(elM);
+    fis.rotuloMao.visible = false;
+    grupoFisica.add(fis.pontos, cg, fis.corda, fis.rotuloMao);
     atualizarVisuaisFisica();
   }
   function atualizarVisuaisFisica() {
@@ -931,10 +936,17 @@ window.PCBApp = (function () {
     if (!s || !fis.pontos) return;
     const mtx = new THREE.Matrix4();
     let n = 0;
+    // batidas: bolha que cresce com a velocidade do impacto e some em ~0,7 s
+    for (const b of s.batidas) {
+      if (n >= 200) break;
+      const r = (3 + Math.min(12, b.v * 14)) * (1 - b.idade / 0.8);
+      mtx.makeScale(r, r, r).setPosition(b.pos);
+      fis.pontos.setMatrixAt(n++, mtx);
+    }
+    // pontos de contato que estão encostando agora
     for (const c of s.contatos) {
       if (n >= 200) break;
-      const r = 2.4 + Math.min(4.5, c.impacto * 9);
-      mtx.makeScale(r, r, r).setPosition(c.pos);
+      mtx.makeScale(2.4, 2.4, 2.4).setPosition(c.pos);
       fis.pontos.setMatrixAt(n++, mtx);
     }
     fis.pontos.count = n;
@@ -946,6 +958,12 @@ window.PCBApp = (function () {
     u.alvoChao.position.y = -e.cg.y + 0.8;
     u.el.classList.toggle('perigo', tombaria(e));
     const pa = s.pontoArrasto();
+    const mao = s.arrastado();
+    fis.rotuloMao.visible = !!(pa && mao);
+    if (fis.rotuloMao.visible) {
+      fis.rotuloMao.position.copy(pa).add(new THREE.Vector3(0, 18, 0));
+      fis.rotuloMao.element.textContent = curto(mao.nome.split(' — ')[0]) + ' · ' + pesoTxt(mao.gramas) + ' · ' + fmt(mao.velocidade, 2) + ' m/s';
+    }
     fis.corda.visible = !!(pa && fis.alvo);
     if (fis.corda.visible) {
       const pos = fis.corda.geometry.attributes.position;
@@ -955,6 +973,7 @@ window.PCBApp = (function () {
       fis.corda.geometry.computeBoundingSphere();
     }
   }
+  const pesoTxt = (g) => (g >= 1000 ? fmt(g / 1000, 2) + ' kg' : fmt(g, 0) + ' g');
   // com o gabinete inclinado, tomba se o centro de massa passar da borda de apoio
   function tombaria(e) {
     const ap = atual && atual.massas && atual.massas.apoio;
@@ -974,7 +993,8 @@ window.PCBApp = (function () {
     else partes.push('<strong>' + e.soltos + ' de ' + e.pecas + '</strong> peças soltas' + (e.parados === e.soltos ? ', já paradas' : ''));
     if (e.contatos) partes.push(e.contatos + ' ponto' + (e.contatos > 1 ? 's' : '') + ' de contato (em vermelho)');
     const nc = (n) => esc(curto(String(n).split(' — ')[0]));
-    if (e.maiorImpacto) partes.push('batida mais forte: ' + fmt(e.maiorImpacto.impacto, 2) + ' m/s (' + nc(e.maiorImpacto.a) + ' × ' + nc(e.maiorImpacto.b) + ')');
+    // v = √(2·g·h) → a batida equivale a uma queda livre de h = v² / 2g
+    if (e.maiorImpacto) partes.push('batida mais forte: ' + fmt(e.maiorImpacto.impacto, 2) + ' m/s, como cair de ' + fmt(e.maiorImpacto.impacto * e.maiorImpacto.impacto / (2 * 9.81) * 100, 0) + ' cm (' + nc(e.maiorImpacto.a) + ' × ' + nc(e.maiorImpacto.b) + ')');
     if (Math.abs(e.angulo) >= 0.5) {
       const lado = e.angulo > 0 ? 'o lado do vidro' : 'a lateral direita';
       const lim = anguloTombar(lado);
@@ -2319,5 +2339,14 @@ window.PCBApp = (function () {
     };
   }
 
-  return { iniciar, falha, diagnostico, vista: (d) => irVista(d, true) };
+  /* Posição na tela (px da janela) do centro de uma peça — usado nos testes automáticos. */
+  function naTela(id) {
+    const p = atual && atual.partes.find((x) => x.id === id);
+    if (!p || !p.obj) return null;
+    const c = new THREE.Box3().setFromObject(p.obj).getCenter(new THREE.Vector3()).project(camera);
+    const r = renderer.domElement.getBoundingClientRect();
+    return { x: r.left + (c.x + 1) / 2 * r.width, y: r.top + (1 - c.y) / 2 * r.height };
+  }
+
+  return { iniciar, falha, diagnostico, naTela, vista: (d) => irVista(d, true) };
 })();
