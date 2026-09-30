@@ -1030,6 +1030,17 @@ window.PCBApp = (function () {
     tween = { t0: performance.now(), dur: 650, p0: camera.position.clone(), p1: pos, a0: controles.target.clone(), a1: alvo };
   }
 
+  /* Aproxima a câmera de uma região (ponto de contato ou vão), pelo lado do vidro. */
+  function enquadrarCaixa(caixa) {
+    if (!caixa || caixa.isEmpty()) return;
+    const centro = caixa.getCenter(new THREE.Vector3());
+    const tam = Math.max(60, caixa.getSize(new THREE.Vector3()).length());
+    const dir = new THREE.Vector3(-0.8, 0.38, 0.46).normalize();
+    const dist = Math.max(220, (tam * 1.4) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    tween = { t0: performance.now(), dur: 700, p0: camera.position.clone(), p1: centro.clone().addScaledVector(dir, dist), a0: controles.target.clone(), a1: centro };
+    for (const b of $$('[data-vista]')) b.setAttribute('aria-pressed', 'false');
+  }
+
   /* Aproxima a câmera de uma peça, pelo lado do vidro. */
   function enquadrar(id) {
     const p = atual && atual.partes.find((x) => x.id === id);
@@ -1561,8 +1572,11 @@ window.PCBApp = (function () {
       '<div class="resumo ' + nivel + '"><strong>' + esc(titulo) + '</strong><span class="nota">Checagem feita com as caixas de cada peça em escala real. Posições internas do gabinete são estimadas — veja a aba Medidas.</span></div>',
       '<ul class="itens">', itens.map((i) => {
         const alvo = (i.pecas || []).find(temParte);
-        return '<li class="item ' + i.nivel + '"><span class="pill ' + i.nivel + '">' + NOMES_NIVEL[i.nivel] + '</span><div><strong>' + esc(i.titulo) + '</strong>' + (i.detalhe ? '<p>' + esc(i.detalhe) + '</p>' : '') +
-          (alvo && i.nivel !== 'ok' && i.nivel !== 'info' ? '<button type="button" class="link-3d" data-localizar="' + esc(alvo) + '">Mostrar no 3D</button>' : '') + '</div></li>';
+        const idx = checagem.itens.indexOf(i);
+        const botao = i.regioes && i.regioes.length
+          ? '<button type="button" class="link-3d" data-regiao="' + idx + '">' + (i.nivel === 'aviso' ? 'Ver o vão no 3D' : 'Ver o ponto de contato') + '</button>'
+          : alvo && i.nivel !== 'ok' && i.nivel !== 'info' ? '<button type="button" class="link-3d" data-localizar="' + esc(alvo) + '">Mostrar no 3D</button>' : '';
+        return '<li class="item ' + i.nivel + '"><span class="pill ' + i.nivel + '">' + NOMES_NIVEL[i.nivel] + '</span><div><strong>' + esc(i.titulo) + '</strong>' + (i.detalhe ? '<p>' + esc(i.detalhe) + '</p>' : '') + botao + '</div></li>';
       }).join(''), '</ul>',
       '<h4 class="titulo-secao">Folgas medidas</h4>',
       '<dl class="folgas">', atual.folgas.map((f) => {
@@ -1971,6 +1985,14 @@ window.PCBApp = (function () {
         const [, zid, si] = el.dataset.removerFan.split(':');
         selecionar(null);
         mudarZona(zid, 'Fan removido de ' + ((atual.G.montagens[zid] || {}).nome || zid) + ' ' + (Number(si) + 1), (cfg) => { cfg.vagas[Number(si)] = null; });
+      } else if (el.dataset.regiao != null) {
+        const it = checagem && checagem.itens[Number(el.dataset.regiao)];
+        if (it && it.regioes) {
+          if (!E.vis.contatos) alternarVis('contatos', true);
+          const cx = new THREE.Box3();
+          for (const r of it.regioes) cx.union(r.caixa);
+          enquadrarCaixa(cx);
+        }
       } else if (el.dataset.localizar) {
         selecionar(el.dataset.localizar);
         enquadrar(el.dataset.localizar);
