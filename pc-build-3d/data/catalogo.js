@@ -96,6 +96,7 @@ window.PCB_CATALOGO = {
 
     'gf-model5': {
       nome: 'Geometric Future Model 5 (frente de vidro)',
+      massa: 8750,      // g, sem peças (ficha do fabricante)
       cor: '#1c1e21',
       medidas: { largura: 242, altura: 440, profundidade: 480 },
       pes: 20,

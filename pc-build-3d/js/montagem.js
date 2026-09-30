@@ -193,6 +193,7 @@ window.PCBMontagem = function (THREE, M) {
     orientar(mb, vdir('frente'), vdir('cima'), vdir('esquerda'), new THREE.Vector3(faceX, topoY, Q.Z(G.placaMae.traseira)));
     const mbPonto = (x, y, z) => mb.localToWorld(new THREE.Vector3(x, -y, z));
     registrar('placaMae', MB.nome, 'Placa-mãe', mb, {
+      massa: (MB.massa || 900) + 45, massaEstimada: !MB.massa || (MB.estimado || []).includes('massa'),
       info: {
         medidas: [['Formato', MB.formato], ['Tamanho', fmt(MB.largura) + ' × ' + fmt(MB.altura) + ' mm']],
         notas: MB.notas, fontes: MB.fontes, estimado: MB.estimado
@@ -212,6 +213,7 @@ window.PCBMontagem = function (THREE, M) {
       orientar(mod, vdir('frente'), vdir('esquerda'), vdir('baixo'), mbPonto(MB.dimm.x[si], MB.dimm.y, 1.5));
       registrar('memoria-' + n, RAM.nome + ' (slot ' + ['A1', 'A2', 'B1', 'B2'][si] + ')', 'Memória', mod, {
         ignora: ['placaMae'],
+        massa: RAM.massa || 40, massaEstimada: !RAM.massa,
         info: {
           medidas: [['Altura', fmt(RAM.altura) + ' mm'], ['Comprimento', fmt(RAM.comprimento) + ' mm'], ['Capacidade', RAM.capacidade + ' GB']],
           notas: 'Pentes nos slots A2 e B2 (recomendado para 2 pentes).', fontes: RAM.fontes, estimado: RAM.estimado
@@ -227,8 +229,11 @@ window.PCBMontagem = function (THREE, M) {
     const bombaPos = mbPonto(MB.soquete.x, MB.soquete.y, 9);
     const bomba = M.bomba(CL.bomba, CL.cor, rgb, CL.estilo, fotoDe('bomba-topo', R.ids.cooler));
     orientar(bomba, vdir('frente'), vdir('cima'), vdir('esquerda'), bombaPos, 'y');
+    const massaCL = CL.massa || {};
+    const clEst = !CL.massa || (CL.estimado || []).includes('massa');
     registrar('bomba', 'Bomba — ' + CL.nome, 'Watercooler', bomba, {
       ignora: ['placaMae'],
+      massa: massaCL.bomba || 400, massaEstimada: clEst,
       info: {
         medidas: [['Bloco', fmt(CL.bomba.largura) + ' × ' + fmt(CL.bomba.profundidade) + ' × ' + fmt(CL.bomba.altura) + ' mm']],
         notas: CL.notas, fontes: CL.fontes, estimado: CL.estimado
@@ -253,6 +258,7 @@ window.PCBMontagem = function (THREE, M) {
       const classe = CL.fans.quantidade * R.coolerFan.tamanho;
       registrar('radiador', 'Radiador ' + classe + ' mm — ' + CL.nome, 'Watercooler', rad, {
         grupo: 'aio',
+        massa: massaCL.radiador || 600, massaEstimada: clEst,
         info: {
           medidas: [['Radiador', fmt(CL.radiador.comprimento) + ' × ' + fmt(CL.radiador.largura) + ' × ' + fmt(CL.radiador.espessura) + ' mm'], ['Posição', zonaRad.nome]],
           notas: CL.notas, fontes: CL.fontes, estimado: CL.estimado
@@ -266,6 +272,7 @@ window.PCBMontagem = function (THREE, M) {
         posicionarFan(f, centro, k, fanOff, Tf, ar, a);
         registrar('fanRad-' + i, R.coolerFan.nome + ' (radiador ' + (i + 1) + ')', 'Watercooler', f, {
           grupo: 'aio',
+          massa: R.coolerFan.massa || 150, massaEstimada: !R.coolerFan.massa,
           info: {
             medidas: [['Tamanho', R.coolerFan.tamanho + ' × ' + R.coolerFan.tamanho + ' × ' + R.coolerFan.espessura + ' mm'], ['Fluxo', saida ? 'Exaustão (saída)' : 'Entrada']],
             fontes: R.coolerFan.fontes
@@ -289,7 +296,7 @@ window.PCBMontagem = function (THREE, M) {
         retaMang = Math.max(retaMang, A.pos.distanceTo(B.pos));
         trajetoMang = Math.max(trajetoMang, compLinha(new THREE.CatmullRomCurve3(pts).getPoints(40)));
       }
-      registrar('tubos', 'Mangueiras — ' + CL.nome, 'Watercooler', tubos, { colide: false, info: { notas: 'Traçado ilustrativo das mangueiras.' } });
+      registrar('tubos', 'Mangueiras — ' + CL.nome, 'Watercooler', tubos, { colide: false, massa: massaCL.mangueiras || 180, massaEstimada: true, info: { notas: 'Traçado ilustrativo das mangueiras.' } });
       radInfo = { zona: zonaRadId, classe, deslocamento: desloc, folgaEixo, mangueira: { reta: retaMang, trajeto: trajetoMang, disponivel: CL.mangueira || null } };
       if (zonaRad.radiador && classe > zonaRad.radiador) avisos.push('Radiador ' + classe + ' mm maior que o suportado em ' + zonaRad.nome + ' (' + zonaRad.radiador + ' mm).');
     } else {
@@ -303,6 +310,7 @@ window.PCBMontagem = function (THREE, M) {
     orientar(fonte, vdir(F.larguraPara), vdir(F.ventoinhaPara), vdir(F.comprimentoPara), Q.p(F.ancora.x, F.ancora.y, F.ancora.z));
     registrar('fonte', PSU.nome, 'Fonte', fonte, {
       ignora: ['caixaFonte'],
+      massa: PSU.massa || 1600, massaEstimada: !PSU.massa,
       info: {
         medidas: [['Tamanho', fmt(PSU.largura) + ' × ' + fmt(PSU.altura) + ' × ' + fmt(PSU.comprimento) + ' mm'], ['Potência', PSU.potencia + ' W']],
         notas: PSU.notas, fontes: PSU.fontes
@@ -353,7 +361,12 @@ window.PCBMontagem = function (THREE, M) {
     const modoTxt = cfgGpu.modo === 'deshroud'
       ? 'Sem shroud, ' + (cfgGpu.fans.quantidade || 0) + '× ' + R.gpuFan.nome + ' presos com abraçadeira'
       : 'Original, com shroud';
+    const nFansGpu = cfgGpu.modo === 'deshroud' ? (gpu.userData.fansGPU || 0) : 0;
+    const massaGpu = cfgGpu.modo === 'deshroud'
+      ? (GPU.massa || 1500) - (GPU.massaShroud || 0) + nFansGpu * (R.gpuFan.massa || 150) + nFansGpu * 2 * 2
+      : GPU.massa || 1500;
     registrar('gpu', GPU.nome, 'Placa de vídeo', gpu, {
+      massa: massaGpu, massaEstimada: !GPU.massa || (cfgGpu.modo === 'deshroud' && (GPU.estimado || []).includes('massaShroud')),
       info: {
         medidas: [
           ['Montagem', vertical ? 'Vertical (riser)' : 'Horizontal (slot PCIe)'],
@@ -386,7 +399,7 @@ window.PCBMontagem = function (THREE, M) {
       ];
       const fita = M.riser(pts, new THREE.Vector3(0, 0, 1), 64);
       riserInfo = { comprimento: compLinha(new THREE.CatmullRomCurve3(pts).getPoints(60)) + 30 };
-      registrar('riser', 'Cabo riser PCIe', 'Placa de vídeo', fita, { colide: false, info: { notas: 'Traçado ilustrativo do cabo riser (o comprimento real depende do modelo).' } });
+      registrar('riser', 'Cabo riser PCIe', 'Placa de vídeo', fita, { colide: false, massa: 70, massaEstimada: true, info: { notas: 'Traçado ilustrativo do cabo riser (o comprimento real depende do modelo).' } });
       const con = new THREE.Group();
       con.add(M.caixa(Fd.x - 9, Fd.x + 9, Fd.y - 14, Fd.y + 7, Fd.z - 52, Fd.z + 52, M.std('#141518', 0.6, 0.1)));
       con.add(M.caixa(A.x - 14, A.x, A.y - 5, A.y + 5, A.z - 48, A.z + 48, M.std('#141518', 0.6, 0.1)));
@@ -395,11 +408,14 @@ window.PCBMontagem = function (THREE, M) {
     }
 
     /* ---------- cabos da fonte (24 pinos, 2× EPS 8 pinos, 12V-2x6) ---------- */
-    const estiloCabo = ESTILOS_CABO[(build.fonte && build.fonte.cabos) || 'originais'];
+    const modoCabos = (build.fonte && build.fonte.cabos) || 'originais';
+    const estiloCabo = ESTILOS_CABO[modoCabos];
+    // cabos modulares (24 pinos, 2× EPS, 12V-2x6): ~620 g; extensões trançadas somam ~200 g (estimado)
+    const MASSA_CABOS = { originais: 620, brancos: 820, pretos: 820 };
     if (CABOS && estiloCabo) {
       try {
         const cabos = montarCabos();
-        if (cabos) registrar('cabos', 'Cabos da fonte', 'Fonte', cabos, { colide: false, info: { notas: 'Traçado ilustrativo: 24 pinos, 2× EPS de 8 pinos e 12V-2x6 da placa de vídeo. Os cabos passam por trás da bandeja pelos recortes de borracha.' } });
+        if (cabos) registrar('cabos', 'Cabos da fonte', 'Fonte', cabos, { colide: false, massa: MASSA_CABOS[modoCabos] || 600, massaEstimada: true, info: { notas: 'Traçado ilustrativo: 24 pinos, 2× EPS de 8 pinos e 12V-2x6 da placa de vídeo. Os cabos passam por trás da bandeja pelos recortes de borracha.' } });
       } catch (e) { avisos.push('Não consegui desenhar os cabos: ' + e.message); }
     }
     function montarCabos() {
@@ -494,6 +510,7 @@ window.PCBMontagem = function (THREE, M) {
         const id = 'fan:' + zid + ':' + i;
         registrar(id, zona.nome + ' ' + (i + 1) + ' — ' + fs.nome, 'Fans', f, {
           ignora: zona.montagem === 'fora' ? ['bandeja'] : [],
+          massa: fs.massa || 150, massaEstimada: !fs.massa,
           info: {
             medidas: [['Tamanho', fs.tamanho + ' × ' + fs.tamanho + ' × ' + fs.espessura + ' mm'], ['Fluxo', saida ? 'Exaustão (saída)' : 'Entrada']],
             fontes: fs.fontes
@@ -609,6 +626,7 @@ window.PCBMontagem = function (THREE, M) {
     }
     registrar('gabinete', G.nome, 'Gabinete', caso.grupo, {
       colide: false,
+      massa: G.massa || 8000, massaEstimada: !G.massa || (G.estimado || []).includes('massa'),
       info: {
         medidas: [['Externas (P × L × A)', Q.D + ' × ' + Q.W + ' × ' + Q.H + ' mm'], ['GPU até', G.limites.gpuComprimento + ' mm'], ['Cooler até', G.limites.coolerAltura + ' mm'], ['Fonte até', G.limites.fonteComprimento + ' mm']],
         notas: G.notas, fontes: G.fontes, estimado: G.estimado
@@ -699,6 +717,45 @@ window.PCBMontagem = function (THREE, M) {
     const tamCaixa = Math.abs(eixoFonte.x) * (caixaFonte.max.x - caixaFonte.min.x) + Math.abs(eixoFonte.y) * (caixaFonte.max.y - caixaFonte.min.y) + Math.abs(eixoFonte.z) * (caixaFonte.max.z - caixaFonte.min.z);
     folgas.push({ nome: 'Espaço para cabos atrás da fonte', valor: tamCaixa - PSU.comprimento - 2, minimo: 15, pecas: ['fonte'] });
 
+    /* ---------- massas, centro de massa e estabilidade ----------
+       Cada peça conta no centro da sua caixa; o gabinete, um pouco abaixo do
+       meio (base, pés e trilhos são a parte mais pesada da chapa). */
+    const massas = { itens: [], total: 0, cg: new THREE.Vector3(), estimado: false };
+    for (const p of partes) {
+      if (!(p.massa > 0)) continue;
+      let centro;
+      if (p.id === 'gabinete') centro = new THREE.Vector3(0, Q.H * 0.44, 0);
+      else {
+        const b = new THREE.Box3();
+        for (const c of p.caixas) b.union(c);
+        if (b.isEmpty() && p.obj) b.setFromObject(p.obj);
+        if (b.isEmpty()) continue;
+        centro = b.getCenter(new THREE.Vector3());
+      }
+      massas.itens.push({ id: p.id, nome: p.nome, gramas: p.massa, estimado: !!p.massaEstimada, centro });
+      massas.total += p.massa;
+      massas.cg.addScaledVector(centro, p.massa);
+      if (p.massaEstimada) massas.estimado = true;
+    }
+    if (massas.total > 0) massas.cg.multiplyScalar(1 / massas.total);
+    // apoio: sapatas de borracha dos dois trilhos (ver modelos3d.gabinete)
+    const apoio = { x0: -Q.W / 2 + 11.5, x1: Q.W / 2 - 11.5, z0: -Q.D / 2 + 27, z1: Q.D / 2 - 27 };
+    const hCg = Math.max(1, massas.cg.y);
+    const lados = [
+      { lado: 'o lado do vidro', d: massas.cg.x - apoio.x0 }, { lado: 'a lateral direita', d: apoio.x1 - massas.cg.x },
+      { lado: 'trás', d: massas.cg.z - apoio.z0 }, { lado: 'a frente', d: apoio.z1 - massas.cg.z }
+    ].map((l) => Object.assign(l, { graus: Math.atan2(Math.max(0, l.d), hCg) * 180 / Math.PI }));
+    lados.sort((u, v) => u.graus - v.graus);
+    massas.apoio = apoio;
+    massas.tombamento = lados[0];
+    massas.lados = lados;
+    // torque na placa de vídeo (horizontal: o slot e o suporte seguram tudo)
+    const itGpu = massas.itens.find((i) => i.id === 'gpu');
+    if (itGpu && !vertical) {
+      const braco = Math.abs(itGpu.centro.z - Q.Z(gv.suporteZ)) / 1000;
+      massas.torqueGpu = { nm: (itGpu.gramas / 1000) * 9.81 * braco, braco: braco * 1000 };
+    }
+
     /* ---------- resumo do fluxo de ar ---------- */
     const peso = (s) => (s * s) / (120 * 120);
     const todos = fansCaso.concat(aioFans);
@@ -715,7 +772,7 @@ window.PCBMontagem = function (THREE, M) {
     };
 
     return {
-      raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo,
+      raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo, massas,
       radInfo, riserInfo, vertical, distancia, altura, vagas,
       contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, pentes: slotsUsados.length }
     };

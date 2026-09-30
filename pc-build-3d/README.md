@@ -10,7 +10,8 @@ próprio site.
 1. Baixe a pasta `pc-build-3d` inteira.
 2. Dê dois cliques em `index.html` (Chrome, Edge ou Firefox).
 
-Precisa de internet só para baixar o motor 3D (Three.js, via `cdn.jsdelivr.net`).
+Precisa de internet só para baixar o motor 3D (Three.js) e o de física (cannon-es),
+ambos via `cdn.jsdelivr.net`.
 Não precisa instalar nada.
 
 ## Build cadastrada
@@ -22,7 +23,7 @@ Não precisa instalar nada.
 | Memória | 2× Kingston FURY Beast DDR5 32 GB | 133,35 × 34,9 |
 | Watercooler | GIGABYTE AORUS WATERFORCE II 360 ICE, no topo | radiador 394 × 119 × 27; bomba 72,8 × 72,8 × 65,1 |
 | Fonte | Corsair RM1200e | 150 × 86 × 150 |
-| Placa de vídeo | ZOTAC RTX 5090 AMP Extreme INFINITY, sem shroud, vertical com riser | oficial 332,1 × 137,5 × 69,6; sem shroud (estimado) 325 × 128 × 52 |
+| Placa de vídeo | ZOTAC RTX 5090 AMP Extreme INFINITY, sem shroud, vertical com riser | oficial 332,1 × 137,5 × 69,6 (2,88 kg); sem shroud (estimado) 325 × 132 × 52; com os 2 P14: 325 × 132 × 79 |
 | Fans na GPU | 2× ARCTIC P14 Pro (abraçadeira) | 140 × 140 × 27 |
 | Fans do gabinete | 5× Squama 140 mm (1 traseira, 3 fundo, 1 lateral) | 140 × 140 × 25 |
 
@@ -47,30 +48,47 @@ no site para ver o aviso.
 
 As texturas são desenhadas pelo próprio site (não dependem de imagens baixadas):
 
-- **Gabinete Model 5 Vent:** aço preto com pintura eletrostática fosca, telas com furos
-  redondos em grade, faixa sólida no meio do painel direito e rodapé frontal com
-  “GEOMETRIC FUTURE”, vidro com borda serigrafada, pés de borracha.
+- **Gabinete Model 5 Vent (igual às fotos):** aço preto com pintura eletrostática, telas com
+  furos redondos em grade; na frente, a tela com a **faixa sólida vertical** do lado direito com o
+  painel de IO (botão com anel de LED, USB-C, 2 USB-A e P2) e o suporte interno dos 3 fans;
+  **faixa em relevo** no painel direito com o logo; **traseira em grade de furos quadrados** com a
+  **placa de 7 slots removível** (gira para a GPU vertical), recorte do IO e da tomada da fonte,
+  parafusos de dedo; vidro com borda serigrafada; base com **dois trilhos, pés chanfrados e
+  sapatas de borracha**; colunas e travessas com arestas arredondadas.
 - **MAXSUN B850M PRO WIFI (branca):** PCB preto com trilhas e serigrafia; armadura
   prata-branca jateada e escovada com linhas vermelho-escuras e “TERMINATOR” gravado
   (I/O, VRM, dois dissipadores M.2 e chipset); slot PCIe 5.0 reforçado, 4 slots DDR5,
   2 conectores EPS de 8 pinos, 24 pinos, SATA, headers e o painel traseiro com as
   portas (USB, HDMI, DP, LAN 2.5G, áudio e antenas Wi-Fi).
-- **ZOTAC RTX 5090 AMP Extreme INFINITY sem shroud:** PCB preto, estrutura
-  intermediária preta, aletas de alumínio prateadas, heatpipes niquelados aparecendo
-  nas bordas, backplate de metal com “ZOTAC GAMING” e passagem de ar vazada na ponta,
-  suporte com 3 DisplayPort e 1 HDMI.
+- **ZOTAC RTX 5090 AMP Extreme INFINITY sem shroud:** ~150 aletas de alumínio de 0,34 mm
+  (passo de 2,05 mm) com a borda do lado dos fans serrilhada, em **alturas diferentes** como no
+  dissipador de verdade (rebaixo onde os heatpipes fazem a curva e **entalhe em volta do
+  12V-2x6**); aletas que passam do PCB na ponta (fluxo livre, visto pelas fendas do backplate);
+  câmara de vapor niquelada; **9 heatpipes** fazendo a curva nas bordas de cima e de baixo
+  **dentro da altura do dissipador**; estrutura intermediária preta com janelas; conector
+  12V-2x6 com os 12 furos de força e os 4 de sinal; **suporte de 3,5 slots** com aba dobrada e
+  rasgos dos parafusos, 3 DisplayPort e 1 HDMI com as carcaças; **dedos PCIe x16** dourados
+  (11 + chave + 71 contatos); backplate com “ZOTAC GAMING”, fendas vazadas e os parafusos da
+  trava do chip.
+- **Pás dos fans com volume:** cada pá é um sólido torcido, mais grossa na raiz (1,5 mm) e fina
+  na ponta, com bordas de ataque e fuga afinadas.
 - **ARCTIC P14 Pro:** 7 pás curtas unidas por um anel nas pontas, cubo grande com
   adesivo ARCTIC, moldura preta de 27 mm, amortecedores de borracha nos cantos e
   4 braços traseiros.
 - **AORUS WATERFORCE II 360 ICE:** bomba branca com face espelhada (anéis de luz em
   efeito infinito) e emblema AORUS, friso cromado, conexões giratórias; radiador
   branco com tanques com AORUS em relevo; mangueiras com malha trançada; fans brancos ARGB.
-- **Kingston FURY Beast DDR5:** de um lado “FURY” em alumínio exposto e “Beast”;
-  do outro, a etiqueta de especificações.
-- **Corsair RM1200e:** preta fosca, grade da ventoinha com o padrão triangular da
-  Corsair e logo no centro, lateral “CORSAIR RM1200e”, etiqueta de especificações e
-  painel modular com os rótulos. Ao clicar em “Mostrar no 3D” da fonte, a tampa
+- **Kingston FURY Beast DDR5:** dissipador com arestas chanfradas; de um lado “FURY” em
+  alumínio exposto e “Beast”, do outro a etiqueta; PCB preto com a **chave do DDR5** e os
+  **144 contatos dourados** de cada lado.
+- **Corsair RM1200e:** chapa com cantos arredondados, **grade vazada** com o padrão triangular
+  da Corsair (dá para ver a ventoinha de 9 pás girando por baixo), lateral “CORSAIR RM1200e”,
+  etiqueta de especificações, entrada C14 com os 3 pinos e chave liga/desliga, e **painel
+  modular com os soquetes de verdade** (24 pinos 18 + 10, 12V-2x6, 4× PCIe/CPU, 3× SATA) nas
+  mesmas posições onde os cabos encaixam. Ao clicar em “Mostrar no 3D” da fonte, a tampa
   perfurada do gabinete é ocultada para ela aparecer.
+- **Radiador:** tanques arredondados, emenda crimpada, tubos achatados em relevo sobre as
+  aletas, trilhos com os parafusos dos fans e bujão de enchimento.
 
 **Realismo:** iluminação de estúdio (softboxes que aparecem refletidas no vidro, no metal
 e na face espelhada da bomba), sombras suaves, sombra de contato sob o gabinete, oclusão de
@@ -127,17 +145,38 @@ Kingston, Corsair). Use fotos retas, de frente. As fotos ficam **só neste naveg
 - **Camadas:** painéis, vidro, cotas, vagas de fan, **simulação do ar**, setas de fluxo,
   fans girando, grade e “explodir” os painéis.
 - **RGB:** fixo, arco-íris, respirar ou desligado, com a cor que quiser.
+- **Física** (tecla X): arraste, solte, chacoalhe e incline as peças — veja “Física e checagens”.
 - Aperte **?** para ver todos os atalhos (1–5 vistas, P painéis, V vidro, A ar, M medir,
-  H ocultar a peça selecionada, Delete remove o fan selecionado…).
+  X física, K pontos de contato, H ocultar a peça selecionada, Delete remove o fan selecionado…).
 
 A montagem, as camadas e a qualidade ficam salvas no navegador automaticamente.
 
 ## Física e checagens
 
+- **Modo Física** (botão *Física* no topo do 3D, ou tecla **X**): cada peça vira um corpo
+  rígido com a **massa real** (catálogo) e as **mesmas caixas de colisão** da checagem
+  (motor cannon-es, carregado só quando o modo é aberto).
+  - **Arraste uma peça** com o mouse: ela se solta do lugar, cai, **bate nas outras e no
+    gabinete** e para apoiada. Os **pontos de contato** aparecem em vermelho (maiores quanto
+    mais forte a batida) e a barra mostra a batida mais forte em m/s.
+  - **Soltar tudo** tira todos os parafusos; **Chacoalhar** sacode o gabinete de um lado
+    para o outro; **Inclinar** gira o gabinete em torno da borda dos pés e mostra o
+    **centro de massa** (bolinha amarela com o fio até o chão) — se ele passar da borda,
+    avisa que o PC tombaria; **Remontar** põe tudo no lugar.
+  - Com os painéis abertos (**P**) ou sem o vidro (**V**), as peças podem cair para fora.
+  - Peças encaixadas (pente no slot, bomba na CPU) só passam a colidir depois de saírem do
+    encaixe; peças muito leves usam no mínimo 150 g na simulação para ela não tremer.
+- **Pontos de contato (onde não cabe):** quando duas peças ocupam o mesmo espaço, ou uma
+  peça atravessa o gabinete, o **volume da sobreposição aparece em vermelho** no 3D com a
+  medida (“Invade 3,2 mm”) e o nome das peças (Camadas → Pontos de contato, tecla **K**).
+- **Massas e estabilidade:** peso de cada peça e do PC inteiro (~17,6 kg na build padrão),
+  altura do centro de massa e o ângulo em que ele tomba (aba **Checagem** e **Medidas**).
+  Com a placa de vídeo na horizontal, o site calcula o **torque no slot PCIe** (peso ×
+  distância até o centro de massa da placa; ~4,7 N·m para a 5090) e sugere suporte anti-sag.
 - **Encaixe:** cada peça tem caixas de colisão em escala real (inclusive conexões do
-  radiador, abraçadeiras e heatpipes da GPU); o site confere colisões, peças saindo do
-  gabinete, limites do fabricante e folgas mínimas (ex.: os P14 presos na GPU precisam de
-  ~20 mm até o vidro para puxar ar).
+  radiador, abraçadeiras, heatpipes, suporte e aba da GPU, tomada da fonte); o site confere
+  colisões, peças saindo do gabinete, limites do fabricante e folgas mínimas (ex.: os P14
+  presos na GPU precisam de ~20 mm até o vidro para puxar ar).
 - **Mangueiras do watercooler:** distância reta entre a bomba e o radiador + folga para as
   curvas, comparada com o comprimento das mangueiras (AORUS WATERFORCE II 360 ICE: 380 mm).
 - **Cabo riser:** comprimento necessário pelo caminho entre o slot e a placa de vídeo.
@@ -205,6 +244,8 @@ pc-build-3d/
     ├── verificacao.js    colisões, limites, energia, fluxo e aquecimento do ar
     ├── ambiente.js       estúdio (reflexos), chão com reflexo, luzes do RGB, qualidade
     ├── ar.js             simulação do ar com partículas
+    ├── fisica.js         corpos rígidos (cannon-es): soltar, arrastar, chacoalhar, inclinar
     ├── historico.js      desfazer/refazer e montagens salvas
+    ├── fotos.js          fotos reais das peças (enquadrar e guardar no navegador)
     └── app.js            cena 3D e interface
 ```

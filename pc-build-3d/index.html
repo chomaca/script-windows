@@ -23,6 +23,7 @@
     <symbol id="i-olho" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-seta" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-fisica" viewBox="0 0 24 24"><path d="M7.5 3.5h7l3 3v7h-10Z"/><path d="M14.5 3.5v3h3"/><path d="M4 21h16"/><path d="M9 16.5v1.5M12.5 16.5v2.5M16 16.5v1.5"/></symbol>
   </defs>
 </svg>
 <div class="app">
@@ -45,6 +46,7 @@
             <label class="chk"><input type="checkbox" data-vis="cotas"> Cotas do gabinete <kbd>C</kbd></label>
             <label class="chk"><input type="checkbox" data-vis="vagas"> Vagas livres para fans <kbd>N</kbd></label>
             <label class="chk"><input type="checkbox" data-vis="soGabinete"> Só o gabinete (sem peças) <kbd>O</kbd></label>
+            <label class="chk"><input type="checkbox" data-vis="contatos"> Pontos de contato (onde não cabe) <kbd>K</kbd></label>
             <hr>
             <label class="chk"><input type="checkbox" data-vis="ar"> Simular o ar (partículas) <kbd>A</kbd></label>
             <label class="chk"><input type="checkbox" data-vis="fluxo"> Setas de entrada e saída <kbd>F</kbd></label>
@@ -87,6 +89,7 @@
             <p class="nota mono" id="fps" aria-live="off"></p>
           </div>
         </details>
+        <button type="button" class="ferramenta" id="fisica" aria-pressed="false" title="Física: soltar, arrastar e chacoalhar as peças (X)"><svg class="ic"><use href="#i-fisica"/></svg><span>Física</span></button>
         <button type="button" class="ferramenta" id="medir" aria-pressed="false" title="Medir distância entre dois pontos (M)"><svg class="ic"><use href="#i-regua"/></svg><span>Medir</span></button>
         <button type="button" class="ferramenta" id="capturar" title="Tirar uma imagem da montagem (I)"><svg class="ic"><use href="#i-camera"/></svg><span>Imagem</span></button>
         <button type="button" class="ferramenta so-icone" id="ajuda" title="Atalhos e ajuda (?)" aria-label="Atalhos e ajuda"><svg class="ic"><use href="#i-ajuda"/></svg></button>
@@ -95,6 +98,16 @@
     <button type="button" class="botao-flutuante" id="mostrar-tudo" hidden><svg class="ic"><use href="#i-olho"/></svg>Mostrar peças ocultas</button>
     <div class="dica" id="dica">Arraste para girar · role para aproximar · clique numa peça para editar</div>
     <div class="barra-medir" id="barra-medir" hidden><span id="medir-texto">Clique no primeiro ponto</span><button type="button" class="botao" id="medir-limpar">Limpar</button><button type="button" class="botao" id="medir-sair">Concluir</button></div>
+    <div class="barra-fisica" id="barra-fisica" hidden>
+      <p class="fisica-texto" id="fisica-texto" aria-live="polite">Arraste uma peça para tirá-la do lugar.</p>
+      <div class="fisica-acoes">
+        <button type="button" class="botao" data-fis="soltar" title="Solta todas as peças (os parafusos somem)">Soltar tudo</button>
+        <button type="button" class="botao" data-fis="chacoalhar" title="Sacode o gabinete de um lado para o outro">Chacoalhar</button>
+        <label class="fisica-inclinar"><span>Inclinar</span><input type="range" id="fisica-inclinar" min="-45" max="45" step="1" value="0" aria-label="Inclinar o gabinete (negativo: para o lado do vidro)"><output id="fisica-angulo">0°</output></label>
+        <button type="button" class="botao" data-fis="remontar" title="Põe tudo de volta no lugar">Remontar</button>
+        <button type="button" class="botao botao-forte" data-fis="sair">Concluir</button>
+      </div>
+    </div>
     <div class="legenda-fluxo" id="legenda-fluxo" hidden><span class="lf lf-entrada">Entrada de ar</span><span class="lf lf-saida">Saída de ar</span></div>
     <div class="legenda-ar" id="legenda-ar" hidden>
       <div class="escala-ar"><span>Ar frio</span><i aria-hidden="true"></i><span>quente</span></div>
@@ -162,6 +175,8 @@
           <li><span>Simular ar · setas</span><span><kbd>A</kbd> <kbd>F</kbd></span></li>
           <li><span>Vagas de fan</span><span><kbd>N</kbd></span></li>
           <li><span>Medir</span><span><kbd>M</kbd></span></li>
+          <li><span>Física (soltar e arrastar peças)</span><span><kbd>X</kbd></span></li>
+          <li><span>Pontos de contato</span><span><kbd>K</kbd></span></li>
           <li><span>Explodir</span><span><kbd>E</kbd></span></li>
           <li><span>Ocultar a peça selecionada</span><span><kbd>H</kbd></span></li>
           <li><span>Mostrar tudo</span><span><kbd>Shift</kbd> <kbd>H</kbd></span></li>
@@ -173,6 +188,7 @@
       </section>
     </div>
     <p class="nota"><strong>Fotos reais:</strong> para ficar idêntico ao produto (com os logos), clique na peça → <em>Foto real</em>, envie a foto oficial (site do fabricante) e enquadre. Ela vira a textura daquela parte: dissipador, borda e backplate da placa de vídeo, adesivo do cubo dos fans, topo da bomba, lateral da memória e da fonte, topo da placa-mãe.</p>
+    <p class="nota"><strong>Física:</strong> no modo <em>Física</em> cada peça tem a massa real e as mesmas caixas de colisão da checagem. Arraste uma peça para soltá-la: ela cai, bate nas outras e no gabinete e mostra os pontos de contato em vermelho. <em>Chacoalhar</em> sacode o gabinete, <em>Inclinar</em> mostra quando o PC tombaria e <em>Remontar</em> põe tudo no lugar. Com os painéis abertos (<kbd>P</kbd> ou <kbd>V</kbd>) as peças podem cair para fora.</p>
     <p class="nota">Tudo fica salvo neste navegador. Na aba <strong>Salvas</strong> você guarda várias versões da montagem com nome e compara ideias.</p>
   </div>
 </div>
@@ -186,13 +202,15 @@
 <script src="js/verificacao.js"></script>
 <script src="js/ambiente.js"></script>
 <script src="js/ar.js"></script>
+<script src="js/fisica.js"></script>
 <script src="js/historico.js"></script>
 <script src="js/fotos.js"></script>
 <script src="js/app.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
 } }
 </script>
 <script type="module">

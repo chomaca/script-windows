@@ -554,6 +554,32 @@ window.PCBTexturas = function (THREE) {
     });
   }
 
+  /* Contatos de um pente DDR5 (uma face): 144 contatos de 0,85 mm de passo,
+     chave quase no meio. Canvas: x = 0 na ponta esquerda (olhando a face). */
+  function dedosDIMM(comp, alt, chave) {
+    return memo('dimm|' + comp + '|' + alt + '|' + chave, () => {
+      const S = 16;
+      const c = criar(Math.round(comp * S), Math.round(alt * S));
+      const a = criar(c.width, c.height);
+      const g = c.getContext('2d'), ga = a.getContext('2d');
+      g.fillStyle = '#101213'; g.fillRect(0, 0, c.width, c.height);
+      ga.fillStyle = '#000'; ga.fillRect(0, 0, a.width, a.height);
+      const ouro = g.createLinearGradient(0, 0, 0, c.height);
+      ouro.addColorStop(0, '#b8913a'); ouro.addColorStop(0.55, '#e8c86e'); ouro.addColorStop(1, '#c79d45');
+      const passo = 0.85, w = 0.6;
+      const x0 = (comp - (144 * passo + 1.9)) / 2;
+      for (let i = 0; i < 144; i++) {
+        let x = x0 + i * passo + (i >= 72 ? 1.9 : 0);
+        if (Math.abs(x + w / 2 - chave) < 1.2) continue;
+        const y0 = alt - 3.9, y1 = alt - 0.45;
+        g.fillStyle = ouro; g.fillRect(x * S, y0 * S, w * S, (y1 - y0) * S);
+        ga.fillStyle = '#fff'; ga.fillRect(x * S, y0 * S, w * S, (y1 - y0) * S);
+      }
+      granular(c, 6, 83);
+      return { map: tex(c), alpha: tex(a, { cor: false }) };
+    });
+  }
+
   /* ================= superfícies genéricas ================= */
   // Grão fino (pintura eletrostática / plástico fosco): mapa de cor + relevo, repetível.
   function grao(cor, forca = 14, seed = 3) {
@@ -828,22 +854,69 @@ window.PCBTexturas = function (THREE) {
     });
   }
 
+  /* Painel modular da RMe (face de 150 × 86 mm): posição dos soquetes em mm
+     a partir da borda esquerda / de baixo (olhando a face). Os mesmos números
+     são usados na geometria (modelos3d) e nas tomadas dos cabos (montagem). */
+  const CORSAIR_MODULAR = [
+    { id: '24a', x: 7, y: 58.6, cols: 9, rows: 2, passo: 4.2 },
+    { id: '24b', x: 50, y: 58.6, cols: 5, rows: 2, passo: 4.2 },
+    { id: '12v', x: 64.8, y: 37.8, cols: 6, rows: 2, passo: 3.0, sinal: true },
+    { id: 'pc1', x: 89.4, y: 36.6, cols: 4, rows: 2, passo: 4.2 },
+    { id: 'pc2', x: 113.4, y: 36.6, cols: 4, rows: 2, passo: 4.2 },
+    { id: 'pc3', x: 89.4, y: 14.6, cols: 4, rows: 2, passo: 4.2 },
+    { id: 'pc4', x: 113.4, y: 14.6, cols: 4, rows: 2, passo: 4.2 },
+    { id: 'sa1', x: 80, y: 58.6, cols: 3, rows: 2, passo: 4.2 },
+    { id: 'sa2', x: 98, y: 58.6, cols: 3, rows: 2, passo: 4.2 },
+    { id: 'sa3', x: 116, y: 58.6, cols: 3, rows: 2, passo: 4.2 }
+  ];
+  const tamSoquete = (s) => ({ w: s.cols * s.passo + 2.4, h: s.rows * s.passo + 2.4 + (s.sinal ? 3 : 0) });
+
   function corsairModular(w, h) {
     return memo('corsairMod|' + w + '|' + h, () => {
       const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, '#131416', 0.025, true, 67);
-      const rot = [['12V-2x6', 18, 16], ['PCIe & CPU', 18, 38], ['PCIe & CPU', 66, 38], ['24-PIN ATX', 90, 16], ['SATA / PERIPHERAL', 90, 60]];
-      for (const [t, x, y] of rot) texto(g, t, x * S, (h - y) * S, 2.8 * S, '#d8dbdf', { peso: '800', alinhar: 'left' });
-      g.strokeStyle = 'rgba(216,219,223,0.5)'; g.lineWidth = 0.4 * S;
-      g.strokeRect(6 * S, 6 * S, (w - 12) * S, (h - 12) * S);
+      granular(c, 7, 71);
+      // moldura rebaixada em volta de cada soquete
+      for (const sq of CORSAIR_MODULAR) {
+        const t = tamSoquete(sq);
+        g.strokeStyle = 'rgba(216,219,223,0.28)'; g.lineWidth = 0.35 * S;
+        retArr(g, (sq.x - 1.2) * S, (h - sq.y - t.h - 1.2) * S, (t.w + 2.4) * S, (t.h + 2.4) * S, 1 * S); g.stroke();
+      }
+      const rot = [['24-PIN ATX', 7, 75.5], ['SATA / PERIPHERAL', 80, 75.5], ['12V-2x6', 64.8, 33.5], ['PCIe & CPU', 89.4, 52], ['PCIe & CPU', 89.4, 30]];
+      for (const [t, x, y] of rot) texto(g, t, x * S, (h - y) * S, 2.6 * S, '#d8dbdf', { peso: '800', alinhar: 'left' });
+      texto(g, 'CORSAIR', 7 * S, (h - 22) * S, 5 * S, '#d8dbdf', { fonte: F_PESADA, peso: '900', alinhar: 'left', espaco: 1 * S });
+      texto(g, 'USE ONLY TYPE 5 CABLES', 7 * S, (h - 14) * S, 2.2 * S, '#9ca0a6', { peso: '700', alinhar: 'left' });
+      g.strokeStyle = 'rgba(216,219,223,0.45)'; g.lineWidth = 0.4 * S;
+      g.strokeRect(4 * S, 4 * S, (w - 8) * S, (h - 8) * S);
       return tex(c);
     });
   }
 
+  // Grade da ventoinha da fonte: onde a chapa é vazada (preto) — para alphaMap.
+  function corsairGradeAlfa(w, l) {
+    return memo('corsairGradeA|' + w + '|' + l, () => {
+      const S = 1024 / Math.max(w, l), c = criar(w * S, l * S);
+      const g = c.getContext('2d');
+      const cx = c.width / 2, cy = c.height / 2, R = Math.min(w, l) * 0.45 * S;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      g.fillStyle = '#000';
+      const passo = 5.2 * S;
+      for (let y = 0, lin = 0; y < c.height + passo; y += passo * 0.866, lin++) {
+        for (let x = (lin % 2) * passo / 2; x < c.width + passo; x += passo) {
+          const d = Math.hypot(x - cx, y - cy);
+          if (d > R - 2 * S || d < R * 0.22) continue;
+          const t = passo * 0.38, inv = lin % 2 ? -1 : 1;
+          g.beginPath(); g.moveTo(x, y - t * inv); g.lineTo(x + t * 0.87, y + t * 0.5 * inv); g.lineTo(x - t * 0.87, y + t * 0.5 * inv); g.closePath(); g.fill();
+        }
+      }
+      return tex(c, { cor: false });
+    });
+  }
+
   return {
-    escovadoRepetivel, placaMaeTopo, placaMaeIO, memoriaLado, adesivoFan, gpuBackplate, gpuSuporte, gpuDedos,
+    escovadoRepetivel, placaMaeTopo, placaMaeIO, memoriaLado, adesivoFan, gpuBackplate, gpuSuporte, gpuDedos, dedosDIMM,
     grao, painelPerfurado, gradeQuadrada, aorusEspelho, aorusTanque, aletasRadiador, trancado, memoriaEtiqueta,
-    corsairGrade, corsairLateral, corsairEspecificacao, corsairModular
+    corsairGrade, corsairGradeAlfa, corsairLateral, corsairEspecificacao, corsairModular, CORSAIR_MODULAR, tamSoquete
   };
 };

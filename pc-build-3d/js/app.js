@@ -12,15 +12,17 @@ window.PCBApp = (function () {
   const PADRAO = window.PCB_BUILD_PADRAO;
   const TOQUE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   const VIS_PADRAO = {
-    paineis: true, vidro: true, fluxo: false, ar: false, cotas: true, girar: true, vagas: false, grade: true, soGabinete: false,
+    paineis: true, vidro: true, fluxo: false, ar: false, cotas: true, girar: true, vagas: false, grade: true, soGabinete: false, contatos: true,
     rgb: '#7cc8ff', rgbModo: 'fixo', qualidade: TOQUE ? 'leve' : 'alta'
   };
   const TONS = { neutro: 'NeutralToneMapping', aces: 'ACESFilmicToneMapping', agx: 'AgXToneMapping' };
 
-  let THREE, M, MONT, VER, AMB, SIM, HIST, FOT, OrbitControls, CSS2DRenderer, CSS2DObject;
+  let THREE, M, MONT, VER, AMB, SIM, HIST, FOT, FIS, OrbitControls, CSS2DRenderer, CSS2DObject;
   let D = {};
   let composer = null, passoAO = null, sol = null, reflexo = null, sombraContato = null, chao = null;
-  let cena, camera, renderer, controles, rotulos, grupoCotas, grupoVagas, grupoMedidas, destaque;
+  let cena, camera, renderer, controles, rotulos, grupoCotas, grupoVagas, grupoMedidas, grupoContatos, grupoFisica, destaque;
+  // modo física: simulação (cannon-es, carregado só quando usado) e o que está sendo arrastado
+  const fis = { ativo: false, carregando: false, sim: null, ponteiro: null, plano: null, alvo: null, pontos: null, cg: null, corda: null, ultimoTexto: 0 };
   let grades = [];
   let luzInterna = null;
   let atual = null;
@@ -176,7 +178,9 @@ window.PCBApp = (function () {
     grupoCotas = new THREE.Group();
     grupoVagas = new THREE.Group();
     grupoMedidas = new THREE.Group();
-    cena.add(grupoCotas, grupoVagas, grupoMedidas);
+    grupoContatos = new THREE.Group();
+    grupoFisica = new THREE.Group();
+    cena.add(grupoCotas, grupoVagas, grupoMedidas, grupoContatos, grupoFisica);
     aplicarTema();
 
     new ResizeObserver(redimensionar).observe(el);
@@ -218,7 +222,7 @@ window.PCBApp = (function () {
         reflexo.material.uniforms.forca.value = temaEscuro() ? 0.38 : 0.22;
         const antes = reflexo.onBeforeRender;
         reflexo.onBeforeRender = function (...args) {
-          const esconder = [grupoCotas, grupoVagas, grupoMedidas, destaque, ...grades].filter((o) => o && o.visible);
+          const esconder = [grupoCotas, grupoVagas, grupoMedidas, grupoContatos, grupoFisica, destaque, ...grades].filter((o) => o && o.visible);
           for (const o of esconder) o.visible = false;
           antes.apply(this, args);
           for (const o of esconder) o.visible = true;
@@ -322,6 +326,7 @@ window.PCBApp = (function () {
   }
 
   function reconstruir() {
+    if (fis.ativo) encerrarFisica();
     if (atual) {
       cena.remove(atual.raiz);
       MONT.descartar(atual.raiz);
@@ -353,6 +358,7 @@ window.PCBApp = (function () {
     rotores = [];
     atual.raiz.traverse((o) => { if (o.userData.rotor) rotores.push(o.userData.rotor); });
     checagem = VER.verificar(atual, E.build);
+    desenharContatos();
     if (E.vis.ar) criarSimulacao();
     desenharVagas();
     aplicarVisibilidade();
@@ -381,7 +387,7 @@ window.PCBApp = (function () {
     });
   }
 
-  function vagasVisiveis() { return !!(E.vis.vagas || E.aba === 'fans'); }
+  function vagasVisiveis() { return !!(E.vis.vagas || E.aba === 'fans') && !fis.ativo; }
 
   function aplicarVisibilidade() {
     if (!atual) return;
@@ -396,7 +402,9 @@ window.PCBApp = (function () {
     grupoVagas.visible = vagasVisiveis();
     for (const g of grades) g.visible = E.vis.grade !== false;
     if (E.vis.ar && !atual.sim) criarSimulacao();
-    if (atual.sim) atual.sim.objeto.visible = E.vis.ar;
+    if (atual.sim) atual.sim.objeto.visible = E.vis.ar && !fis.ativo;
+    grupoContatos.visible = !!E.vis.contatos && !fis.ativo;
+    if (fis.ativo && fis.sim) { fis.sim.definirParedes(paineisAbertos()); fis.sim.reaplicarOcultos(); }
     $('#legenda-fluxo').hidden = !E.vis.fluxo || E.vis.ar;
     $('#legenda-ar').hidden = !E.vis.ar;
     for (const b of $$('input[data-vis]')) b.checked = !!E.vis[b.dataset.vis];
@@ -407,6 +415,7 @@ window.PCBApp = (function () {
     if (!atual) return;
     if (imediato) explodirAtual = explodirAlvo;
     for (const p of atual.paineis) p.obj.position.copy(p.dir).multiplyScalar(explodirAtual * 230);
+    if (fis.ativo && fis.sim) fis.sim.definirParedes(paineisAbertos());
   }
 
   /* ---------- RGB ---------- */
@@ -614,6 +623,49 @@ window.PCBApp = (function () {
     const tip = $('#tooltip');
     let inicio = null;
     let ultimo = 0;
+    // modo física: arrastar uma peça (fase de captura, antes da câmera orbital)
+    const vistaEl = $('#vista');
+    vistaEl.addEventListener('pointerdown', (e) => {
+      if (!fis.ativo || !fis.sim || !atual || e.button !== 0) return;
+      const h = acertos(raioNoPonto(e.clientX, e.clientY)).find((a) => tipoMat(a) !== 'vidro' && tipoMat(a) !== 'tela');
+      if (!h || !fis.sim.pode(h.object.userData.parteId)) return;
+      e.stopPropagation();
+      e.preventDefault();
+      controles.enabled = false;
+      tween = null;
+      tip.hidden = true;
+      const n = camera.getWorldDirection(new THREE.Vector3()).negate();
+      fis.plano = new THREE.Plane().setFromNormalAndCoplanarPoint(n, h.point);
+      fis.alvo = h.point.clone();
+      fis.sim.pegar(h.object.userData.parteId, h.point);
+      fis.ponteiro = e.pointerId;
+      try { vistaEl.setPointerCapture(e.pointerId); } catch (err) { /* sem captura */ }
+      cv.style.cursor = 'grabbing';
+      precisaRender = true;
+    }, true);
+    vistaEl.addEventListener('pointermove', (e) => {
+      if (fis.ponteiro == null || e.pointerId !== fis.ponteiro) return;
+      e.stopPropagation();
+      const p = raioNoPonto(e.clientX, e.clientY).ray.intersectPlane(fis.plano, new THREE.Vector3());
+      if (!p) return;
+      p.y = Math.max(p.y, 4);
+      fis.alvo.copy(p);
+      fis.sim.mover(p);
+      precisaRender = true;
+    }, true);
+    const fimArrasto = (e) => {
+      if (fis.ponteiro == null || e.pointerId !== fis.ponteiro) return;
+      e.stopPropagation();
+      fis.ponteiro = null;
+      fis.alvo = null;
+      if (fis.sim) fis.sim.largar();
+      controles.enabled = true;
+      cv.style.cursor = '';
+      try { vistaEl.releasePointerCapture(e.pointerId); } catch (err) { /* já solto */ }
+      precisaRender = true;
+    };
+    vistaEl.addEventListener('pointerup', fimArrasto, true);
+    vistaEl.addEventListener('pointercancel', fimArrasto, true);
     cv.addEventListener('pointerdown', (e) => { inicio = { x: e.clientX, y: e.clientY }; tip.hidden = true; fecharMenus(); });
     cv.addEventListener('pointerup', (e) => {
       if (!inicio) return;
@@ -621,6 +673,7 @@ window.PCBApp = (function () {
       inicio = null;
       if (moveu || e.button !== 0) return;
       if (E.medir.ativo) { cliqueMedir(e.clientX, e.clientY, e.shiftKey); return; }
+      if (fis.ativo) return;
       const v = vagaNoPonto(e.clientX, e.clientY);
       if (v) { porFanNaVaga(v); return; }
       selecionar(parteNoPonto(e.clientX, e.clientY));
@@ -645,6 +698,10 @@ window.PCBApp = (function () {
         return;
       }
       const id = parteNoPonto(e.clientX, e.clientY);
+      if (fis.ativo && fis.sim) {
+        if (id && fis.sim.pode(id)) { mostrar('Arraste para soltar: ' + curto(fis.sim.nomeDe(id).split(' — ')[0])); cv.style.cursor = 'grab'; } else { tip.hidden = true; cv.style.cursor = ''; }
+        return;
+      }
       const p = id && atual.partes.find((x) => x.id === id);
       if (!p) { tip.hidden = true; cv.style.cursor = ''; return; }
       mostrar(p.nome);
@@ -655,6 +712,7 @@ window.PCBApp = (function () {
 
   /* ---------- régua: distância entre dois pontos ---------- */
   function modoMedir(ligar) {
+    if (ligar && fis.ativo) encerrarFisica();
     E.medir.ativo = ligar;
     E.medir.a = null;
     removerMarcadorA();
@@ -731,6 +789,196 @@ window.PCBApp = (function () {
     E.medir.lista = [];
     textoMedir('Clique no primeiro ponto (Shift trava num eixo)');
     precisaRender = true;
+  }
+
+
+  /* ---------- pontos de contato: onde as peças não cabem ---------- */
+  const MAT_CONTATO = {};
+  function matsContato() {
+    if (!MAT_CONTATO.vol) {
+      MAT_CONTATO.vol = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, opacity: 0.34, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.aresta = new THREE.LineBasicMaterial({ color: 0xff5a63, transparent: true, depthTest: false, toneMapped: false });
+      MAT_CONTATO.ponto = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.cg = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.linha = new THREE.LineBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.85, depthTest: false, toneMapped: false });
+      for (const m of Object.values(MAT_CONTATO)) m.userData.compartilhado = true;
+    }
+    return MAT_CONTATO;
+  }
+  // volume vermelho (com arestas) em cada região onde duas peças ocupam o mesmo espaço
+  function desenharContatos() {
+    limparGrupo(grupoContatos);
+    const lista = (checagem && checagem.contatos) || [];
+    const m = matsContato();
+    for (const c of lista.slice(0, 16)) {
+      const b = c.caixa.clone();
+      const tam = b.getSize(new THREE.Vector3());
+      const centro = b.getCenter(new THREE.Vector3());
+      // regiões finíssimas ganham espessura mínima para aparecer
+      const geo = new THREE.BoxGeometry(Math.max(tam.x, 2.5), Math.max(tam.y, 2.5), Math.max(tam.z, 2.5));
+      const vol = new THREE.Mesh(geo, m.vol);
+      vol.position.copy(centro);
+      vol.renderOrder = 35;
+      vol.userData.semAO = true;
+      const ar = new THREE.LineSegments(new THREE.EdgesGeometry(geo), m.aresta);
+      ar.position.copy(centro);
+      ar.renderOrder = 36;
+      const el = document.createElement('div');
+      el.className = 'rotulo-contato' + (c.tipo === 'fora' ? ' fora' : '');
+      el.innerHTML = (c.tipo === 'fora' ? 'Sai ' : 'Invade ') + esc(fmt(c.pen, 1)) + ' mm<small>' + esc(c.rotulo) + '</small>';
+      const rot = new CSS2DObject(el);
+      rot.position.copy(centro).add(new THREE.Vector3(0, Math.max(tam.y, 2.5) / 2 + 8, 0));
+      grupoContatos.add(vol, ar, rot);
+    }
+    grupoContatos.visible = !!E.vis.contatos && !fis.ativo;
+    precisaRender = true;
+  }
+
+  /* ---------- modo física ---------- */
+  function paineisAbertos() {
+    if (!E.vis.paineis || explodirAlvo > 0.3) return ['esquerdo', 'direito', 'topo', 'frente', 'traseira'];
+    return E.vis.vidro ? [] : ['esquerdo'];
+  }
+  async function modoFisica(ligar) {
+    if (!atual || fis.carregando || ligar === fis.ativo) return;
+    if (!ligar) { encerrarFisica(); return; }
+    if (!FIS) {
+      if (!window.PCBFisica) return;
+      fis.carregando = true;
+      $('#fisica').setAttribute('aria-busy', 'true');
+      try {
+        const CANNON = await import('cannon-es');
+        FIS = window.PCBFisica(THREE, CANNON);
+      } catch (err) {
+        console.warn('Sem física:', err);
+        toast('Não consegui carregar o motor de física (cannon-es). Confira a conexão com a internet.', { tipo: 'aviso' });
+      }
+      fis.carregando = false;
+      $('#fisica').removeAttribute('aria-busy');
+      if (!FIS || !atual) return;
+    }
+    if (E.medir.ativo) modoMedir(false);
+    selecionar(null);
+    try {
+      fis.sim = FIS.criar(atual, { paineisAbertos: paineisAbertos() });
+    } catch (err) {
+      console.error(err);
+      toast('A física não conseguiu montar os corpos: ' + err.message, { tipo: 'aviso' });
+      fis.sim = null;
+      return;
+    }
+    fis.ativo = true;
+    prepararVisuaisFisica();
+    $('#fisica').setAttribute('aria-pressed', 'true');
+    $('#barra-fisica').hidden = false;
+    $('#dica').hidden = true;
+    $('#fisica-inclinar').value = '0';
+    $('#fisica-angulo').textContent = '0°';
+    aplicarVisibilidade();
+    textoFisica();
+    precisaRender = true;
+  }
+  function encerrarFisica() {
+    if (!fis.ativo) return;
+    if (fis.ponteiro != null) { fis.ponteiro = null; controles.enabled = true; }
+    if (fis.sim) fis.sim.descartar();
+    fis.sim = null;
+    fis.ativo = false;
+    limparGrupo(grupoFisica);
+    fis.pontos = fis.cg = fis.corda = null;
+    $('#fisica').setAttribute('aria-pressed', 'false');
+    $('#barra-fisica').hidden = true;
+    $('#dica').hidden = E.medir.ativo;
+    aplicarVisibilidade();
+    precisaRender = true;
+  }
+  function prepararVisuaisFisica() {
+    limparGrupo(grupoFisica);
+    const m = matsContato();
+    fis.pontos = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), m.ponto, 200);
+    fis.pontos.count = 0;
+    fis.pontos.frustumCulled = false;
+    fis.pontos.renderOrder = 45;
+    fis.pontos.userData.semAO = true;
+    // centro de massa: bolinha amarela com um fio até o chão
+    const cg = new THREE.Group();
+    const bola = new THREE.Mesh(new THREE.SphereGeometry(5.5, 20, 14), m.cg);
+    bola.renderOrder = 46;
+    const fio = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, -1, 0)]), m.linha);
+    fio.renderOrder = 46;
+    const alvoChao = new THREE.Mesh(new THREE.RingGeometry(6, 9, 28), m.cg);
+    alvoChao.rotation.x = -Math.PI / 2;
+    alvoChao.renderOrder = 46;
+    const el = document.createElement('div');
+    el.className = 'rotulo-cg';
+    el.textContent = 'Centro de massa';
+    const rot = new CSS2DObject(el);
+    rot.position.set(0, 16, 0);
+    cg.add(bola, fio, alvoChao, rot);
+    cg.userData = { fio, alvoChao, el };
+    fis.cg = cg;
+    fis.corda = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), m.linha);
+    fis.corda.renderOrder = 46;
+    fis.corda.visible = false;
+    grupoFisica.add(fis.pontos, cg, fis.corda);
+    atualizarVisuaisFisica();
+  }
+  function atualizarVisuaisFisica() {
+    const s = fis.sim;
+    if (!s || !fis.pontos) return;
+    const mtx = new THREE.Matrix4();
+    let n = 0;
+    for (const c of s.contatos) {
+      if (n >= 200) break;
+      const r = 2.4 + Math.min(4.5, c.impacto * 9);
+      mtx.makeScale(r, r, r).setPosition(c.pos);
+      fis.pontos.setMatrixAt(n++, mtx);
+    }
+    fis.pontos.count = n;
+    fis.pontos.instanceMatrix.needsUpdate = true;
+    const e = s.estado();
+    const u = fis.cg.userData;
+    fis.cg.position.copy(e.cg);
+    u.fio.scale.y = Math.max(1, e.cg.y);
+    u.alvoChao.position.y = -e.cg.y + 0.8;
+    u.el.classList.toggle('perigo', tombaria(e));
+    const pa = s.pontoArrasto();
+    fis.corda.visible = !!(pa && fis.alvo);
+    if (fis.corda.visible) {
+      const pos = fis.corda.geometry.attributes.position;
+      pos.setXYZ(0, pa.x, pa.y, pa.z);
+      pos.setXYZ(1, fis.alvo.x, fis.alvo.y, fis.alvo.z);
+      pos.needsUpdate = true;
+      fis.corda.geometry.computeBoundingSphere();
+    }
+  }
+  // com o gabinete inclinado, tomba se o centro de massa passar da borda de apoio
+  function tombaria(e) {
+    const ap = atual && atual.massas && atual.massas.apoio;
+    if (!ap || Math.abs(e.angulo) < 0.5) return false;
+    return e.angulo > 0 ? e.cg.x < ap.x0 : e.cg.x > ap.x1;
+  }
+  function anguloTombar(lado) {
+    const l = atual && atual.massas && (atual.massas.lados || []).find((x) => x.lado === lado);
+    return l ? l.graus : null;
+  }
+  function textoFisica() {
+    const el = $('#fisica-texto');
+    if (!el || !fis.sim) return;
+    const e = fis.sim.estado();
+    const partes = [];
+    if (!e.soltos) partes.push('<strong>Arraste uma peça</strong> para tirá-la do lugar (ela bate nas outras e no gabinete), ou use <strong>Soltar tudo</strong>');
+    else partes.push('<strong>' + e.soltos + ' de ' + e.pecas + '</strong> peças soltas' + (e.parados === e.soltos ? ', já paradas' : ''));
+    if (e.contatos) partes.push(e.contatos + ' ponto' + (e.contatos > 1 ? 's' : '') + ' de contato (em vermelho)');
+    const nc = (n) => esc(curto(String(n).split(' — ')[0]));
+    if (e.maiorImpacto) partes.push('batida mais forte: ' + fmt(e.maiorImpacto.impacto, 2) + ' m/s (' + nc(e.maiorImpacto.a) + ' × ' + nc(e.maiorImpacto.b) + ')');
+    if (Math.abs(e.angulo) >= 0.5) {
+      const lado = e.angulo > 0 ? 'o lado do vidro' : 'a lateral direita';
+      const lim = anguloTombar(lado);
+      partes.push('inclinado ' + fmt(Math.abs(e.angulo), 0) + '° para ' + lado + (lim != null ? ' (montado, tomba a partir de ~' + fmt(lim, 0) + '°)' : ''));
+      if (tombaria(e)) partes.push('<span class="perigo">nessa inclinação o PC tombaria: o centro de massa passou da borda dos pés</span>');
+    }
+    el.innerHTML = partes.join(' · ') + '.';
   }
 
   /* ---------- câmera ---------- */
@@ -813,7 +1061,11 @@ window.PCBApp = (function () {
       AMB.atualizarRGB(atual.rgbFx, E.vis.rgbModo, E.vis.rgb, relogio, E.vis.qualidade === 'ultra' ? 1.15 : 1);
       precisaRender = true;
     }
-    if (atual && atual.sim && E.vis.ar) {
+    if (fis.ativo && fis.sim) {
+      if (fis.sim.passo(dt)) { precisaRender = true; atualizarVisuaisFisica(); }
+      if (agora - fis.ultimoTexto > 250) { fis.ultimoTexto = agora; textoFisica(); }
+    }
+    if (atual && atual.sim && E.vis.ar && !fis.ativo) {
       atual.sim.atualizar(dt);
       precisaRender = true;
       if (agora - ultimaEstat > 1000) { ultimaEstat = agora; mostrarEstatAr(); }
@@ -1354,8 +1606,8 @@ window.PCBApp = (function () {
       linhaMedida(G.nome, G.medidas.profundidade + ' × ' + G.medidas.largura + ' × ' + G.medidas.altura, 'Externas oficiais; internas estimadas', G.fontes),
       linhaMedida(R.placaMae.nome, R.placaMae.largura + ' × ' + R.placaMae.altura, R.placaMae.estimado && R.placaMae.estimado.length ? 'Tamanho oficial; layout estimado' : '', R.placaMae.fontes),
       linhaMedida(R.memoria.nome, fmt(R.memoria.comprimento, 2) + ' × ' + fmt(R.memoria.altura, 2), 'Espessura estimada', R.memoria.fontes),
-      linhaMedida(R.cooler.nome + ' — radiador', R.cooler.radiador.comprimento + ' × ' + R.cooler.radiador.largura + ' × ' + R.cooler.radiador.espessura, (R.cooler.estimado || []).filter((x) => x !== 'mangueira').length ? 'Estimado' : '', R.cooler.fontes),
-      linhaMedida(R.cooler.nome + ' — bomba', fmt(R.cooler.bomba.largura) + ' × ' + fmt(R.cooler.bomba.profundidade) + ' × ' + fmt(R.cooler.bomba.altura), (R.cooler.estimado || []).filter((x) => x !== 'mangueira').length ? 'Estimado' : '', []),
+      linhaMedida(R.cooler.nome + ' — radiador', R.cooler.radiador.comprimento + ' × ' + R.cooler.radiador.largura + ' × ' + R.cooler.radiador.espessura, (R.cooler.estimado || []).filter((x) => x !== 'mangueira' && x !== 'massa').length ? 'Estimado' : '', R.cooler.fontes),
+      linhaMedida(R.cooler.nome + ' — bomba', fmt(R.cooler.bomba.largura) + ' × ' + fmt(R.cooler.bomba.profundidade) + ' × ' + fmt(R.cooler.bomba.altura), (R.cooler.estimado || []).filter((x) => x !== 'mangueira' && x !== 'massa').length ? 'Estimado' : '', []),
       R.cooler.mangueira ? linhaMedida(R.cooler.nome + ' — mangueiras', R.cooler.mangueira + ' mm', (R.cooler.estimado || []).includes('mangueira') ? 'Estimado' : '', []) : '',
       linhaMedida(R.fonte.nome, R.fonte.largura + ' × ' + R.fonte.altura + ' × ' + R.fonte.comprimento, '', R.fonte.fontes),
       linhaMedida(R.gpu.nome + ' (com shroud)', fmt(R.gpu.comprimento) + ' × ' + fmt(R.gpu.altura) + ' × ' + fmt(R.gpu.espessura), '', R.gpu.fontes),
@@ -1367,10 +1619,22 @@ window.PCBApp = (function () {
       const f = CAT.fans[id];
       if (f && id !== E.build.gpu.fans.modelo && f !== R.coolerFan) linhas.push(linhaMedida(f.nome, f.tamanho + ' × ' + f.tamanho + ' × ' + f.espessura + cfm(f), (f.fontes || []).length ? '' : 'Genérico', f.fontes));
     }
+    const ms = atual && atual.massas;
+    let massas = '';
+    if (ms && ms.total > 0) {
+      const chip = (est) => (est ? '<span class="chip estimado">Estimado</span>' : '<span class="chip oficial">Oficial</span>');
+      const t = ms.tombamento;
+      massas = '<section class="cartao"><header><h3>Massas e centro de massa</h3></header>' +
+        '<div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Peça</th><th>Massa</th><th>Origem</th></tr></thead><tbody>' +
+        ms.itens.slice().sort((a, b) => b.gramas - a.gramas).map((i) => '<tr><td>' + esc(i.nome) + '</td><td class="num">' + fmt(i.gramas, 0) + ' g</td><td>' + chip(i.estimado) + '</td></tr>').join('') +
+        '<tr><td><strong>Total</strong></td><td class="num"><strong>' + fmt(ms.total / 1000, 2) + ' kg</strong></td><td></td></tr></tbody></table></div>' +
+        '<p class="nota">Centro de massa a ' + fmt(ms.cg.y, 0) + ' mm do chão' + (t ? '; o PC só tomba sozinho se inclinar ~' + fmt(t.graus, 0) + '° para ' + esc(t.lado) : '') + '. No modo <strong>Física</strong> (<kbd>X</kbd>) cada peça usa essa massa: arraste, solte e chacoalhe para ver como elas se encostam.</p></section>';
+    }
     return [
       '<section class="cartao"><header><h3>Medidas usadas (mm)</h3></header>',
       '<div class="tabela-rolagem"><table class="tabela"><thead><tr><th>Peça</th><th>Medidas</th><th>Origem</th></tr></thead><tbody>', linhas.join(''), '</tbody></table></div>',
       '<p class="nota">Comprimento × largura × altura (ou espessura). “Estimado” = o fabricante não publica; ajuste em “Editar medidas” (aba Peças) depois de medir. Vazão (CFM) é a máxima de catálogo.</p></section>',
+      massas,
       '<section class="cartao"><header><h3>Cadastrar peças novas</h3></header>',
       '<p class="nota">Tudo que aparece nos menus vem de <code>data/catalogo.js</code>. Copie um item da mesma categoria, troque o nome e as medidas e recarregue a página. Posições dentro do gabinete usam x = distância da lateral direita, y = altura do chão e z = distância da traseira, em mm.</p></section>'
     ].join('');
@@ -1829,6 +2093,24 @@ window.PCBApp = (function () {
     for (const b of $$('[data-cor]')) b.addEventListener('click', () => corRgb(b.dataset.cor));
     for (const b of $$('[data-qualidade]')) b.addEventListener('click', () => definirQualidade(b.dataset.qualidade));
     $('#medir').addEventListener('click', () => modoMedir(!E.medir.ativo));
+    $('#fisica').addEventListener('click', () => modoFisica(!fis.ativo));
+    $('#barra-fisica').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-fis]');
+      if (!b || !fis.sim) return;
+      const a = b.dataset.fis;
+      if (a === 'soltar') fis.sim.soltarTudo();
+      else if (a === 'chacoalhar') fis.sim.chacoalhar(1);
+      else if (a === 'remontar') { fis.sim.remontar(); $('#fisica-inclinar').value = '0'; $('#fisica-angulo').textContent = '0°'; }
+      else if (a === 'sair') encerrarFisica();
+      textoFisica();
+      precisaRender = true;
+    });
+    $('#fisica-inclinar').addEventListener('input', (e) => {
+      const v = Number(e.target.value) || 0;
+      $('#fisica-angulo').textContent = Math.abs(v) + '°' + (v < 0 ? ' vidro' : v > 0 ? ' direita' : '');
+      if (fis.sim) fis.sim.inclinar(-v);
+      precisaRender = true;
+    });
     $('#medir-limpar').addEventListener('click', limparMedidas);
     $('#medir-sair').addEventListener('click', () => modoMedir(false));
     $('#capturar').addEventListener('click', capturar);
@@ -1859,16 +2141,18 @@ window.PCBApp = (function () {
       if (aberto) { aberto.hidden = true; return; }
       if ($$('details.menu[open]').length) { fecharMenus(); return; }
       if (E.medir.ativo) { modoMedir(false); return; }
+      if (fis.ativo) { encerrarFisica(); return; }
       if (E.sel) selecionar(null);
       return;
     }
     if (digitando || e.altKey || $$('.modal').some((m) => !m.hidden)) return;
     const k = e.key;
     const vistas = { 1: 'iso', 2: 'vidro', 3: 'frente', 4: 'traseira', 5: 'topo' };
-    const togg = { p: 'paineis', v: 'vidro', c: 'cotas', f: 'fluxo', a: 'ar', g: 'girar', n: 'vagas', o: 'soGabinete' };
+    const togg = { p: 'paineis', v: 'vidro', c: 'cotas', f: 'fluxo', a: 'ar', g: 'girar', n: 'vagas', o: 'soGabinete', k: 'contatos' };
     if (vistas[k]) irVista(vistas[k]);
     else if (togg[k.toLowerCase()] && !e.shiftKey) alternarVis(togg[k.toLowerCase()]);
     else if (k === 'm' || k === 'M') modoMedir(!E.medir.ativo);
+    else if (k === 'x' || k === 'X') modoFisica(!fis.ativo);
     else if (k === 'e' || k === 'E') { explodirAlvo = explodirAlvo > 0.5 ? 0 : 1; $('#explodir').value = String(explodirAlvo); }
     else if (k === 'h' && E.sel && E.sel !== 'gabinete') { E.ocultas.add(E.sel); selecionar(null); aplicarVisibilidade(); if (E.aba === 'pecas') renderAba(); }
     else if (k === 'H') { E.ocultas.clear(); aplicarVisibilidade(); if (E.aba === 'pecas') renderAba(); }

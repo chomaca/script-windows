@@ -453,6 +453,34 @@ kbd {
   box-shadow: var(--sombra); font-size: 13px; z-index: 3; max-width: calc(100% - 24px);
 }
 .barra-medir .botao { padding: 5px 10px; font-size: 12px; }
+/* física: barra com as ações e o que está acontecendo */
+.barra-fisica {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: grid; gap: 6px; padding: 8px 8px 8px 12px; width: max-content; max-width: calc(100% - 24px);
+  border-radius: 12px; background: var(--superficie); border: 1px solid var(--acento);
+  box-shadow: var(--sombra); font-size: 13px; z-index: 3;
+}
+.fisica-texto { margin: 0; color: var(--tinta-2); font-size: 12px; line-height: 1.35; max-width: 640px; }
+.fisica-texto strong { color: var(--tinta); }
+.fisica-texto .perigo { color: var(--erro, #e5484d); font-weight: 600; }
+.fisica-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fisica-acoes .botao { padding: 5px 10px; font-size: 12px; }
+.fisica-inclinar { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tinta-2); padding: 0 4px; }
+.fisica-inclinar input { width: 120px; }
+.fisica-inclinar output { font: 600 12px var(--f-mono); color: var(--tinta); min-width: 3.2em; font-variant-numeric: tabular-nums; }
+/* rótulo do volume de contato (peças que não cabem) */
+.rotulo-contato {
+  font: 600 11px/1.25 var(--f-mono); color: #fff; background: #d92d3a;
+  padding: 3px 7px 4px; border-radius: 5px; white-space: nowrap; text-align: center;
+  font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); pointer-events: none;
+}
+.rotulo-contato small { display: block; font-weight: 500; font-size: 10px; opacity: 0.85; }
+.rotulo-contato.fora { background: #b3541e; }
+.rotulo-cg {
+  font: 600 11px/1.2 var(--f-mono); color: #111; background: #ffd23f; padding: 2px 6px 3px; border-radius: 5px;
+  white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums;
+}
+.rotulo-cg.perigo { background: #e5484d; color: #fff; }
 .legenda-fluxo { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 12px; padding: 6px 10px; border-radius: 8px; font-size: 12px; background: color-mix(in srgb, var(--superficie) 85%, transparent); }
 .lf::before { content: ""; display: inline-block; width: 16px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .lf-entrada::before { background: var(--entrada); }

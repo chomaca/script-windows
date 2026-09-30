@@ -20,6 +20,19 @@ window.PCBVerificacao = function () {
     return ox > TOL && oy > TOL && oz > TOL ? Math.min(ox, oy, oz) : 0;
   }
 
+  // nome curto (antes do travessão) para rótulos no 3D
+  function curto(nome) { return String(nome || '').split(' — ')[0].replace(/\s*\(.*\)$/, ''); }
+
+  /* Junta volumes de contato que se tocam num só (menos rótulos no 3D). */
+  function juntarRegioes(lista) {
+    const out = [];
+    for (const r of lista.sort((u, v) => v.pen - u.pen)) {
+      const perto = out.find((o) => o.caixa.clone().expandByScalar(2).intersectsBox(r.caixa));
+      if (perto) { perto.caixa.union(r.caixa); perto.pen = Math.max(perto.pen, r.pen); } else out.push({ caixa: r.caixa.clone(), pen: r.pen });
+    }
+    return out.slice(0, 6);
+  }
+
   function ignorados(a, b) {
     if (a.grupo && a.grupo === b.grupo) return true;
     const casa = (p, q) => p.ignora.some((x) => x === q.id || (q.grupo && x === q.grupo) || (x.endsWith('*') && q.id.startsWith(x.slice(0, -1))));
@@ -33,7 +46,9 @@ window.PCBVerificacao = function () {
 
   function verificar(res, build) {
     const itens = [];
-    const add = (nivel, titulo, detalhe, pecas) => itens.push({ nivel, titulo, detalhe, pecas: pecas || [] });
+    const add = (nivel, titulo, detalhe, pecas, extra) => itens.push(Object.assign({ nivel, titulo, detalhe, pecas: pecas || [] }, extra || {}));
+    // regiões de contato (volumes onde as peças se sobrepõem), para desenhar no 3D
+    const contatos = [];
     const { R, G, partes, interior } = res;
     const L = G.limites;
 
@@ -89,11 +104,20 @@ window.PCBVerificacao = function () {
         const a = lista[i], b = lista[j];
         if (ignorados(a, b)) continue;
         let pen = 0;
-        for (const ca of a.caixas) for (const cb of b.caixas) pen = Math.max(pen, penetracao(ca, cb));
-        if (pen > 0) colisoes.push({ a, b, pen });
+        const regioes = [];
+        for (const ca of a.caixas) for (const cb of b.caixas) {
+          const pp = penetracao(ca, cb);
+          if (pp > 0) { pen = Math.max(pen, pp); regioes.push({ caixa: ca.clone().intersect(cb), pen: pp }); }
+        }
+        if (pen > 0) colisoes.push({ a, b, pen, regioes: juntarRegioes(regioes) });
       }
     }
-    for (const c of colisoes) add('erro', 'Colisão: ' + c.a.nome + ' × ' + c.b.nome, 'As peças ocupam o mesmo espaço (cerca de ' + fmt(c.pen, 1) + ' mm). Ajuste a posição ou troque uma das peças.', [c.a.id, c.b.id]);
+    for (const c of colisoes) {
+      const onde = c.regioes[0] && c.regioes[0].caixa;
+      const tam = onde ? onde.getSize(onde.min.clone()) : null;
+      add('erro', 'Colisão: ' + c.a.nome + ' × ' + c.b.nome, 'As peças ocupam o mesmo espaço (cerca de ' + fmt(c.pen, 1) + ' mm' + (tam ? '; região de contato ' + fmt(tam.x) + ' × ' + fmt(tam.y) + ' × ' + fmt(tam.z) + ' mm' : '') + '). Ajuste a posição ou troque uma das peças. No 3D, o volume vermelho mostra onde elas se tocam.', [c.a.id, c.b.id], { regioes: c.regioes, pen: c.pen });
+      for (const r of c.regioes) contatos.push({ caixa: r.caixa, pen: r.pen, tipo: 'colisao', rotulo: curto(c.a.nome) + ' × ' + curto(c.b.nome), pecas: [c.a.id, c.b.id] });
+    }
     if (!colisoes.length) add('ok', 'Nenhuma peça encosta em outra', lista.length + ' peças conferidas, incluindo o compartimento da fonte e a bandeja.');
 
     // peças saindo do gabinete
@@ -108,7 +132,13 @@ window.PCBVerificacao = function () {
         };
         const pior = Object.entries(exc).sort((x, y) => y[1] - x[1])[0];
         if (pior[1] > TOL) {
-          add('erro', p.nome + ' atravessa ' + LADOS[pior[0]], 'Passa ' + fmt(pior[1], 1) + ' mm para fora do espaço interno.', [p.id]);
+          // fatia da peça que fica do lado de fora
+          const r = b.clone();
+          const [lim, eixo] = pior[0].split('.');
+          if (lim === 'min') r.max[eixo] = Math.min(r.max[eixo], interior.min[eixo]);
+          else r.min[eixo] = Math.max(r.min[eixo], interior.max[eixo]);
+          add('erro', p.nome + ' atravessa ' + LADOS[pior[0]], 'Passa ' + fmt(pior[1], 1) + ' mm para fora do espaço interno.', [p.id], { regioes: [{ caixa: r, pen: pior[1] }], pen: pior[1] });
+          contatos.push({ caixa: r, pen: pior[1], tipo: 'fora', rotulo: curto(p.nome) + ' × ' + LADOS[pior[0]], pecas: [p.id] });
           fora++;
           break;
         }
@@ -155,6 +185,26 @@ window.PCBVerificacao = function () {
       else add('erro', 'Ventilação fraca: ar interno ~' + fmt(dT, 1) + ' °C acima do quarto', det + ' Adicione fans de entrada e de saída.', ['fans']);
     }
 
+    // massa total, centro de massa e estabilidade
+    const ms = res.massas;
+    if (ms && ms.total > 0) {
+      const kg = (g) => fmt(g / 1000, 2) + ' kg';
+      const maiores = ms.itens.slice().sort((u, v) => v.gramas - u.gramas).slice(0, 6).map((i) => curto(i.nome) + ' ' + kg(i.gramas) + (i.estimado ? '*' : '')).join(' · ');
+      add('info', 'Peso total do PC: ~' + fmt(ms.total / 1000, 1) + ' kg', maiores + '. Centro de massa a ' + fmt(ms.cg.y) + ' mm do chão.' + (ms.estimado ? ' * massa estimada (sem dado oficial).' : ''), ['gabinete'], { massas: true });
+      const t = ms.tombamento;
+      if (t) {
+        const det = 'O centro de massa fica a ' + fmt(Math.max(0, t.d)) + ' mm da borda de apoio (' + t.lado + ') e a ' + fmt(ms.cg.y) + ' mm de altura: tan θ = ' + fmt(Math.max(0, t.d)) + ' ÷ ' + fmt(ms.cg.y) + '. Acima desse ângulo ele tomba sozinho.';
+        if (t.graus < 8) add('aviso', 'Pouco estável: tomba inclinando só ~' + fmt(t.graus) + '° para ' + t.lado, det + ' Evite apoiar em superfície inclinada ou macia.', ['gabinete']);
+        else add('ok', 'Estável: só tomba se inclinar ~' + fmt(t.graus) + '° para ' + t.lado, det, ['gabinete']);
+      }
+      if (ms.torqueGpu) {
+        const tq = ms.torqueGpu;
+        const det = 'Com a placa na horizontal, o slot PCIe e o suporte seguram ~' + fmt(tq.nm, 1) + ' N·m (peso × ' + fmt(tq.braco) + ' mm até o centro de massa da placa). Placas de 2 kg ou mais cedem com o tempo (sag).';
+        if (tq.nm > 2.5) add('aviso', 'Placa de vídeo pesada na horizontal: ~' + fmt(tq.nm, 1) + ' N·m no slot', det + ' Use um suporte anti-sag embaixo da ponta da placa.', ['gpu']);
+        else add('ok', 'Torque da placa de vídeo no slot: ~' + fmt(tq.nm, 1) + ' N·m', det, ['gpu']);
+      }
+    }
+
     // riser: comprimento mínimo
     if (res.riserInfo) {
       const c = res.riserInfo.comprimento;
@@ -166,7 +216,7 @@ window.PCBVerificacao = function () {
 
     const erros = itens.filter((i) => i.nivel === 'erro').length;
     const avisos = itens.filter((i) => i.nivel === 'aviso').length;
-    return { itens, erros, avisos, colisoes, fora, termico, energia: { total, carga, cpuPico, resto } };
+    return { itens, erros, avisos, colisoes, fora, termico, contatos, energia: { total, carga, cpuPico, resto } };
   }
 
   return { verificar };
