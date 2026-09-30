@@ -148,7 +148,10 @@ window.PCBVerificacao = function () {
     // folgas pequenas
     for (const f of res.folgas) {
       if (f.valor < 0) continue;
-      if (f.valor < f.minimo) add('aviso', 'Folga apertada: ' + f.nome, 'Só ' + fmt(f.valor, 1) + ' mm. ' + (f.dica ? f.dica + ' ' : '') + 'Confira com a peça em mãos.', f.pecas);
+      if (f.valor < f.minimo) {
+        add('aviso', 'Folga apertada: ' + f.nome, 'Só ' + fmt(f.valor, 1) + ' mm (mínimo recomendado ' + fmt(f.minimo) + ' mm). ' + (f.dica ? f.dica + ' ' : '') + 'No 3D, o vão aparece em amarelo. Confira com a peça em mãos.', f.pecas);
+        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.valor, tipo: 'folga', rotulo: f.nome, pecas: f.pecas });
+      }
     }
 
     // energia

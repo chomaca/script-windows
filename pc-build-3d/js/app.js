@@ -799,6 +799,8 @@ window.PCBApp = (function () {
       MAT_CONTATO.vol = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, opacity: 0.34, depthTest: false, depthWrite: false, toneMapped: false });
       MAT_CONTATO.aresta = new THREE.LineBasicMaterial({ color: 0xff5a63, transparent: true, depthTest: false, toneMapped: false });
       MAT_CONTATO.ponto = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.folga = new THREE.MeshBasicMaterial({ color: 0xffc233, transparent: true, opacity: 0.3, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.arestaFolga = new THREE.LineBasicMaterial({ color: 0xffd25e, transparent: true, depthTest: false, toneMapped: false });
       MAT_CONTATO.cg = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
       MAT_CONTATO.linha = new THREE.LineBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.85, depthTest: false, toneMapped: false });
       for (const m of Object.values(MAT_CONTATO)) m.userData.compartilhado = true;
@@ -816,16 +818,17 @@ window.PCBApp = (function () {
       const centro = b.getCenter(new THREE.Vector3());
       // regiões finíssimas ganham espessura mínima para aparecer
       const geo = new THREE.BoxGeometry(Math.max(tam.x, 2.5), Math.max(tam.y, 2.5), Math.max(tam.z, 2.5));
-      const vol = new THREE.Mesh(geo, m.vol);
+      const folga = c.tipo === 'folga';
+      const vol = new THREE.Mesh(geo, folga ? m.folga : m.vol);
       vol.position.copy(centro);
       vol.renderOrder = 35;
       vol.userData.semAO = true;
-      const ar = new THREE.LineSegments(new THREE.EdgesGeometry(geo), m.aresta);
+      const ar = new THREE.LineSegments(new THREE.EdgesGeometry(geo), folga ? m.arestaFolga : m.aresta);
       ar.position.copy(centro);
       ar.renderOrder = 36;
       const el = document.createElement('div');
-      el.className = 'rotulo-contato' + (c.tipo === 'fora' ? ' fora' : '');
-      el.innerHTML = (c.tipo === 'fora' ? 'Sai ' : 'Invade ') + esc(fmt(c.pen, 1)) + ' mm<small>' + esc(c.rotulo) + '</small>';
+      el.className = 'rotulo-contato' + (c.tipo === 'fora' ? ' fora' : folga ? ' folga' : '');
+      el.innerHTML = (folga ? 'Folga ' : c.tipo === 'fora' ? 'Sai ' : 'Invade ') + esc(fmt(c.pen, 1)) + ' mm<small>' + esc(c.rotulo) + '</small>';
       const rot = new CSS2DObject(el);
       rot.position.copy(centro).add(new THREE.Vector3(0, Math.max(tam.y, 2.5) / 2 + 8, 0));
       grupoContatos.add(vol, ar, rot);

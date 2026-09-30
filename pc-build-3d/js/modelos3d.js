@@ -983,21 +983,22 @@ window.PCBModelos = function (THREE) {
       const escuro = std('#030304', 0.9, 0);
       {
         const cx0 = W / 2 - 44, cx1 = W / 2 - 16, cy0 = -H / 2 + 9, cy1 = -H / 2 + 31;
-        g.add(caixaR(cx0, cx1, cy0, cy1, -2.4, 0.3, 1.2, pret, 2));
+        // a tomada fica quase rente à chapa (passa pelo recorte da traseira do gabinete)
+        g.add(caixaR(cx0, cx1, cy0, cy1, -1.0, 0.3, 0.8, pret, 2));
         // recorte do C14: trapézio com cantos de cima chanfrados
         const f = new THREE.Shape();
         const a = 12, b = 8.5, ch = 3;
         f.moveTo(-a, -b); f.lineTo(a, -b); f.lineTo(a, b - ch); f.lineTo(a - ch, b); f.lineTo(-a + ch, b); f.lineTo(-a, b - ch); f.closePath();
         const rec = new THREE.Mesh(new THREE.ShapeGeometry(f), escuro);
         rec.rotation.y = Math.PI;
-        rec.position.set((cx0 + cx1) / 2, (cy0 + cy1) / 2, -2.45);
+        rec.position.set((cx0 + cx1) / 2, (cy0 + cy1) / 2, -1.05);
         g.add(rec);
         const pino = std('#c9ccd0', 0.3, 0.95);
-        for (const [px, py] of [[-7, -1.5], [7, -1.5], [0, 3.5]]) g.add(caixa((cx0 + cx1) / 2 + px - 0.8, (cx0 + cx1) / 2 + px + 0.8, (cy0 + cy1) / 2 + py - 2.2, (cy0 + cy1) / 2 + py + 2.2, -2.4, -0.4, pino));
+        for (const [px, py] of [[-7, -1.5], [7, -1.5], [0, 3.5]]) g.add(caixa((cx0 + cx1) / 2 + px - 0.8, (cx0 + cx1) / 2 + px + 0.8, (cy0 + cy1) / 2 + py - 2.2, (cy0 + cy1) / 2 + py + 2.2, -1.3, -0.4, pino));
         // chave (gangorra) um pouco inclinada, lado "I" afundado
-        g.add(caixaR(W / 2 - 58, W / 2 - 48, -H / 2 + 11, -H / 2 + 29, -1.6, 0.3, 0.8, pret, 1));
-        const tecla = caixaR(W / 2 - 57, W / 2 - 49, -H / 2 + 12.5, -H / 2 + 27.5, -2.6, -1.2, 0.8, plastico('#141517', 0.4), 1);
-        tecla.rotation.x = 0.12;
+        g.add(caixaR(W / 2 - 58, W / 2 - 48, -H / 2 + 11, -H / 2 + 29, -0.8, 0.3, 0.6, pret, 1));
+        const tecla = caixaR(W / 2 - 57, W / 2 - 49, -H / 2 + 12.5, -H / 2 + 27.5, -1.3, -0.5, 0.4, plastico('#141517', 0.4), 1);
+        tecla.rotation.x = 0.07;
         g.add(tecla);
       }
       // painel modular: soquetes com os furos dos pinos (mesmas posições das artes e dos cabos)
@@ -1021,8 +1022,8 @@ window.PCBModelos = function (THREE) {
           }
         }
       }
-      // corpo primeiro (a checagem do compartimento usa o 1º); depois a tomada C14 e a chave
-      g.userData.colisores = [box3(-W / 2, W / 2, -H / 2, H / 2, 0, L + 1.8), box3(W / 2 - 58, W / 2 - 16, -H / 2 + 9, -H / 2 + 31, -3.2, 0)];
+      // tomada e chave saem < 2 mm (entram no recorte da traseira): o colisor é o corpo
+      g.userData.colisores = [box3(-W / 2, W / 2, -H / 2, H / 2, 0, L + 1.8)];
       return g;
     }
     g.add(caixa(-W / 2, W / 2, -H / 2, H / 2, 0, L, corpo));

@@ -693,26 +693,40 @@ window.PCBMontagem = function (THREE, M) {
     const vidroX = interior.min.x;
     const bGpu = uniao((p) => p.id === 'gpu');
     const folgas = [];
+    // volume do vão entre duas caixas ao longo de um eixo (para marcar no 3D)
+    const vao = (a, b, eixo) => {
+      if (a.isEmpty() || b.isEmpty()) return null;
+      const r = new THREE.Box3();
+      for (const k of ['x', 'y', 'z']) {
+        if (k === eixo) { r.min[k] = Math.min(a.max[k], b.min[k]); r.max[k] = Math.max(a.max[k], b.min[k]); continue; }
+        const lo = Math.max(a.min[k], b.min[k]), hi = Math.min(a.max[k], b.max[k]);
+        if (hi > lo) { r.min[k] = lo; r.max[k] = hi; } else { r.min[k] = b.min[k]; r.max[k] = b.max[k]; }
+      }
+      return r;
+    };
+    const paredeVidro = new THREE.Box3(new THREE.Vector3(vidroX - 1, interior.min.y, interior.min.z), new THREE.Vector3(vidroX, interior.max.y, interior.max.z));
     const fansNoVidro = vertical && cfgGpu.modo === 'deshroud' && (gpu.userData.fansGPU || 0) > 0;
     folgas.push({
-      nome: 'Placa de vídeo ↔ vidro lateral', valor: bGpu.min.x - vidroX, minimo: fansNoVidro ? 20 : 10, pecas: ['gpu'],
+      nome: 'Placa de vídeo ↔ vidro lateral', valor: bGpu.min.x - vidroX, minimo: fansNoVidro ? 20 : 10, pecas: ['gpu'], regiao: vao(paredeVidro, bGpu, 'x'),
       dica: fansNoVidro ? 'Os fans presos na placa puxam ar desse vão: com menos de ~20 mm eles ficam sufocados e fazem mais barulho.' : ''
     });
     const bBomba = uniao((p) => p.id === 'bomba');
-    folgas.push({ nome: 'Topo da bomba ↔ vidro lateral', valor: bBomba.min.x - vidroX, minimo: 5, pecas: ['bomba'] });
+    folgas.push({ nome: 'Topo da bomba ↔ vidro lateral', valor: bBomba.min.x - vidroX, minimo: 5, pecas: ['bomba'], regiao: vao(paredeVidro, bBomba, 'x') });
     if (radInfo) {
       const bRad = uniao((p) => p.grupo === 'aio');
       if (G.montagens[radInfo.zona].normal === 'cima') {
-        folgas.push({ nome: 'Radiador + fans ↔ borda de cima da placa-mãe', valor: bRad.min.y - topoY, minimo: 3, pecas: ['radiador', 'placaMae'] });
+        const bMB = uniao((p) => p.id === 'placaMae');
+        const topoMB = bMB.clone(); topoMB.max.y = topoY; topoMB.min.y = topoY - 1;
+        folgas.push({ nome: 'Radiador + fans ↔ borda de cima da placa-mãe', valor: bRad.min.y - topoY, minimo: 3, pecas: ['radiador', 'placaMae'], regiao: vao(topoMB, bRad, 'y') });
         const bRam = uniao((p) => p.id.startsWith('memoria-'));
-        if (!bRam.isEmpty()) folgas.push({ nome: 'Memórias ↔ fans do radiador', valor: bRad.min.y - bRam.max.y, minimo: 3, pecas: ['radiador', 'memoria-0'] });
+        if (!bRam.isEmpty()) folgas.push({ nome: 'Memórias ↔ fans do radiador', valor: bRad.min.y - bRam.max.y, minimo: 3, pecas: ['radiador', 'memoria-0'], regiao: vao(bRam, bRad, 'y') });
       }
     }
     const bFundo = uniao((p) => p.id.startsWith('fan:fundo:'));
     const bGpuConj = uniao((p) => p.id === 'gpu' || p.id === 'conectorRiser');
-    if (!bFundo.isEmpty()) folgas.push({ nome: 'Placa de vídeo (com riser) ↔ fans do fundo', valor: bGpuConj.min.y - bFundo.max.y, minimo: 3, pecas: ['gpu', 'fan:fundo:0'] });
+    if (!bFundo.isEmpty()) folgas.push({ nome: 'Placa de vídeo (com riser) ↔ fans do fundo', valor: bGpuConj.min.y - bFundo.max.y, minimo: 3, pecas: ['gpu', 'fan:fundo:0'], regiao: vao(bFundo, bGpuConj, 'y') });
     const sobrepoeXZ = (a, b) => a.min.x < b.max.x && b.min.x < a.max.x && a.min.z < b.max.z && b.min.z < a.max.z;
-    if (sobrepoeXZ(bGpu, caixaFonte) && caixaFonte.min.y >= bGpu.max.y - 1) folgas.push({ nome: 'Placa de vídeo ↔ compartimento da fonte', valor: caixaFonte.min.y - bGpu.max.y, minimo: 3, pecas: ['gpu', 'fonte'] });
+    if (sobrepoeXZ(bGpu, caixaFonte) && caixaFonte.min.y >= bGpu.max.y - 1) folgas.push({ nome: 'Placa de vídeo ↔ compartimento da fonte', valor: caixaFonte.min.y - bGpu.max.y, minimo: 3, pecas: ['gpu', 'fonte'], regiao: vao(bGpu, caixaFonte, 'y') });
     const eixoFonte = vdir(F.comprimentoPara);
     const tamCaixa = Math.abs(eixoFonte.x) * (caixaFonte.max.x - caixaFonte.min.x) + Math.abs(eixoFonte.y) * (caixaFonte.max.y - caixaFonte.min.y) + Math.abs(eixoFonte.z) * (caixaFonte.max.z - caixaFonte.min.z);
     folgas.push({ nome: 'Espaço para cabos atrás da fonte', valor: tamCaixa - PSU.comprimento - 2, minimo: 15, pecas: ['fonte'] });
