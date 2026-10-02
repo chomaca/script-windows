@@ -31,9 +31,16 @@ window.PCBApp = (function () {
   let precisaRender = true;
   let explodirAlvo = 0, explodirAtual = 0;
   let tween = null;
+  const zoomSuave = { pendente: 0, off: null }; // pendente: log da distância que ainda falta andar
   let reconstruirPendente = false;
-  let iniciou = false;
+  let iniciou = false, pronto = false; // pronto: a tela de carregamento já saiu
   let relogio = 0;
+  /* Ritmo de quadros (ver animar): AO desligado enquanto a câmera se mexe,
+     sombra refeita só quando algo muda de lugar, animações de fundo a 30 q/s
+     e resolução dinâmica em máquina lenta. */
+  const ritmo = { ate: 0, mexendo: false, ultimoDesenho: 0, ultimaSombra: 0, sombraSuja: true, ao: 1, pixelBase: 1, pixel: 1, lentos: 0 };
+  function interagindo(ms = 280) { ritmo.ate = Math.max(ritmo.ate, performance.now() + ms); precisaRender = true; }
+  function sujarSombra() { ritmo.sombraSuja = true; precisaRender = true; }
 
   const E = { build: null, vis: null, aba: 'pecas', sel: null, ocultas: new Set(), abertas: new Set(['gpu']), medir: { ativo: false, a: null, lista: [] } };
   const $ = (s, r = document) => r.querySelector(s);
@@ -49,7 +56,14 @@ window.PCBApp = (function () {
     const f = Math.pow(10, casas);
     return (Math.round(n * f) / f).toLocaleString('pt-BR');
   }
-  function token(nome) { return getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || '#888'; }
+  // cores do tema lidas do CSS; guardadas porque getComputedStyle força recálculo de estilo
+  // (era chamado a cada reconstrução, no meio do arrasto de slider). Limpa ao trocar o tema.
+  const tokens = new Map();
+  function token(nome) {
+    let v = tokens.get(nome);
+    if (v == null) { v = getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || '#888'; tokens.set(nome, v); }
+    return v;
+  }
   const ler = (o, c) => c.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o);
   function gravar(o, c, v) {
     const ps = c.split('.');
@@ -126,6 +140,8 @@ window.PCBApp = (function () {
     renderer.toneMappingExposure = renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1.05 : 0.98;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // sombra só quando a cena muda (girar a câmera não muda a sombra)
+    renderer.shadowMap.autoUpdate = false;
     renderer.info.autoReset = false;
     el.appendChild(renderer.domElement);
 
@@ -144,8 +160,20 @@ window.PCBApp = (function () {
     controles.minDistance = 150;
     controles.maxDistance = 4200;
     controles.maxPolarAngle = Math.PI * 0.495;
-    controles.addEventListener('change', () => { precisaRender = true; });
-    controles.addEventListener('start', () => { tween = null; });
+    controles.addEventListener('change', () => interagindo());
+    controles.addEventListener('start', () => { tween = null; ritmo.mexendo = true; interagindo(); });
+    controles.addEventListener('end', () => { ritmo.mexendo = false; interagindo(); });
+    // roda do mouse: em vez de pular 5% a cada "dente", a distância desliza até o alvo
+    // (~0,15 s). Captura no contêiner para o OrbitControls não ver o evento.
+    el.addEventListener('wheel', (e) => {
+      if (!controles.enabled || !controles.enableZoom) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const px = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : 1);
+      zoomSuave.pendente = THREE.MathUtils.clamp(zoomSuave.pendente + THREE.MathUtils.clamp(px, -400, 400) * 0.0008, -1.5, 1.5);
+      tween = null;
+      interagindo();
+    }, { capture: true, passive: false });
 
     cena.add(new THREE.HemisphereLight(0xf4f1ec, 0x25282d, 0.3));
     sol = new THREE.DirectionalLight(0xfff3e6, 1.55);
@@ -183,7 +211,12 @@ window.PCBApp = (function () {
     cena.add(grupoCotas, grupoVagas, grupoMedidas, grupoContatos, grupoFisica);
     aplicarTema();
 
-    new ResizeObserver(redimensionar).observe(el);
+    let redimPendente = false;
+    new ResizeObserver(() => {
+      if (redimPendente) return;
+      redimPendente = true;
+      requestAnimationFrame(() => { redimPendente = false; redimensionar(); });
+    }).observe(el);
     redimensionar();
     aplicarQualidade();
     ligarPonteiro();
@@ -209,7 +242,10 @@ window.PCBApp = (function () {
     if (composer) { composer.passes.forEach((p) => p.dispose && p.dispose()); composer.dispose && composer.dispose(); }
     composer = null;
     passoAO = null;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pixel));
+    ritmo.pixelBase = ritmo.pixel = Math.min(window.devicePixelRatio || 1, Q.pixel);
+    ritmo.lentos = 0;
+    renderer.setPixelRatio(ritmo.pixel);
+    sujarSombra();
     if (sol && sol.shadow.mapSize.x !== Q.sombra) {
       sol.shadow.mapSize.set(Q.sombra, Q.sombra);
       if (sol.shadow.map) { sol.shadow.map.dispose(); sol.shadow.map = null; }
@@ -287,6 +323,7 @@ window.PCBApp = (function () {
   }
 
   function aplicarTema() {
+    tokens.clear();
     if (!cena) return;
     const base = new THREE.Color(token('--palco'));
     const escuro = temaEscuro();
@@ -374,8 +411,8 @@ window.PCBApp = (function () {
     if (E.sel && !atual.partes.some((p) => p.id === E.sel && p.obj)) E.sel = null;
     medir('destaque', atualizarDestaque);
     medir('status', renderStatus);
-    precisaRender = true;
-    if (iniciou && $('#carregando').hidden) medir('compilar', () => precompilar(1500));
+    sujarSombra();
+    if (pronto) medir('compilar', () => precompilar(1500));
     const t4 = performance.now();
     tempos.ultimo = { descartar: t1 - t0, montar: t2 - t1, verificar: t3 - t2, desenhos: t4 - t3, total: t4 - t0, det };
     tempos.historico.push(tempos.ultimo.total);
@@ -421,7 +458,7 @@ window.PCBApp = (function () {
     $('#legenda-fluxo').hidden = !E.vis.fluxo || E.vis.ar;
     $('#legenda-ar').hidden = !E.vis.ar;
     for (const b of $$('input[data-vis]')) b.checked = !!E.vis[b.dataset.vis];
-    precisaRender = true;
+    sujarSombra();
   }
 
   function aplicarExplosao(imediato) {
@@ -458,8 +495,12 @@ window.PCBApp = (function () {
       });
     }
   }
-  let matCota = null;
+  let matCota = null, chaveCotas = '';
   function desenharCotas() {
+    // só as medidas externas do gabinete e a cor do tema mudam as cotas
+    const chave = atual ? [atual.Q.W, atual.Q.H, atual.Q.D, token('--acento')].join('|') : '';
+    if (chave && chave === chaveCotas && grupoCotas.children.length) { grupoCotas.visible = E.vis.cotas; return; }
+    chaveCotas = chave;
     limparGrupo(grupoCotas);
     if (!atual) return;
     const { W, H, D } = atual.Q;
@@ -668,6 +709,7 @@ window.PCBApp = (function () {
       controles.enabled = false;
       tween = null;
       tip.hidden = true;
+      pendente = null;
       const n = camera.getWorldDirection(new THREE.Vector3()).negate();
       fis.plano = new THREE.Plane().setFromNormalAndCoplanarPoint(n, h.point);
       fis.alvo = h.point.clone();
@@ -700,7 +742,7 @@ window.PCBApp = (function () {
     };
     vistaEl.addEventListener('pointerup', fimArrasto, true);
     vistaEl.addEventListener('pointercancel', fimArrasto, true);
-    cv.addEventListener('pointerdown', (e) => { inicio = { x: e.clientX, y: e.clientY }; tip.hidden = true; fecharMenus(); });
+    cv.addEventListener('pointerdown', (e) => { inicio = { x: e.clientX, y: e.clientY }; tip.hidden = true; pendente = null; fecharMenus(); });
     cv.addEventListener('pointerup', (e) => {
       if (!inicio) return;
       const moveu = Math.hypot(e.clientX - inicio.x, e.clientY - inicio.y) > 5;
@@ -712,16 +754,34 @@ window.PCBApp = (function () {
       if (v) { porFanNaVaga(v); return; }
       selecionar(parteNoPonto(e.clientX, e.clientY));
     });
+    // dica do mouse: a posição acompanha todo movimento; o raycast (~3 ms) roda no máximo
+    // a cada 50 ms e sempre uma última vez quando o mouse para (senão ficava a peça anterior)
+    const palco = $('#palco');
+    let pendente = null, espera = 0;
+    const posicionarTip = (e) => {
+      const r = palco.getBoundingClientRect();
+      tip.style.left = (e.clientX - r.left) + 'px';
+      tip.style.top = (e.clientY - r.top) + 'px';
+    };
     cv.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse' || e.buttons) return;
-      const agora = performance.now();
-      if (agora - ultimo < 60) return;
-      ultimo = agora;
-      const r = $('#palco').getBoundingClientRect();
+      if (!tip.hidden) posicionarTip(e);
+      pendente = e;
+      if (espera) return;
+      espera = setTimeout(() => {
+        espera = 0;
+        const ev = pendente;
+        pendente = null;
+        if (!ev) return;
+        ultimo = performance.now();
+        pairar(ev);
+      }, Math.max(0, 50 - (performance.now() - ultimo)));
+    });
+    cv.addEventListener('pointerleave', () => { pendente = null; tip.hidden = true; });
+    function pairar(e) {
       const mostrar = (t) => {
-        tip.textContent = t;
-        tip.style.left = (e.clientX - r.left) + 'px';
-        tip.style.top = (e.clientY - r.top) + 'px';
+        if (tip.textContent !== t) tip.textContent = t;
+        posicionarTip(e);
         tip.hidden = false;
       };
       if (E.medir.ativo) { cv.style.cursor = 'crosshair'; tip.hidden = true; return; }
@@ -740,8 +800,7 @@ window.PCBApp = (function () {
       if (!p) { tip.hidden = true; cv.style.cursor = ''; return; }
       mostrar(p.nome);
       cv.style.cursor = 'pointer';
-    });
-    cv.addEventListener('pointerleave', () => { tip.hidden = true; });
+    }
   }
 
   /* ---------- régua: distância entre dois pontos ---------- */
@@ -913,6 +972,7 @@ window.PCBApp = (function () {
     $('#fisica-angulo').textContent = '0°';
     aplicarVisibilidade();
     textoFisica();
+    precompilar(1500); // marcadores de contato, centro de massa e corda são materiais novos
     precisaRender = true;
   }
   function encerrarFisica() {
@@ -1043,6 +1103,20 @@ window.PCBApp = (function () {
     iso: [-0.95, 0.62, 1.05], vidro: [-1, 0.12, 0.02], frente: [0.02, 0.14, 1],
     traseira: [0.02, 0.14, -1], topo: [0.001, 1, 0.02]
   };
+  /* Transição de câmera em órbita: o alvo anda em linha reta, mas a câmera gira
+     em volta dele (direção interpolada por quaternion + distância), então ela
+     nunca atravessa o gabinete ao ir da frente para a traseira. */
+  const movimentoReduzido = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  function voar(pos, alvo, dur) {
+    const a0 = controles.target.clone();
+    const o0 = camera.position.clone().sub(a0), o1 = pos.clone().sub(alvo);
+    const d0 = o0.clone().normalize(), d1 = o1.clone().normalize();
+    const q = d0.dot(d1) < -0.999 ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI) : new THREE.Quaternion().setFromUnitVectors(d0, d1);
+    tween = { t0: performance.now(), dur: movimentoReduzido() ? 1 : dur, a0, a1: alvo.clone(), d0, q, r0: o0.length(), r1: o1.length(), qt: new THREE.Quaternion() };
+    zoomSuave.pendente = 0;
+    interagindo();
+  }
+
   function irVista(nome, instantaneo) {
     if (!atual || (!VISTAS[nome] && !Array.isArray(nome))) return;
     const { W, H, D } = atual.Q;
@@ -1061,7 +1135,7 @@ window.PCBApp = (function () {
       precisaRender = true;
       return;
     }
-    tween = { t0: performance.now(), dur: 650, p0: camera.position.clone(), p1: pos, a0: controles.target.clone(), a1: alvo };
+    voar(pos, alvo, 650);
   }
 
   /* Aproxima a câmera de uma região (ponto de contato ou vão), pelo lado do vidro. */
@@ -1071,7 +1145,7 @@ window.PCBApp = (function () {
     const tam = Math.max(60, caixa.getSize(new THREE.Vector3()).length());
     const dir = new THREE.Vector3(-0.8, 0.38, 0.46).normalize();
     const dist = Math.max(220, (tam * 1.4) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    tween = { t0: performance.now(), dur: 700, p0: camera.position.clone(), p1: centro.clone().addScaledVector(dir, dist), a0: controles.target.clone(), a1: centro };
+    voar(centro.clone().addScaledVector(dir, dist), centro, 700);
     for (const b of $$('[data-vista]')) b.setAttribute('aria-pressed', 'false');
   }
 
@@ -1094,7 +1168,7 @@ window.PCBApp = (function () {
     else if (dir.x > -0.25) dir.set(-0.82, 0.36, 0.45);
     dir.normalize();
     const dist = Math.max(200, (tam * 0.62) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    tween = { t0: performance.now(), dur: 700, p0: camera.position.clone(), p1: centro.clone().addScaledVector(dir, dist), a0: controles.target.clone(), a1: centro };
+    voar(centro.clone().addScaledVector(dir, dist), centro, 700);
     for (const b of $$('[data-vista]')) b.setAttribute('aria-pressed', 'false');
   }
 
@@ -1108,44 +1182,104 @@ window.PCBApp = (function () {
     const dt = Math.min(0.05, Math.max(0, dtReal));
     ultimoQuadro = agora;
     relogio += dt;
+    // pedido "de fora" (interação, reconstrução, interface) vs. só animação de fundo
+    let pedido = precisaRender, fundo = false;
     if (tween) {
       let t = Math.min(1, (agora - tween.t0) / tween.dur);
       t = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      camera.position.lerpVectors(tween.p0, tween.p1, t);
       controles.target.lerpVectors(tween.a0, tween.a1, t);
+      tween.qt.set(0, 0, 0, 1).slerp(tween.q, t);
+      camera.position.copy(tween.d0).applyQuaternion(tween.qt).multiplyScalar(tween.r0 + (tween.r1 - tween.r0) * t).add(controles.target);
       if (t >= 1) tween = null;
-      precisaRender = true;
+      interagindo();
+      pedido = true;
     }
     if (Math.abs(explodirAlvo - explodirAtual) > 0.0005) {
       explodirAtual += (explodirAlvo - explodirAtual) * Math.min(1, dt * 10);
       aplicarExplosao(false);
-      precisaRender = true;
+      sujarSombra();
+      pedido = true;
     }
     if (E.vis.girar && rotores.length) {
       for (const r of rotores) r.rotation.z += dt * 7;
-      precisaRender = true;
+      fundo = true;
+      // sombra das pás: no máximo 8×/s (é sutil e custa um passe inteiro)
+      if (agora - ritmo.ultimaSombra > 125) ritmo.sombraSuja = true;
     }
     if (atual && atual.rgbFx && (E.vis.rgbModo === 'arco-iris' || E.vis.rgbModo === 'respirar')) {
       AMB.atualizarRGB(atual.rgbFx, E.vis.rgbModo, E.vis.rgb, relogio, E.vis.qualidade === 'ultra' ? 1.15 : 1);
-      precisaRender = true;
+      fundo = true;
     }
     if (fis.ativo && fis.sim) {
-      if (fis.sim.passo(dt)) { precisaRender = true; atualizarVisuaisFisica(); }
+      // peças em movimento contam como interação: AO e resolução cedem até tudo assentar
+      if (fis.sim.passo(dt)) { atualizarVisuaisFisica(); sujarSombra(); interagindo(); pedido = true; }
+      else if (fis.ponteiro != null) interagindo();
       if (agora - fis.ultimoTexto > 250) { fis.ultimoTexto = agora; textoFisica(); }
     }
     if (atual && atual.sim && E.vis.ar && !fis.ativo) {
       atual.sim.atualizar(dt);
-      precisaRender = true;
+      fundo = true;
       if (agora - ultimaEstat > 1000) { ultimaEstat = agora; mostrarEstatAr(); }
     }
+    if (zoomSuave.pendente) {
+      const f = 1 - Math.pow(0.78, dt * 60);
+      const passo = Math.abs(zoomSuave.pendente) < 0.0008 ? zoomSuave.pendente : zoomSuave.pendente * f;
+      zoomSuave.pendente -= passo;
+      if (!zoomSuave.off) zoomSuave.off = new THREE.Vector3();
+      const off = zoomSuave.off.copy(camera.position).sub(controles.target);
+      const r0 = off.length();
+      const r = THREE.MathUtils.clamp(r0 * Math.exp(passo), controles.minDistance, controles.maxDistance);
+      if (r === controles.minDistance || r === controles.maxDistance) zoomSuave.pendente = 0;
+      camera.position.copy(controles.target).addScaledVector(off, r / Math.max(r0, 1e-6));
+      interagindo();
+      pedido = true;
+    }
+    // amortecimento igual em 60, 120 ou 144 Hz (o do OrbitControls é por quadro)
+    controles.dampingFactor = 1 - Math.pow(1 - 0.09, Math.min(dt, 0.05) * 60);
     controles.update();
-    if (precisaRender && !compilando) {
+    if (precisaRender) pedido = true; // controles com amortecimento pedem quadro no update
+    const movendo = ritmo.mexendo || agora < ritmo.ate || !!tween || fis.ponteiro != null;
+
+    // AO: o passe mais caro — desliga enquanto mexe e volta em ~0,2 s depois de parar
+    if (passoAO) {
+      const alvo = movendo ? 0 : 1;
+      if (ritmo.ao !== alvo) {
+        ritmo.ao = movendo ? 0 : Math.min(1, ritmo.ao + dt * 5);
+        pedido = true;
+      }
+      passoAO.enabled = ritmo.ao > 0.02;
+      passoAO.blendIntensity = 0.95 * ritmo.ao;
+    }
+    // resolução dinâmica: máquina lenta mexendo → menos pixels; parado → volta ao normal
+    if (!movendo && ritmo.pixel !== ritmo.pixelBase) { ajustarPixel(ritmo.pixelBase); pedido = true; }
+
+    // animação de fundo sozinha (fans, RGB, ar): 30 quadros/s bastam e poupam a GPU
+    const desenhar = pedido || (fundo && agora - ritmo.ultimoDesenho >= 31);
+    if (desenhar && !compilando) {
       precisaRender = false;
+      if (ritmo.sombraSuja) { renderer.shadowMap.needsUpdate = true; ritmo.sombraSuja = false; ritmo.ultimaSombra = agora; }
       renderer.info.reset();
       if (composer) composer.render(); else renderer.render(cena, camera);
       rotulos.render(cena, camera);
       medirFps(dtReal, agora);
+      ritmo.ultimoDesenho = agora;
+      if (movendo) avaliarRitmo(dtReal);
     }
+  }
+  // quadros acima de ~30 ms seguidos enquanto mexe: baixa a densidade de pixels um degrau
+  function avaliarRitmo(dt) {
+    if (!(dt > 0) || dt > 0.25) return;
+    ritmo.lentos = dt > 0.03 ? ritmo.lentos + 1 : Math.max(0, ritmo.lentos - 1);
+    if (ritmo.lentos >= 8 && ritmo.pixel > 0.75) {
+      ritmo.lentos = 0;
+      ajustarPixel(Math.max(0.75, ritmo.pixel - 0.5));
+    }
+  }
+  function ajustarPixel(pr) {
+    ritmo.pixel = pr;
+    renderer.setPixelRatio(pr);
+    if (composer) composer.setPixelRatio(pr);
+    redimensionar();
   }
 
   function mostrarEstatAr() {
@@ -1185,6 +1319,9 @@ window.PCBApp = (function () {
     salvar();
     aplicarQualidade();
     if (atual && E.vis.ar) criarSimulacao();
+    // as variantes dos shaders mudam (com/sem pós-processamento): compila em paralelo
+    // e mantém o quadro anterior na tela em vez de travar no primeiro desenho
+    if (pronto) precompilar(4000, true);
   }
 
   /* ---------- fotos reais das peças (ficam só neste navegador) ---------- */
@@ -1735,8 +1872,11 @@ window.PCBApp = (function () {
     if (!checagem || !atual) return;
     const nivel = checagem.erros ? 'erro' : checagem.avisos ? 'aviso' : 'ok';
     const txt = checagem.erros ? checagem.erros + (checagem.erros > 1 ? ' conflitos' : ' conflito') : checagem.avisos ? checagem.avisos + ' atenção' : 'Tudo cabe';
-    $('#status-geral').innerHTML = '<button type="button" class="pill ' + nivel + '" data-ir-aba="checagem" style="background:none;cursor:pointer">' + esc(txt) + '</button>';
-    $('#sub-gabinete').textContent = atual.G.nome + ' · escala 1 : 1 em mm';
+    // só mexe no DOM se mudou (no arrasto de slider isto roda a cada quadro)
+    const html = '<button type="button" class="pill ' + nivel + '" data-ir-aba="checagem" style="background:none;cursor:pointer">' + esc(txt) + '</button>';
+    const sub = atual.G.nome + ' · escala 1 : 1 em mm';
+    if (renderStatus.html !== html) { renderStatus.html = html; $('#status-geral').innerHTML = html; }
+    if (renderStatus.sub !== sub) { renderStatus.sub = sub; $('#sub-gabinete').textContent = sub; }
   }
 
   /* ---------- ficha: inspetor da peça selecionada, com troca rápida ---------- */
@@ -2094,13 +2234,19 @@ window.PCBApp = (function () {
     salvar();
     if (k === 'ar' && E.vis.ar && atual && !atual.sim) criarSimulacao();
     aplicarVisibilidade();
+    if (pronto) precompilar(1500); // camada que aparece pela 1ª vez (ar, vagas…) não trava o quadro
   }
   function trocarAba(aba) {
     if (!aba || aba === E.aba) { renderAba(); return; }
     E.aba = aba;
     salvar();
+    // o conteúdo novo entra num fade curto (.conteudo.troca > *)
+    const c = $('#conteudo');
+    c.classList.add('troca');
+    clearTimeout(trocarAba.fim);
+    trocarAba.fim = setTimeout(() => c.classList.remove('troca'), 220);
     renderAba();
-    $('#conteudo').scrollTop = 0;
+    c.scrollTop = 0;
     aplicarVisibilidade();
   }
 
@@ -2182,7 +2328,7 @@ window.PCBApp = (function () {
       else if (a === 'remontar') { fis.sim.remontar(); $('#fisica-inclinar').value = '0'; $('#fisica-angulo').textContent = '0°'; }
       else if (a === 'sair') encerrarFisica();
       textoFisica();
-      precisaRender = true;
+      sujarSombra();
     });
     $('#fisica-inclinar').addEventListener('input', (e) => {
       const v = Number(e.target.value) || 0;
@@ -2331,6 +2477,7 @@ window.PCBApp = (function () {
   function mostrarFalha(msg) {
     const c = $('#carregando');
     c.hidden = false;
+    c.classList.remove('sai');
     c.classList.add('falhou');
     $('#carregando-texto').textContent = msg;
   }
@@ -2339,8 +2486,32 @@ window.PCBApp = (function () {
   // deixa o navegador desenhar a tela de carregamento entre as etapas
   function etapa(txt) {
     const el = $('#carregando-texto');
-    if (el) el.textContent = txt;
+    if (el && txt) el.textContent = txt;
     return new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+  }
+  // sobe as texturas para a GPU em lotes de ~40 ms, com a tela de carregamento
+  // ainda animando (senão o 1º quadro faz tudo de uma vez e engasga)
+  const CAMPOS_TEX = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'alphaMap', 'aoMap', 'bumpMap', 'clearcoatNormalMap', 'clearcoatRoughnessMap'];
+  async function enviarTexturas() {
+    if (!renderer.initTexture) return;
+    const lista = new Set();
+    cena.traverse((o) => {
+      if (!o.material) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const k of CAMPOS_TEX) if (m[k] && m[k].isTexture) lista.add(m[k]);
+    });
+    let t0 = performance.now();
+    for (const t of lista) {
+      try { renderer.initTexture(t); } catch (e) { /* sobe no 1º quadro */ }
+      if (performance.now() - t0 > 40) { await etapa(); t0 = performance.now(); }
+    }
+  }
+  // a tela de carregamento some num fade curto, com o 3D já desenhado por trás
+  function revelar() {
+    const c = $('#carregando');
+    pronto = true;
+    if (movimentoReduzido()) { c.hidden = true; return; }
+    c.classList.add('sai');
+    setTimeout(() => { c.classList.remove('sai'); if (!c.classList.contains('falhou')) c.hidden = true; }, 300);
   }
   /* Compila os shaders de todos os materiais da cena antes de desenhar.
      Com KHR_parallel_shader_compile (Chrome/Edge/Firefox em GPU de verdade) o
@@ -2349,22 +2520,35 @@ window.PCBApp = (function () {
      compileAsync do three: ele quebra se um material for descartado enquanto
      espera (acontece ao arrastar um slider). */
   let compilando = false, compilacaoAtual = 0;
-  const materiaisVistos = new WeakSet();
-  // só vale compilar se apareceu material novo (renderer.compile percorre a cena toda: ~10 ms)
-  function temMaterialNovo() {
-    let novo = false;
+  // material já preparado (malha comum e instanciada geram shaders diferentes)
+  let vistos = { malha: new WeakSet(), inst: new WeakSet() };
+  // objetos com material novo desde a última compilação
+  function objetosNovos() {
+    const novos = [];
     cena.traverseVisible((o) => {
       if (!o.material) return;
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (!materiaisVistos.has(m)) { materiaisVistos.add(m); novo = true; }
+      const v = o.isInstancedMesh ? vistos.inst : vistos.malha;
+      let novo = false;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (!v.has(m)) { v.add(m); novo = true; }
+      if (novo) novos.push(o);
     });
-    return novo;
+    return novos;
   }
-  function precompilar(limite = 8000) {
+  function precompilar(limite = 8000, tudo = false) {
     if (!renderer || !renderer.compile) return Promise.resolve();
-    if (!temMaterialNovo()) return Promise.resolve();
+    if (tudo) vistos = { malha: new WeakSet(), inst: new WeakSet() }; // trocou a qualidade: as variantes mudam
+    const lista = objetosNovos();
+    if (!lista.length) return Promise.resolve();
     const paralelo = !!(renderer.extensions && renderer.extensions.has && renderer.extensions.has('KHR_parallel_shader_compile'));
-    let mats;
-    try { mats = renderer.compile(cena, camera); } catch (e) { return Promise.resolve(); }
+    let mats = null;
+    // só os objetos novos (o compile da cena toda custava ~10 ms a cada passo de slider);
+    // luzes, névoa e ambiente vêm da cena de verdade
+    const parcial = { traverse(fn) { for (const o of lista) fn(o); }, traverseVisible() {} };
+    // com pós-processamento a cena é desenhada num alvo intermediário (sem tone mapping, linear):
+    // compila contra ele, senão as variantes prontas não são as usadas no quadro
+    const alvoAntes = renderer.getRenderTarget();
+    try { renderer.setRenderTarget(composer ? composer.readBuffer : null); mats = renderer.compile(parcial, camera, cena); } catch (e) { /* compila no 1º quadro */ }
+    renderer.setRenderTarget(alvoAntes);
     if (!paralelo || !mats || !mats.size) return Promise.resolve();
     const minha = ++compilacaoAtual;
     compilando = true;
@@ -2425,8 +2609,12 @@ window.PCBApp = (function () {
     carregarFotos();
     await etapa('Preparando os materiais 3D…');
     await precompilar();
-    $('#carregando').hidden = true;
+    await enviarTexturas();
+    // dois quadros desenhados por trás da tela de carregamento, depois ela sai
     requestAnimationFrame(animar);
+    await etapa();
+    await etapa();
+    revelar();
     if (primeiraVez) setTimeout(() => toast('Dica: clique numa peça para trocar ou ajustar. Aperte ? para ver os atalhos.', { duracao: 9000 }), 1200);
   }
 
@@ -2448,6 +2636,7 @@ window.PCBApp = (function () {
       qualidade: E.vis.qualidade, chamadas: i.render.calls, triangulos: i.render.triangles, geometrias: i.memory.geometries, texturas: i.memory.textures,
       programas: i.programs ? i.programs.length : null, qps: media ? Math.round(1 / media) : null, luzesRGB: atual && atual.rgbFx ? atual.rgbFx.luzes.length : 0,
       particulas: !!(atual && atual.sim), pecas: atual ? atual.partes.length : 0,
+      camera: camera.position.toArray().map(Math.round), alvo: controles.target.toArray().map(Math.round), pixel: ritmo.pixel, ao: passoAO ? +ritmo.ao.toFixed(2) : null,
       tempos: { ultimo: tempos.ultimo, historico: tempos.historico.slice() }
     };
   }
@@ -2465,6 +2654,7 @@ window.PCBApp = (function () {
   function olhar(pos, alvo) {
     if (!camera) return;
     tween = null;
+    zoomSuave.pendente = 0;
     camera.position.set(...pos);
     controles.target.set(...alvo);
     controles.update();
@@ -2474,5 +2664,29 @@ window.PCBApp = (function () {
   // nomes e chaves dos shaders em uso — para achar materiais que forçam recompilação
   function programas() { return (renderer.info.programs || []).map((p) => ({ nome: p.name, chave: p.cacheKey, usos: p.usedTimes })); }
 
-  return { iniciar, falha, diagnostico, naTela, olhar, programas, vista: (d) => irVista(d, true) };
+  // tempo de GPU (ms, sincronizado com readPixels) de cada passe — PCBApp.perfil()
+  function perfil(n = 3) {
+    const gl = renderer.getContext();
+    const px = new Uint8Array(4);
+    const sinc = () => { renderer.setRenderTarget(null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
+    const medir = (fn) => { sinc(); const t0 = performance.now(); for (let i = 0; i < n; i++) fn(); sinc(); return +((performance.now() - t0) / n).toFixed(1); };
+    // com pós-processamento a cena vai para o alvo intermediário, como num quadro de verdade
+    const desenhar = () => { renderer.setRenderTarget(composer ? composer.readBuffer : null); renderer.render(cena, camera); };
+    const auto = renderer.shadowMap.autoUpdate;
+    const r = {};
+    renderer.shadowMap.autoUpdate = false;
+    renderer.info.reset();
+    r.cena = medir(desenhar);
+    r.chamadas = Math.round(renderer.info.render.calls / n);
+    renderer.shadowMap.autoUpdate = true;
+    r.comSombra = medir(desenhar);
+    renderer.shadowMap.autoUpdate = false;
+    if (composer) r.composer = medir(() => composer.render());
+    renderer.shadowMap.autoUpdate = auto;
+    renderer.setRenderTarget(null);
+    precisaRender = true;
+    return r;
+  }
+
+  return { iniciar, falha, diagnostico, naTela, olhar, programas, perfil, vista: (d) => irVista(d, true) };
 })();

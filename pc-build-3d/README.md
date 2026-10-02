@@ -106,6 +106,26 @@ originais pretos ou extensões trançadas brancas/pretas com pentes.
 
 Se o 3D ficar lento, o site avisa e oferece mudar para Leve.
 
+### Fluidez (o que o site faz sozinho)
+
+- **Só desenha quando algo muda.** Parado, a GPU descansa; fans girando, RGB e simulação
+  do ar rodam a 30 quadros/s; girar a câmera, arrastar slider e a física usam a taxa cheia.
+- **Enquanto você mexe**, a oclusão de ambiente (o passe mais caro) desliga e volta num
+  fade de ~0,2 s quando a câmera para; a sombra só é refeita quando alguma peça muda de
+  lugar. Se mesmo assim os quadros passarem de ~30 ms, a resolução baixa um degrau durante
+  o movimento e volta ao parar.
+- **Câmera:** as vistas (1–5, “Aproximar”, “Mostrar no 3D”) fazem uma órbita em volta da
+  build em vez de atravessá-la; a roda do mouse aproxima deslizando; o amortecimento é o
+  mesmo em monitores de 60, 120 ou 144 Hz.
+- **Reconstrução incremental:** ao arrastar um slider só o que mudou é refeito (~5–15 ms
+  por passo); peças, cabos e mangueiras iguais são reaproveitados. Os shaders são
+  compilados em paralelo (KHR_parallel_shader_compile) antes de aparecer na tela, inclusive
+  ao trocar a qualidade, e as texturas sobem para a GPU por trás da tela de carregamento.
+- **Interface:** botões, abas, ficha, menus e a sanfona das peças têm transições curtas
+  (≤ 0,22 s). Com “reduzir movimento” ligado no sistema, tudo fica instantâneo.
+- No console: `PCBApp.diagnostico()` (quadros/s, chamadas de desenho, tempos da última
+  reconstrução) e `PCBApp.perfil()` (tempo de GPU de cada passe).
+
 ### Fotos reais (para ficar idêntico, com os logos)
 
 Clique numa peça → **Foto real** (ou abra “Fotos reais” no cartão da peça), envie a foto

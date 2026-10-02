@@ -110,7 +110,7 @@ a { color: var(--acento-tinta); text-underline-offset: 2px; }
 }
 .vista { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
 .vista canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-.rotulos { position: absolute; inset: 0; pointer-events: none; }
+.rotulos { position: absolute; inset: 0; pointer-events: none; contain: layout paint style; }
 .bancada {
   min-width: 0;
   min-height: 0;
@@ -748,6 +748,58 @@ details.fotos-reais.piscar { animation: piscar 1.5s ease-out; border-radius: 8px
   .fisica-inclinar span { display: none; }
   .fisica-inclinar input { width: 84px; }
 }
+/* ------------------------------------------------ movimento
+   Respostas curtas (≤ 0,22 s), sempre saindo rápido e assentando devagar.
+   Só opacidade e transformações (translate/scale individuais, que não brigam
+   com o transform de centralização das barras): nada que force layout. */
+:root { --ease-saida: cubic-bezier(0.2, 0.8, 0.2, 1); --t-rapido: 0.14s; }
+.botao, .seg button, .abas button, .grupo-vistas button, .ferramenta, .menu > summary, .fechar,
+.paleta button, .toast button, .botao-flutuante, details.peca > summary, .resumo-build div {
+  transition: background-color var(--t-rapido) ease, border-color var(--t-rapido) ease, color var(--t-rapido) ease,
+    box-shadow var(--t-rapido) ease, outline-color var(--t-rapido) ease, scale 0.1s ease;
+}
+.botao:active, .seg button:active, .grupo-vistas button:active, .ferramenta:active, .menu > summary:active,
+.fechar:active, .paleta button:active, .toast button:active, .botao-flutuante:active { scale: 0.96; }
+.botao:disabled, .botao[disabled] { scale: none; }
+@keyframes surge { from { opacity: 0; translate: 0 var(--surge-y, -6px); scale: 0.985; } }
+@keyframes sobe { from { opacity: 0; translate: 0 10px; } }
+@keyframes esmaece { from { opacity: 0; } }
+.ficha:not([hidden]) { animation: surge 0.2s var(--ease-saida); transform-origin: top right; }
+.menu[open] > .menu-corpo { animation: surge 0.16s var(--ease-saida); transform-origin: top right; }
+.barra-fisica:not([hidden]), .barra-medir:not([hidden]), .botao-flutuante:not([hidden]) { animation: sobe 0.22s var(--ease-saida); }
+.modal:not([hidden]) { animation: esmaece 0.18s ease-out; }
+.modal:not([hidden]) .modal-caixa { animation: surge 0.22s var(--ease-saida); --surge-y: 10px; }
+.legenda-fluxo:not([hidden]), .legenda-ar:not([hidden]) { animation: esmaece 0.2s ease-out; }
+/* troca de aba: o conteúdo novo entra num fade curto */
+.conteudo.troca > * { animation: esmaece 0.16s ease-out; }
+/* a tela de carregamento sai num fade, com o 3D já desenhado por trás */
+.carregando { transition: opacity 0.28s ease; }
+.carregando.sai { opacity: 0; pointer-events: none; }
+/* rolagem que não "vaza" para a página ao chegar no fim de um painel */
+.conteudo, .menu-corpo, .ficha, .modal-caixa { overscroll-behavior: contain; }
+@media (max-width: 900px) {
+  .ficha { --surge-y: 8px; transform-origin: bottom center; }
+}
+/* sanfona das peças abrindo/fechando com altura animada (Chrome/Edge 131+;
+   nos outros navegadores abre na hora, como antes) */
+@supports (interpolate-size: allow-keywords) {
+  details.peca, details.medidas, details.fotos-reais { interpolate-size: allow-keywords; }
+  details.peca::details-content, details.medidas::details-content, details.fotos-reais::details-content {
+    block-size: 0;
+    overflow: clip;
+    overflow-clip-margin: 6px;
+    transition: block-size 0.22s var(--ease-saida), content-visibility 0.22s allow-discrete;
+  }
+  details.peca[open]::details-content, details.medidas[open]::details-content, details.fotos-reais[open]::details-content { block-size: auto; }
+  @media (prefers-reduced-motion: reduce) {
+    details.peca::details-content, details.medidas::details-content, details.fotos-reais::details-content { transition: none; }
+  }
+}
 @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
   .regua { animation: none; }
 }
