@@ -195,12 +195,23 @@ window.PCBMontagem = function (THREE, M) {
   function limparAnexos(obj) {
     for (const c of obj.children.slice()) if (c.userData.anexo) { obj.remove(c); descartar(c, true); }
   }
-  function despejarCache() {
+  // Peças fora da montagem atual saem da cena mas ficam guardadas por algumas montagens:
+  // alternar (com/sem shroud, uma fonte e outra) e desfazer/refazer reaproveitam em vez
+  // de redesenhar a peça (a GPU sem shroud custava ~65 ms a cada ida e volta).
+  const RETER_MONTAGENS = 4, RETER_MAX = 24;
+  function despejarCache(tudo) {
+    const fora = [];
     for (const [k, e] of cachePecas) {
-      if (e.geracao === geracao) continue;
-      for (const o of e.objs) { if (o.parent) o.parent.remove(o); descartar(o, true); }
-      cachePecas.delete(k);
+      if (e.geracao === geracao && !tudo) continue;
+      for (const o of e.objs) if (o.parent) o.parent.remove(o);
+      fora.push([k, e]);
     }
+    fora.sort((a, b) => b[1].geracao - a[1].geracao);
+    fora.forEach(([k, e], i) => {
+      if (!tudo && i < RETER_MAX && geracao - e.geracao <= RETER_MONTAGENS) return;
+      for (const o of e.objs) descartar(o, true);
+      cachePecas.delete(k);
+    });
   }
 
   /* ======================= MONTAR ======================= */
@@ -958,7 +969,7 @@ window.PCBMontagem = function (THREE, M) {
     })(obj);
   }
   // esvazia o cache (ex.: trocar a qualidade das texturas)
-  function limparCache() { geracao++; despejarCache(); }
+  function limparCache() { geracao++; despejarCache(true); }
 
   return { montar, resolver, quadro, cfmDe, lerCaminho, gravarCaminho, vagasDaZona, tamanhosDaZona, descartar, limparCache, CORES: { entrada: COR_ENTRADA, saida: COR_SAIDA } };
 };
