@@ -1083,7 +1083,7 @@ window.PCBModelos = function (THREE) {
    * Local: X = comprimento (x=0 no suporte/bracket), Y = altura
    * (y=0 na ponta dos contatos PCIe), Z = espessura (z=0 na backplate,
    * crescendo para o lado dos fans).                                    */
-  function placaDeVideo(spec, cfg, fanSpec, rgb, fotos) {
+  function placaDeVideoCorpo(spec, cfg, fotos) {
     fotos = fotos || {};
     const g = new THREE.Group();
     const col = [];
@@ -1341,35 +1341,7 @@ window.PCBModelos = function (THREE) {
         b.position.set(bx, by, Tc - 1.2);
         g.add(b);
       }
-      const f = cfg.fans;
-      const s = fanSpec.tamanho, ft = fanSpec.espessura;
-      const q = Math.max(0, f.quantidade | 0);
-      const total = q * s + Math.max(0, q - 1) * f.espacamento;
-      const xi = L / 2 - total / 2 + (f.deslocamento || 0);
-      const cy = (y0 + Hc) / 2;
-      const amarra = std('#0c0d0f', 0.7, 0);
-      for (let i = 0; i < q; i++) {
-        const cx = xi + s / 2 + i * (s + f.espacamento);
-        const fm = fan(fanSpec, { rgb, setaCor: '#4aa3ff', fotoCubo: fotos.cubo });
-        fm.rotation.x = Math.PI;
-        if (fm.userData.rotor) fm.userData.rotor.rotation.z = Math.PI; // adesivo do cubo de pé, visto pelo vidro
-        fm.position.set(cx, cy, Tc + ft);
-        g.add(fm);
-        col.push(box3(cx - s / 2, cx + s / 2, cy - s / 2, cy + s / 2, Tc, Tc + ft));
-        const yMin = Math.min(y0, cy - s / 2) - 1.2, yMax = Math.max(Hc + 8, cy + s / 2) + 1.2, zTop = Tc + ft;
-        for (const ox of [-s * 0.36, s * 0.36]) {
-          const x = cx + ox;
-          g.add(caixa(x - 2.3, x + 2.3, yMax - 1.2, yMax, -1.2, zTop + 1.2, amarra));
-          g.add(caixa(x - 2.3, x + 2.3, yMin, yMin + 1.2, -1.2, zTop + 1.2, amarra));
-          g.add(caixa(x - 2.3, x + 2.3, yMin, yMax, -1.2, 0, amarra));
-          g.add(caixa(x - 2.3, x + 2.3, yMin, yMax, zTop, zTop + 1.2, amarra));
-          // cabeça da trava no lado dos fans, perto da borda de cima
-          g.add(caixa(x - 3.2, x + 3.2, yMax - 11, yMax - 3, zTop + 1.2, zTop + 5.2, amarra));
-          col.push(box3(x - 3.2, x + 3.2, yMin, yMax, -1.2, zTop + 5.2));
-        }
-      }
-      if (q > 0) espessuraTotal = Tc + fanSpec.espessura;
-      g.userData.fansGPU = q;
+      g.userData.fansGPU = 0; // os fans presos entram à parte (placaDeVideoFans)
     } else {
       const corpo = std(spec.cor, 0.45, 0.35);
       const tampaZ = Tc - 2;
@@ -1411,8 +1383,82 @@ window.PCBModelos = function (THREE) {
       borda.receiveShadow = true;
       g.add(borda);
     }
+    g.userData.colisoresCorpo = col;
+    g.userData.medidasCorpo = { comprimento: L, altura: Hc, espessura: espessuraTotal, dedos: [dx, dx + 89] };
+    g.userData.fansGPUCorpo = g.userData.fansGPU;
+    acoplarFansGpu(g, null);
+    return g;
+  }
+
+  /* Fans presos com abraçadeira no dissipador (placa sem shroud). Ficam num grupo à
+     parte, no mesmo referencial da placa, uma "unidade" (fan + 2 abraçadeiras) por fan:
+     mudar o espaço ou a posição dos fans só reposiciona as unidades (posicionarFansGpu),
+     sem refazer a placa (aletas, heatpipes, backplate…) nem os fans. */
+  function medidasFansGpu(spec, fanSpec) {
+    const Hc = spec.deshroud.altura, Tc = spec.deshroud.espessura, y0 = 9;
+    const s = fanSpec.tamanho, ft = fanSpec.espessura;
+    const cy = (y0 + Hc) / 2;
+    return { s, ft, Tc, cy, L: spec.deshroud.comprimento, yMin: Math.min(y0, cy - s / 2) - 1.2, yMax: Math.max(Hc + 8, cy + s / 2) + 1.2, zTop: Tc + ft };
+  }
+  function placaDeVideoFans(spec, cfg, fanSpec, rgb, fotos) {
+    fotos = fotos || {};
+    const g = new THREE.Group();
+    const { s, ft, Tc, cy, yMin, yMax, zTop } = medidasFansGpu(spec, fanSpec);
+    const q = Math.max(0, cfg.fans.quantidade | 0);
+    const amarra = std('#0c0d0f', 0.7, 0);
+    for (let i = 0; i < q; i++) {
+      const u = new THREE.Group(); // centrada em x = 0; posicionarFansGpu põe no lugar
+      const fm = fan(fanSpec, { rgb, setaCor: '#4aa3ff', fotoCubo: fotos.cubo });
+      fm.rotation.x = Math.PI;
+      if (fm.userData.rotor) fm.userData.rotor.rotation.z = Math.PI; // adesivo do cubo de pé, visto pelo vidro
+      fm.position.set(0, cy, Tc + ft);
+      u.add(fm);
+      for (const x of [-s * 0.36, s * 0.36]) {
+        u.add(caixa(x - 2.3, x + 2.3, yMax - 1.2, yMax, -1.2, zTop + 1.2, amarra));
+        u.add(caixa(x - 2.3, x + 2.3, yMin, yMin + 1.2, -1.2, zTop + 1.2, amarra));
+        u.add(caixa(x - 2.3, x + 2.3, yMin, yMax, -1.2, 0, amarra));
+        u.add(caixa(x - 2.3, x + 2.3, yMin, yMax, zTop, zTop + 1.2, amarra));
+        // cabeça da trava no lado dos fans, perto da borda de cima
+        u.add(caixa(x - 3.2, x + 3.2, yMax - 11, yMax - 3, zTop + 1.2, zTop + 5.2, amarra));
+      }
+      g.add(u);
+    }
+    g.userData.fansGPU = q;
+    g.userData.espessura = q > 0 ? Tc + ft : Tc;
+    posicionarFansGpu(g, spec, cfg, fanSpec);
+    return g;
+  }
+  // espaço entre os fans e deslocamento ao longo da placa: move as unidades e refaz os colisores
+  function posicionarFansGpu(g, spec, cfg, fanSpec) {
+    const { s, ft, Tc, cy, L, yMin, yMax, zTop } = medidasFansGpu(spec, fanSpec);
+    const f = cfg.fans;
+    const q = g.children.length;
+    const total = q * s + Math.max(0, q - 1) * f.espacamento;
+    const xi = L / 2 - total / 2 + (f.deslocamento || 0);
+    const col = [];
+    g.children.forEach((u, i) => {
+      const cx = xi + s / 2 + i * (s + f.espacamento);
+      u.position.x = cx;
+      col.push(box3(cx - s / 2, cx + s / 2, cy - s / 2, cy + s / 2, Tc, Tc + ft));
+      for (const ox of [-s * 0.36, s * 0.36]) {
+        const x = cx + ox;
+        col.push(box3(x - 3.2, x + 3.2, yMin, yMax, -1.2, zTop + 5.2));
+      }
+    });
     g.userData.colisores = col;
-    g.userData.medidas = { comprimento: L, altura: Hc, espessura: espessuraTotal, dedos: [dx, dx + 89] };
+  }
+  // junta os colisores e as medidas da placa com os dos fans presos (ou só os da placa)
+  function acoplarFansGpu(placa, fans) {
+    const u = placa.userData;
+    u.colisores = fans ? u.colisoresCorpo.concat(fans.userData.colisores) : u.colisoresCorpo.slice();
+    u.medidas = Object.assign({}, u.medidasCorpo, fans && fans.userData.fansGPU > 0 ? { espessura: fans.userData.espessura } : {});
+    u.fansGPU = fans ? fans.userData.fansGPU : u.fansGPUCorpo;
+  }
+  function placaDeVideo(spec, cfg, fanSpec, rgb, fotos) {
+    const g = placaDeVideoCorpo(spec, cfg, fotos);
+    let fans = null;
+    if (cfg.modo === 'deshroud') { fans = placaDeVideoFans(spec, cfg, fanSpec, rgb, fotos); g.add(fans); }
+    acoplarFansGpu(g, fans);
     return g;
   }
 
@@ -1827,7 +1873,7 @@ window.PCBModelos = function (THREE) {
 
   return {
     std, luz, vidro, tela, caixa, caixaR, geoCaixaR, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico, liberarFoto,
-    fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, riser, riserGeo, tubo, gabinete,
+    fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, placaDeVideoCorpo, placaDeVideoFans, posicionarFansGpu, acoplarFansGpu, riser, riserGeo, tubo, gabinete,
     layoutPlacaMae, texturas: T
   };
 };

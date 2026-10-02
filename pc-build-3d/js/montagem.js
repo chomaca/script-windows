@@ -425,7 +425,20 @@ window.PCBMontagem = function (THREE, M) {
     f0.espacamento = Math.max(0, Math.min(60, Number(f0.espacamento) || 0));
     f0.deslocamento = Math.max(-120, Math.min(120, Number(f0.deslocamento) || 0));
     const fotosGpu = { frente: fotoDe('gpu-frente', R.ids.gpu), borda: fotoDe('gpu-borda', R.ids.gpu), backplate: fotoDe('gpu-backplate', R.ids.gpu), cubo: fotoDe('fan-cubo', R.ids.gpuFan) };
-    const gpu = daCache(usarCache, 'gpu|' + receita(GPU, cfgGpu, R.gpuFan, rgb, Object.values(fotosGpu).map(idFoto)), () => M.placaDeVideo(GPU, cfgGpu, R.gpuFan, rgb, fotosGpu));
+    // a placa (aletas, heatpipes, backplate…) e os fans presos nela são entradas separadas
+    // do cache: os sliders de espaço/posição dos fans não refazem a placa inteira
+    const cfgCorpo = { modo: cfgGpu.modo, dedosX };
+    const gpu = daCache(usarCache, 'gpu|' + receita(GPU, cfgCorpo, [fotosGpu.frente, fotosGpu.borda, fotosGpu.backplate].map(idFoto)), () => M.placaDeVideoCorpo(GPU, cfgCorpo, fotosGpu));
+    for (const c of gpu.children.slice()) if (c.userData.fansDaPlaca) gpu.remove(c);
+    let fansGpu = null;
+    if (cfgGpu.modo === 'deshroud') {
+      // a chave não inclui espaço/deslocamento: esses só reposicionam os fans
+      fansGpu = daCache(usarCache, 'gpuFans|' + receita(GPU.nome, GPU.deshroud, cfgGpu.fans.quantidade, R.gpuFan, rgb, idFoto(fotosGpu.cubo)), () => M.placaDeVideoFans(GPU, cfgGpu, R.gpuFan, rgb, fotosGpu));
+      M.posicionarFansGpu(fansGpu, GPU, cfgGpu, R.gpuFan);
+      fansGpu.userData.fansDaPlaca = true;
+      gpu.add(fansGpu);
+    }
+    M.acoplarFansGpu(gpu, fansGpu);
     const slotY = topoY - slot0.y;
     const gv = G.gpuVertical;
     const num = (v) => (v == null || v === '' ? NaN : Number(v));
@@ -761,6 +774,8 @@ window.PCBMontagem = function (THREE, M) {
     if (opts.fundir !== false) {
       for (const p of caso.paineis) p.obj.userData.naoFundir = true;
       for (const p of partes) if (p.obj && !p.obj.userData.fundido) { fundirMalhas(p.obj); if (p.obj.userData.daCache) p.obj.userData.fundido = true; }
+      // fans da placa que entraram numa placa já fundida
+      if (fansGpu && !fansGpu.userData.fundido) { fundirMalhas(fansGpu); if (fansGpu.userData.daCache) fansGpu.userData.fundido = true; }
     }
     if (usarCache) despejarCache();
 
