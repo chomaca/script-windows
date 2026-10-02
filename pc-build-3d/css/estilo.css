@@ -586,14 +586,26 @@ kbd {
 }
 .carregando p { margin: 0; max-width: 42ch; }
 .regua {
+  position: relative;
   width: 160px;
   height: 14px;
-  background: repeating-linear-gradient(90deg, var(--acento) 0 1px, transparent 1px 8px), var(--superficie-2);
+  background: var(--superficie-2);
   border-radius: 3px;
-  animation: regua 1.4s linear infinite;
+  overflow: hidden;
 }
-@keyframes regua { to { background-position: 16px 0, 0 0; } }
-.carregando.falhou .regua { animation: none; background: var(--erro); }
+/* as marcas da trena andam por transform: roda no compositor e não congela
+   enquanto o JS monta as peças e compila os shaders */
+.regua::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 -16px;
+  background: repeating-linear-gradient(90deg, var(--acento) 0 1px, transparent 1px 8px);
+  animation: regua 1.4s linear infinite;
+  will-change: transform;
+}
+@keyframes regua { to { transform: translateX(16px); } }
+.carregando.falhou .regua { background: var(--erro); }
+.carregando.falhou .regua::before { animation: none; display: none; }
 
 .ficha .trocar { display: grid; gap: 6px; padding: 10px; border-radius: 10px; background: var(--superficie-2); }
 .ficha .trocar .campo > label { font-weight: 500; }
@@ -805,5 +817,5 @@ details.fotos-reais.piscar { animation: piscar 1.5s ease-out; border-radius: 8px
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .regua { animation: none; }
+  .regua::before { animation: none; }
 }

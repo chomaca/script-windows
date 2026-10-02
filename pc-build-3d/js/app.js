@@ -1857,12 +1857,35 @@ window.PCBApp = (function () {
     ].join('');
   }
 
+  // seletor que reencontra o mesmo controle depois de um innerHTML: quem usa o teclado
+  // continua no botão/slider em que estava em vez de voltar para o começo da página
+  function seletorDoFoco(raiz) {
+    const el = document.activeElement;
+    if (!el || el === document.body || !raiz.contains(el)) return null;
+    if (el.id) return '#' + CSS.escape(el.id);
+    const attrs = (n) => Array.from(n.attributes).filter((a) => a.name.startsWith('data-') && a.name !== 'data-confirmar').map((a) => '[' + a.name + '="' + CSS.escape(a.value) + '"]').join('');
+    if (el.tagName === 'SUMMARY' && el.parentElement && el.parentElement.tagName === 'DETAILS') {
+      const a = attrs(el.parentElement);
+      return a ? 'details' + a + ' > summary' : null;
+    }
+    const a = attrs(el);
+    return a ? el.tagName.toLowerCase() + a : null;
+  }
+  function devolverFoco(raiz, sel) {
+    if (!sel) return;
+    let n = null;
+    try { n = raiz.querySelector(sel); } catch (e) { /* seletor inválido: deixa sem foco */ }
+    if (n && n.focus) n.focus({ preventScroll: true });
+  }
+
   function renderAba() {
     const el = $('#conteudo');
     const rolagem = el.scrollTop;
+    const foco = seletorDoFoco(el);
     const html = E.aba === 'fans' ? renderFans() : E.aba === 'checagem' ? renderChecagem() : E.aba === 'salvas' ? renderSalvas() : E.aba === 'medidas' ? renderMedidas() : renderPecas();
     el.innerHTML = html;
     el.scrollTop = rolagem;
+    devolverFoco(el, foco);
     for (const b of $$('.abas [data-aba]')) b.setAttribute('aria-selected', String(b.dataset.aba === E.aba));
     el.setAttribute('aria-labelledby', 'tab-' + E.aba);
     marcarNaLista(true);
@@ -1933,6 +1956,7 @@ window.PCBApp = (function () {
     const conflitos = checagem ? checagem.colisoes.filter((c) => c.a.id === p.id || c.b.id === p.id) : [];
     const detalhes = (info.notas ? '<p class="nota">' + esc(info.notas) + '</p>' : '') + est + (fontes ? '<ul class="fontes-lista">' + fontes + '</ul>' : '');
     const sec = secaoDaParte(p.id);
+    const foco = seletorDoFoco(f);
     f.innerHTML = '<header><span class="cat">' + esc(p.categoria) + '</span><button type="button" class="fechar" data-fechar-ficha aria-label="Fechar">×</button><h3>' + esc(p.nome) + '</h3></header>' +
       (conflitos.length ? '<p class="conflito">Encosta em: ' + esc(conflitos.map((c) => (c.a.id === p.id ? c.b.nome : c.a.nome)).join(', ')) + '</p>' : '') +
       trocaRapida(p) +
@@ -1944,6 +1968,7 @@ window.PCBApp = (function () {
       (sec && sec !== 'gabinete' ? '<button type="button" class="botao" data-abrir-fotos="' + sec + '"><svg class="ic"><use href="#i-camera"/></svg>Foto real</button>' : '') +
       (sec === 'fans' ? '<button type="button" class="botao" data-ir-aba="fans">Todos os fans</button>' : '') + '</div>';
     f.hidden = false;
+    devolverFoco(f, foco);
   }
 
   /* ---------- avisos rápidos (toasts) ---------- */
