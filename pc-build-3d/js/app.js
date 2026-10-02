@@ -131,7 +131,13 @@ window.PCBApp = (function () {
   /* ============================== cena 3D ============================== */
   function montarCena() {
     const el = $('#vista');
-    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+    // sem preserveDrawingBuffer: o navegador pode trocar o buffer em vez de copiá-lo a cada
+    // quadro (mais leve em GPU de celular/Mac). As capturas (Imagem, miniatura) desenham e
+    // leem o canvas na mesma tarefa, então continuam funcionando.
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // consultas ao driver esperam a fila da GPU esvaziar: feita agora (fila vazia) ela não
+    // trava depois, no meio do envio das texturas
+    renderer.capabilities.getMaxAnisotropy();
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     let tom = null;
@@ -363,7 +369,7 @@ window.PCBApp = (function () {
   }
 
   // tempos da última reconstrução (ms) — PCBApp.diagnostico().tempos
-  const tempos = { ultimo: null, historico: [] };
+  const tempos = { ultimo: null, historico: [], carga: {} };
   function reconstruir() {
     const t0 = performance.now();
     if (fis.ativo) encerrarFisica();
@@ -2634,6 +2640,8 @@ window.PCBApp = (function () {
       return;
     }
     ligarInterface();
+    const marca = (k, t0) => { tempos.carga[k] = Math.round(performance.now() - t0); return performance.now(); };
+    let t = performance.now();
     await etapa('Montando as peças…');
     reconstruir();
     renderAba();
@@ -2641,13 +2649,18 @@ window.PCBApp = (function () {
     atualizarRGB();
     irVista('iso', true);
     carregarFotos();
+    t = marca('montar', t);
     await etapa('Preparando os materiais 3D…');
     await precompilar();
+    t = marca('shaders', t);
     await enviarTexturas();
+    t = marca('texturas', t);
     // dois quadros desenhados por trás da tela de carregamento, depois ela sai
     requestAnimationFrame(animar);
     await etapa();
     await etapa();
+    marca('quadros', t);
+    tempos.carga.total = Math.round(performance.now());
     revelar();
     if (primeiraVez) setTimeout(() => toast('Dica: clique numa peça para trocar ou ajustar. Aperte ? para ver os atalhos.', { duracao: 9000 }), 1200);
   }
@@ -2671,7 +2684,7 @@ window.PCBApp = (function () {
       programas: i.programs ? i.programs.length : null, qps: media ? Math.round(1 / media) : null, luzesRGB: atual && atual.rgbFx ? atual.rgbFx.luzes.length : 0,
       particulas: !!(atual && atual.sim), pecas: atual ? atual.partes.length : 0,
       camera: camera.position.toArray().map(Math.round), alvo: controles.target.toArray().map(Math.round), pixel: ritmo.pixel, ao: passoAO ? +ritmo.ao.toFixed(2) : null,
-      tempos: { ultimo: tempos.ultimo, historico: tempos.historico.slice() }
+      tempos: { ultimo: tempos.ultimo, historico: tempos.historico.slice(), carga: Object.assign({}, tempos.carga) }
     };
   }
 

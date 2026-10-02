@@ -117,14 +117,19 @@ Se o 3D ficar lento, o site avisa e oferece mudar para Leve.
 - **Câmera:** as vistas (1–5, “Aproximar”, “Mostrar no 3D”) fazem uma órbita em volta da
   build em vez de atravessá-la; a roda do mouse aproxima deslizando; o amortecimento é o
   mesmo em monitores de 60, 120 ou 144 Hz.
-- **Reconstrução incremental:** ao arrastar um slider só o que mudou é refeito (~5–15 ms
-  por passo); peças, cabos e mangueiras iguais são reaproveitados. Os shaders são
-  compilados em paralelo (KHR_parallel_shader_compile) antes de aparecer na tela, inclusive
-  ao trocar a qualidade, e as texturas sobem para a GPU por trás da tela de carregamento.
+- **Reconstrução incremental:** ao arrastar um slider só o que mudou é refeito (3–15 ms
+  por passo); peças, cabos e mangueiras iguais são reaproveitados, e as peças das últimas
+  montagens ficam guardadas — alternar com/sem shroud, trocar e voltar de peça e
+  desfazer/refazer não redesenham nada. Os fans presos na GPU sem shroud só se reposicionam
+  nos sliders de espaço e posição. A simulação do ar continua de onde estava a cada passo.
+- **Shaders e texturas:** compilados em paralelo (KHR_parallel_shader_compile) antes de
+  aparecer na tela, inclusive ao trocar a qualidade, ligar uma camada ou entrar na física;
+  as texturas sobem para a GPU por trás da tela de carregamento.
 - **Interface:** botões, abas, ficha, menus e a sanfona das peças têm transições curtas
-  (≤ 0,22 s). Com “reduzir movimento” ligado no sistema, tudo fica instantâneo.
+  (≤ 0,22 s); quem usa o teclado continua no mesmo controle depois de cada troca. Com
+  “reduzir movimento” ligado no sistema, tudo fica instantâneo.
 - No console: `PCBApp.diagnostico()` (quadros/s, chamadas de desenho, tempos da última
-  reconstrução) e `PCBApp.perfil()` (tempo de GPU de cada passe).
+  reconstrução e de cada etapa da carga) e `PCBApp.perfil()` (tempo de GPU de cada passe).
 
 ### Fotos reais (para ficar idêntico, com os logos)
 
