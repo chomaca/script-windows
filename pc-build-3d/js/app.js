@@ -38,7 +38,7 @@ window.PCBApp = (function () {
   /* Ritmo de quadros (ver animar): AO desligado enquanto a câmera se mexe,
      sombra refeita só quando algo muda de lugar, animações de fundo a 30 q/s
      e resolução dinâmica em máquina lenta. */
-  const ritmo = { ate: 0, mexendo: false, ultimoDesenho: 0, ultimaSombra: 0, sombraSuja: true, ao: 1, pixelBase: 1, pixel: 1, lentos: 0 };
+  const ritmo = { ate: 0, mexendo: false, ultimoDesenho: 0, ultimaSombra: 0, sombraSuja: true, ao: 1, pixelBase: 1, pixel: 1, lentos: 0, dtAr: 0 };
   function interagindo(ms = 280) { ritmo.ate = Math.max(ritmo.ate, performance.now() + ms); precisaRender = true; }
   function sujarSombra() { ritmo.sombraSuja = true; precisaRender = true; }
 
@@ -367,10 +367,11 @@ window.PCBApp = (function () {
   function reconstruir() {
     const t0 = performance.now();
     if (fis.ativo) encerrarFisica();
+    let estadoAr = null;
     if (atual) {
       cena.remove(atual.raiz);
       MONT.descartar(atual.raiz);
-      if (atual.sim) { cena.remove(atual.sim.objeto); atual.sim.descartar(); }
+      if (atual.sim) { if (E.vis.ar) estadoAr = atual.sim.estado(); cena.remove(atual.sim.objeto); atual.sim.descartar(); }
     }
     const t1 = performance.now();
     try {
@@ -404,7 +405,7 @@ window.PCBApp = (function () {
     const det = {};
     const medir = (nome, fn) => { const a = performance.now(); fn(); det[nome] = +(performance.now() - a).toFixed(2); };
     medir('contatos', desenharContatos);
-    if (E.vis.ar) medir('ar', criarSimulacao);
+    if (E.vis.ar) medir('ar', () => criarSimulacao(estadoAr));
     medir('vagas', desenharVagas);
     medir('visibilidade', () => { aplicarVisibilidade(); aplicarExplosao(true); });
     medir('cotas', desenharCotas);
@@ -419,10 +420,10 @@ window.PCBApp = (function () {
     if (tempos.historico.length > 50) tempos.historico.shift();
   }
 
-  function criarSimulacao() {
+  function criarSimulacao(anterior) {
     if (!atual || !SIM) return;
     if (atual.sim) { cena.remove(atual.sim.objeto); atual.sim.descartar(); atual.sim = null; }
-    atual.sim = SIM.criar(atual, E.build, { quantidade: E.vis.qualidade === 'leve' ? 650 : 1400 });
+    atual.sim = SIM.criar(atual, E.build, { quantidade: E.vis.qualidade === 'leve' ? 650 : 1400, anterior });
     cena.add(atual.sim.objeto);
     mostrarEstatAr();
   }
@@ -440,26 +441,31 @@ window.PCBApp = (function () {
 
   function aplicarVisibilidade() {
     if (!atual) return;
-    for (const p of atual.paineis) p.obj.visible = E.vis.paineis && (p.tipo !== 'vidro' || E.vis.vidro);
+    // só redesenha (e refaz a sombra) se algo mudou de fato — trocar de aba, por exemplo,
+    // costuma não mudar nada no 3D e não precisa custar um quadro inteiro
+    let mudou = false;
+    const por = (o, v) => { if (o.visible !== v) { o.visible = v; mudou = true; } };
+    for (const p of atual.paineis) por(p.obj, E.vis.paineis && (p.tipo !== 'vidro' || E.vis.vidro));
     const ligada = (id) => (id === 'riser' || id === 'conectorRiser' ? !E.ocultas.has('gpu') : true);
     const soCaso = (id) => !E.vis.soGabinete || id === 'caixaFonte';
-    for (const p of atual.partes) if (p.obj && p.id !== 'gabinete') p.obj.visible = !E.ocultas.has(p.id) && ligada(p.id) && soCaso(p.id);
+    for (const p of atual.partes) if (p.obj && p.id !== 'gabinete') por(p.obj, !E.ocultas.has(p.id) && ligada(p.id) && soCaso(p.id));
     const mt = $('#mostrar-tudo');
     if (mt) mt.hidden = !E.ocultas.size;
-    atual.raiz.traverse((o) => { if (o.userData.fluxo) o.visible = E.vis.fluxo; });
-    grupoCotas.visible = E.vis.cotas;
-    if (vagasVisiveis() && vagasSujas) desenharVagas();
-    grupoVagas.visible = vagasVisiveis();
-    for (const g of grades) g.visible = E.vis.grade !== false;
-    if (E.vis.ar && !atual.sim) criarSimulacao();
-    if (atual.sim) atual.sim.objeto.visible = E.vis.ar && !fis.ativo;
-    grupoContatos.visible = !!E.vis.contatos && !fis.ativo;
-    if (fis.ativo && fis.sim) { fis.sim.definirParedes(paineisAbertos()); fis.sim.reaplicarOcultos(); }
+    atual.raiz.traverse((o) => { if (o.userData.fluxo) por(o, !!E.vis.fluxo); });
+    por(grupoCotas, !!E.vis.cotas);
+    if (vagasVisiveis() && vagasSujas) { desenharVagas(); mudou = true; }
+    por(grupoVagas, vagasVisiveis());
+    for (const g of grades) por(g, E.vis.grade !== false);
+    if (E.vis.ar && !atual.sim) { criarSimulacao(); mudou = true; }
+    if (atual.sim) por(atual.sim.objeto, !!E.vis.ar && !fis.ativo);
+    por(grupoContatos, !!E.vis.contatos && !fis.ativo);
+    if (fis.ativo && fis.sim) { fis.sim.definirParedes(paineisAbertos()); fis.sim.reaplicarOcultos(); mudou = true; }
     $('#legenda-fluxo').hidden = !E.vis.fluxo || E.vis.ar;
     $('#legenda-ar').hidden = !E.vis.ar;
     for (const b of $$('input[data-vis]')) b.checked = !!E.vis[b.dataset.vis];
-    sujarSombra();
+    if (mudou) sujarSombra();
   }
+
 
   function aplicarExplosao(imediato) {
     if (!atual) return;
@@ -760,8 +766,7 @@ window.PCBApp = (function () {
     let pendente = null, espera = 0;
     const posicionarTip = (e) => {
       const r = palco.getBoundingClientRect();
-      tip.style.left = (e.clientX - r.left) + 'px';
-      tip.style.top = (e.clientY - r.top) + 'px';
+      tip.style.translate = (e.clientX - r.left) + 'px ' + (e.clientY - r.top) + 'px';
     };
     cv.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse' || e.buttons) return;
@@ -973,7 +978,7 @@ window.PCBApp = (function () {
     aplicarVisibilidade();
     textoFisica();
     precompilar(1500); // marcadores de contato, centro de massa e corda são materiais novos
-    precisaRender = true;
+    sujarSombra();
   }
   function encerrarFisica() {
     if (!fis.ativo) return;
@@ -987,7 +992,7 @@ window.PCBApp = (function () {
     $('#barra-fisica').hidden = true;
     $('#dica').hidden = E.medir.ativo;
     aplicarVisibilidade();
-    precisaRender = true;
+    sujarSombra(); // as peças voltaram para o lugar
   }
   function prepararVisuaisFisica() {
     limparGrupo(grupoFisica);
@@ -1216,8 +1221,11 @@ window.PCBApp = (function () {
       else if (fis.ponteiro != null) interagindo();
       if (agora - fis.ultimoTexto > 250) { fis.ultimoTexto = agora; textoFisica(); }
     }
-    if (atual && atual.sim && E.vis.ar && !fis.ativo) {
-      atual.sim.atualizar(dt);
+    // simulação do ar: o tempo acumula e ela só anda nos quadros que vão ser desenhados
+    // (num monitor de 144 Hz eram 144 passos/s para 30 desenhos)
+    const arAtivo = !!(atual && atual.sim && E.vis.ar && !fis.ativo);
+    if (arAtivo) {
+      ritmo.dtAr = Math.min(0.1, ritmo.dtAr + dt);
       fundo = true;
       if (agora - ultimaEstat > 1000) { ultimaEstat = agora; mostrarEstatAr(); }
     }
@@ -1257,6 +1265,7 @@ window.PCBApp = (function () {
     const desenhar = pedido || (fundo && agora - ritmo.ultimoDesenho >= 31);
     if (desenhar && !compilando) {
       precisaRender = false;
+      if (arAtivo && ritmo.dtAr > 0) { atual.sim.atualizar(ritmo.dtAr); ritmo.dtAr = 0; }
       if (ritmo.sombraSuja) { renderer.shadowMap.needsUpdate = true; ritmo.sombraSuja = false; ritmo.ultimaSombra = agora; }
       renderer.info.reset();
       if (composer) composer.render(); else renderer.render(cena, camera);
@@ -2684,6 +2693,13 @@ window.PCBApp = (function () {
     if (composer) r.composer = medir(() => composer.render());
     renderer.shadowMap.autoUpdate = auto;
     renderer.setRenderTarget(null);
+    // CPU: matrizes da cena e camada de rótulos (média de 20)
+    const cpu = (fn) => { const t0 = performance.now(); for (let i = 0; i < 20; i++) fn(); return +((performance.now() - t0) / 20).toFixed(2); };
+    r.matrizes = cpu(() => cena.updateMatrixWorld());
+    r.rotulos = cpu(() => rotulos.render(cena, camera));
+    let objetos = 0;
+    cena.traverse(() => { objetos++; });
+    r.objetos = objetos;
     precisaRender = true;
     return r;
   }

@@ -530,7 +530,11 @@ kbd {
   background: var(--tinta);
   color: var(--superficie);
   white-space: nowrap;
+  /* a posição vem do JS em "translate" (só composição, sem layout a cada movimento do mouse) */
+  left: 0;
+  top: 0;
   transform: translate(12px, -130%);
+  will-change: translate;
   z-index: 3;
 }
 .ficha {

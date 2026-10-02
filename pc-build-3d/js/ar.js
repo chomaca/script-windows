@@ -122,8 +122,6 @@ window.PCBAr = function (THREE) {
       vel[o] = tmpB.x; vel[o + 1] = tmpB.y; vel[o + 2] = tmpB.z;
       vida[i] = 5 + rnd() * 6;
     }
-    for (let i = 0; i < N; i++) { nascer(i, true); vida[i] *= rnd(); }
-
     const estat = { passaramGpu: 0, sairam: 0, tempoTotal: 0 };
     const idade = new Float32Array(N), marcouGpu = new Uint8Array(N);
 
@@ -223,9 +221,22 @@ window.PCBAr = function (THREE) {
       aPos.needsUpdate = aCor.needsUpdate = lPos.needsUpdate = lCor.needsUpdate = true;
     }
 
-    // aquece a simulação para já abrir com o fluxo formado
-    for (let k = 0; k < 90; k++) passo(1 / 30);
-    estat.passaramGpu = estat.sairam = estat.tempoTotal = 0;
+    // reconstrução (ex.: arrastando um slider) no mesmo gabinete: as partículas continuam
+    // de onde estavam em vez de recomeçar — sem o aquecimento de ~100 ms a cada passo e sem
+    // o fluxo "piscar". Um passo curto empurra para fora quem ficou dentro de peça que mudou.
+    const ant = opts.anterior;
+    const mesmoGabinete = ant && ant.N === N && ant.interior && ant.interior.min.distanceTo(interior.min) < 1 && ant.interior.max.distanceTo(interior.max) < 1;
+    if (mesmoGabinete) {
+      pos.set(ant.pos); vel.set(ant.vel); temp.set(ant.temp); vida.set(ant.vida); idade.set(ant.idade); marcouGpu.set(ant.marcouGpu);
+      Object.assign(estat, ant.estat);
+      semente = ant.semente;
+      passo(1 / 60);
+    } else {
+      // aquece a simulação para já abrir com o fluxo formado
+      for (let i = 0; i < N; i++) { nascer(i, true); vida[i] *= rnd(); }
+      for (let k = 0; k < 90; k++) passo(1 / 30);
+      estat.passaramGpu = estat.sairam = estat.tempoTotal = 0;
+    }
     escrever();
 
     return {
@@ -235,6 +246,8 @@ window.PCBAr = function (THREE) {
         for (let k = 0; k < n; k++) passo(dt / n);
         escrever();
       },
+      // estado para a próxima simulação continuar daqui (os vetores passam adiante: esta é descartada)
+      estado() { return { N, interior, pos, vel, temp, vida, idade, marcouGpu, estat: { ...estat }, semente }; },
       estatisticas() {
         return {
           tempoMedio: estat.sairam ? estat.tempoTotal / estat.sairam : null,
