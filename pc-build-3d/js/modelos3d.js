@@ -309,6 +309,7 @@ window.PCBModelos = function (THREE) {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
+    geo.userData.compartilhado = true; // várias pás e várias montagens usam a mesma
     cacheGeoPa.set(chaveG, geo);
     return geo;
   }
@@ -1418,7 +1419,7 @@ window.PCBModelos = function (THREE) {
   /* ---------------- RISER (cabo flat) ----------------
    * pontos: lista de Vector3 (mundo); largura ao longo de `eixoLargura`. */
   function riser(pontos, eixoLargura, largura) {
-    const m = new THREE.Mesh(riserGeo(pontos, eixoLargura, largura), new THREE.MeshStandardMaterial({ color: '#1b1c20', roughness: 0.45, metalness: 0.4, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(riserGeo(pontos, eixoLargura, largura), std('#1b1c20', 0.45, 0.4, { side: THREE.DoubleSide }));
     m.castShadow = true;
     return m;
   }

@@ -45,17 +45,45 @@ window.PCBTexturas = function (THREE) {
       return s / 4294967296;
     };
   }
+  /* Ruído (grão) somado à textura, com média zero.
+     Antes era pixel a pixel (getImageData/putImageData), que obriga o navegador
+     a ler a textura de volta — o passo mais lento da carga. Agora são duas
+     camadas de um ladrilho de ruído com amplitude A, compostas pelo próprio
+     canvas: 'lighter' soma s₁ e 'difference' subtrai s₂ (|b − s₂| = b − s₂).
+     s₁ − s₂ tem desvio A/√6 = forca/√12, igual ao ruído uniforme de antes. */
+  const ladrilhos = new Map();
+  function ladrilhoRuido(k, A) {
+    const chave = k + '|' + A;
+    if (ladrilhos.has(chave)) return ladrilhos.get(chave);
+    const c = criar(128, 128);
+    const g = c.getContext('2d');
+    if (!g.createImageData) return null;
+    const img = g.createImageData(128, 128), d = img.data, r = rng(k * 7919 + 13);
+    for (let i = 0; i < d.length; i += 4) { const v = Math.round(r() * A); d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    ladrilhos.set(chave, c);
+    return c;
+  }
   function granular(c, forca, seed, area) {
     const g = c.getContext('2d');
     const [x, y, w, h] = area || [0, 0, c.width, c.height];
-    const img = g.getImageData(x, y, w, h);
-    const d = img.data;
-    const r = rng(seed);
-    for (let i = 0; i < d.length; i += 4) {
-      const n = (r() - 0.5) * forca;
-      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    const A = Math.max(1, Math.min(255, Math.round(forca * 0.7071)));
+    seed = Math.abs(seed | 0);
+    g.save();
+    g.beginPath(); g.rect(x, y, w, h); g.clip();
+    for (const [i, modo] of [[0, 'lighter'], [1, 'difference']]) {
+      const lad = ladrilhoRuido((seed * 2 + i) % 6, A);
+      const pad = lad && g.createPattern(lad, 'repeat');
+      if (!pad) continue;
+      // deslocamento por semente: texturas diferentes não repetem o mesmo desenho
+      const ox = (seed * 37 + i * 53) % 128, oy = (seed * 91 + i * 29) % 128;
+      g.globalCompositeOperation = modo;
+      g.translate(ox, oy);
+      g.fillStyle = pad;
+      g.fillRect(x - ox, y - oy, w, h);
+      g.translate(-ox, -oy);
     }
-    g.putImageData(img, x, y);
+    g.restore();
   }
   function escovar(g, x, y, w, h, base, forca, horizontal, seed, densidade = 1.3) {
     g.fillStyle = base;

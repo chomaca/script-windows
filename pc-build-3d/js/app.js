@@ -325,13 +325,17 @@ window.PCBApp = (function () {
     precisaRender = true;
   }
 
+  // tempos da última reconstrução (ms) — PCBApp.diagnostico().tempos
+  const tempos = { ultimo: null, historico: [] };
   function reconstruir() {
+    const t0 = performance.now();
     if (fis.ativo) encerrarFisica();
     if (atual) {
       cena.remove(atual.raiz);
       MONT.descartar(atual.raiz);
       if (atual.sim) { cena.remove(atual.sim.objeto); atual.sim.descartar(); }
     }
+    const t1 = performance.now();
     try {
       atual = MONT.montar(E.build, CAT, { rgb: E.vis.rgb, fotos: fotosProntas(MONT.resolver(E.build, CAT)) });
     } catch (err) {
@@ -357,17 +361,25 @@ window.PCBApp = (function () {
     atualizarRGB();
     rotores = [];
     atual.raiz.traverse((o) => { if (o.userData.rotor) rotores.push(o.userData.rotor); });
+    const t2 = performance.now();
     checagem = VER.verificar(atual, E.build);
-    desenharContatos();
-    if (E.vis.ar) criarSimulacao();
-    desenharVagas();
-    aplicarVisibilidade();
-    aplicarExplosao(true);
-    desenharCotas();
+    const t3 = performance.now();
+    const det = {};
+    const medir = (nome, fn) => { const a = performance.now(); fn(); det[nome] = +(performance.now() - a).toFixed(2); };
+    medir('contatos', desenharContatos);
+    if (E.vis.ar) medir('ar', criarSimulacao);
+    medir('vagas', desenharVagas);
+    medir('visibilidade', () => { aplicarVisibilidade(); aplicarExplosao(true); });
+    medir('cotas', desenharCotas);
     if (E.sel && !atual.partes.some((p) => p.id === E.sel && p.obj)) E.sel = null;
-    atualizarDestaque();
-    renderStatus();
+    medir('destaque', atualizarDestaque);
+    medir('status', renderStatus);
     precisaRender = true;
+    if (iniciou && $('#carregando').hidden) medir('compilar', () => precompilar(1500));
+    const t4 = performance.now();
+    tempos.ultimo = { descartar: t1 - t0, montar: t2 - t1, verificar: t3 - t2, desenhos: t4 - t3, total: t4 - t0, det };
+    tempos.historico.push(tempos.ultimo.total);
+    if (tempos.historico.length > 50) tempos.historico.shift();
   }
 
   function criarSimulacao() {
@@ -399,6 +411,7 @@ window.PCBApp = (function () {
     if (mt) mt.hidden = !E.ocultas.size;
     atual.raiz.traverse((o) => { if (o.userData.fluxo) o.visible = E.vis.fluxo; });
     grupoCotas.visible = E.vis.cotas;
+    if (vagasVisiveis() && vagasSujas) desenharVagas();
     grupoVagas.visible = vagasVisiveis();
     for (const g of grades) g.visible = E.vis.grade !== false;
     if (E.vis.ar && !atual.sim) criarSimulacao();
@@ -439,12 +452,13 @@ window.PCBApp = (function () {
     for (const c of g.children.slice()) {
       g.remove(c);
       c.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.geometry.userData.compartilhado) o.geometry.dispose();
         if (o.material && !o.material.userData.compartilhado) o.material.dispose();
         if (o.element && o.element.remove) o.element.remove();
       });
     }
   }
+  let matCota = null;
   function desenharCotas() {
     limparGrupo(grupoCotas);
     if (!atual) return;
@@ -463,7 +477,9 @@ window.PCBApp = (function () {
     pts.push(ha, hb, new V(-W / 2 - 4, H, D / 2 + 4), hb.clone().add(new V(-8, 0, 8)));
     tique(ha, new V(1, 1, 0).normalize()); tique(hb, new V(1, 1, 0).normalize());
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    const linhas = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: token('--acento'), depthTest: false, transparent: true }));
+    if (!matCota) { matCota = new THREE.LineBasicMaterial({ depthTest: false, transparent: true }); matCota.userData.compartilhado = true; }
+    matCota.color.set(token('--acento'));
+    const linhas = new THREE.LineSegments(geo, matCota);
     linhas.renderOrder = 20;
     grupoCotas.add(linhas);
     const rotulo = (valor, pos) => {
@@ -505,17 +521,35 @@ window.PCBApp = (function () {
     texVaga.colorSpace = THREE.SRGBColorSpace;
     return texVaga;
   }
+  // vagas: mesma geometria por tamanho e mesmo material por cor (nada novo a cada montagem)
+  const geoVaga = new Map(), matVaga = new Map();
+  function geometriaVaga(t) {
+    if (!geoVaga.has(t)) { const g = new THREE.PlaneGeometry(t * 0.94, t * 0.94); g.userData.compartilhado = true; geoVaga.set(t, g); }
+    return geoVaga.get(t);
+  }
+  function materialVaga(cor, fraca) {
+    const k = cor + (fraca ? '|f' : '|n');
+    if (!matVaga.has(k)) {
+      const m = new THREE.MeshBasicMaterial(Object.assign({ map: texturaVaga(), color: cor, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }, fraca ? { opacity: 0.28, depthTest: false } : { opacity: 0.92 }));
+      m.userData.compartilhado = true;
+      matVaga.set(k, m);
+    }
+    return matVaga.get(k);
+  }
+  let vagasSujas = true;
   function desenharVagas() {
+    vagasSujas = true;
+    if (!vagasVisiveis()) { grupoVagas.visible = false; return; } // desenha quando aparecer
+    vagasSujas = false;
     limparGrupo(grupoVagas);
     if (!atual || !atual.vagas) return;
-    const tex = texturaVaga();
     for (const v of atual.vagas) {
       if (v.ocupada) continue;
       const cor = v.conflito ? '#ff5a4d' : token('--acento');
-      const geo = new THREE.PlaneGeometry(v.tamanho * 0.94, v.tamanho * 0.94);
+      const geo = geometriaVaga(v.tamanho);
       // nítida onde está à vista; fraca (raio-x) quando há peça na frente
-      const nitida = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, color: cor, transparent: true, opacity: 0.92, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
-      const fraca = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, color: cor, transparent: true, opacity: 0.28, depthTest: false, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+      const nitida = new THREE.Mesh(geo, materialVaga(cor, false));
+      const fraca = new THREE.Mesh(geo, materialVaga(cor, true));
       for (const m of [nitida, fraca]) {
         m.quaternion.copy(v.quaternion);
         m.position.copy(v.posicao).addScaledVector(v.k, 12.5);
@@ -1105,7 +1139,7 @@ window.PCBApp = (function () {
       if (agora - ultimaEstat > 1000) { ultimaEstat = agora; mostrarEstatAr(); }
     }
     controles.update();
-    if (precisaRender) {
+    if (precisaRender && !compilando) {
       precisaRender = false;
       renderer.info.reset();
       if (composer) composer.render(); else renderer.render(cena, camera);
@@ -2302,9 +2336,62 @@ window.PCBApp = (function () {
   }
 
   /* ============================== início ============================== */
-  function iniciar(deps) {
+  // deixa o navegador desenhar a tela de carregamento entre as etapas
+  function etapa(txt) {
+    const el = $('#carregando-texto');
+    if (el) el.textContent = txt;
+    return new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+  }
+  /* Compila os shaders de todos os materiais da cena antes de desenhar.
+     Com KHR_parallel_shader_compile (Chrome/Edge/Firefox em GPU de verdade) o
+     driver compila em paralelo e a tela não trava; sem ela, compila agora
+     (na tela de carregamento) em vez de travar o 1º quadro. Não usa o
+     compileAsync do three: ele quebra se um material for descartado enquanto
+     espera (acontece ao arrastar um slider). */
+  let compilando = false, compilacaoAtual = 0;
+  const materiaisVistos = new WeakSet();
+  // só vale compilar se apareceu material novo (renderer.compile percorre a cena toda: ~10 ms)
+  function temMaterialNovo() {
+    let novo = false;
+    cena.traverseVisible((o) => {
+      if (!o.material) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (!materiaisVistos.has(m)) { materiaisVistos.add(m); novo = true; }
+    });
+    return novo;
+  }
+  function precompilar(limite = 8000) {
+    if (!renderer || !renderer.compile) return Promise.resolve();
+    if (!temMaterialNovo()) return Promise.resolve();
+    const paralelo = !!(renderer.extensions && renderer.extensions.has && renderer.extensions.has('KHR_parallel_shader_compile'));
+    let mats;
+    try { mats = renderer.compile(cena, camera); } catch (e) { return Promise.resolve(); }
+    if (!paralelo || !mats || !mats.size) return Promise.resolve();
+    const minha = ++compilacaoAtual;
+    compilando = true;
+    const t0 = performance.now();
+    return new Promise((ok) => {
+      const verificar = () => {
+        for (const m of mats) {
+          const pr = renderer.properties.get(m).currentProgram;
+          if (!pr || pr.isReady()) mats.delete(m);
+        }
+        if (!mats.size || performance.now() - t0 > limite || minha !== compilacaoAtual) {
+          if (minha === compilacaoAtual) { compilando = false; precisaRender = true; }
+          ok();
+          return;
+        }
+        setTimeout(verificar, 16);
+      };
+      verificar();
+    });
+  }
+
+  async function iniciar(deps) {
     if (iniciou) return;
     iniciou = true;
+    try { await iniciarEtapas(deps); } catch (err) { falha(err); }
+  }
+  async function iniciarEtapas(deps) {
     ({ THREE, OrbitControls, CSS2DRenderer, CSS2DObject } = deps);
     D = deps;
     M = window.PCBModelos(THREE);
@@ -2329,12 +2416,15 @@ window.PCBApp = (function () {
       return;
     }
     ligarInterface();
+    await etapa('Montando as peças…');
     reconstruir();
     renderAba();
     atualizarBotoesHist();
     atualizarRGB();
     irVista('iso', true);
     carregarFotos();
+    await etapa('Preparando os materiais 3D…');
+    await precompilar();
     $('#carregando').hidden = true;
     requestAnimationFrame(animar);
     if (primeiraVez) setTimeout(() => toast('Dica: clique numa peça para trocar ou ajustar. Aperte ? para ver os atalhos.', { duracao: 9000 }), 1200);
@@ -2357,7 +2447,8 @@ window.PCBApp = (function () {
     return {
       qualidade: E.vis.qualidade, chamadas: i.render.calls, triangulos: i.render.triangles, geometrias: i.memory.geometries, texturas: i.memory.textures,
       programas: i.programs ? i.programs.length : null, qps: media ? Math.round(1 / media) : null, luzesRGB: atual && atual.rgbFx ? atual.rgbFx.luzes.length : 0,
-      particulas: !!(atual && atual.sim), pecas: atual ? atual.partes.length : 0
+      particulas: !!(atual && atual.sim), pecas: atual ? atual.partes.length : 0,
+      tempos: { ultimo: tempos.ultimo, historico: tempos.historico.slice() }
     };
   }
 
@@ -2380,5 +2471,8 @@ window.PCBApp = (function () {
     precisaRender = true;
   }
 
-  return { iniciar, falha, diagnostico, naTela, olhar, vista: (d) => irVista(d, true) };
+  // nomes e chaves dos shaders em uso — para achar materiais que forçam recompilação
+  function programas() { return (renderer.info.programs || []).map((p) => ({ nome: p.name, chave: p.cacheKey, usos: p.usedTimes })); }
+
+  return { iniciar, falha, diagnostico, naTela, olhar, programas, vista: (d) => irVista(d, true) };
 })();

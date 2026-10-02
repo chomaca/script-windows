@@ -51,7 +51,7 @@ window.PCBAmbiente = function (THREE, deps) {
   }
 
   /* ---------------- fundo em degradê (vinheta de estúdio) ---------------- */
-  let fundoTex = null;
+  let fundoTex = null, ruidoFundo = null;
   function fundo(corCentro, corBorda) {
     const c = document.createElement('canvas');
     c.width = c.height = 512;
@@ -61,10 +61,23 @@ window.PCBAmbiente = function (THREE, deps) {
     gr.addColorStop(1, corBorda);
     g.fillStyle = gr;
     g.fillRect(0, 0, 512, 512);
-    // ruído fino para não criar faixas no degradê
-    const img = g.getImageData(0, 0, 512, 512), d = img.data;
-    for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 3; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
-    g.putImageData(img, 0, 0);
+    // ruído fino (±2 níveis) para não criar faixas no degradê: ladrilho de 64 px
+    // somado ('lighter') e subtraído ('difference') sem ler pixels de volta
+    if (!ruidoFundo) {
+      ruidoFundo = document.createElement('canvas');
+      ruidoFundo.width = ruidoFundo.height = 64;
+      const gr2 = ruidoFundo.getContext('2d'), im = gr2.createImageData(64, 64), dd = im.data;
+      for (let i = 0; i < dd.length; i += 4) { const v = (Math.random() * 3) | 0; dd[i] = dd[i + 1] = dd[i + 2] = v; dd[i + 3] = 255; }
+      gr2.putImageData(im, 0, 0);
+    }
+    for (const modo of ['lighter', 'difference']) {
+      g.globalCompositeOperation = modo;
+      g.fillStyle = g.createPattern(ruidoFundo, 'repeat');
+      g.translate(modo === 'lighter' ? 0 : 23, modo === 'lighter' ? 0 : 41);
+      g.fillRect(-64, -64, 640, 640);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    g.globalCompositeOperation = 'source-over';
     if (fundoTex) fundoTex.dispose();
     fundoTex = new THREE.CanvasTexture(c);
     fundoTex.colorSpace = THREE.SRGBColorSpace;
@@ -150,11 +163,22 @@ window.PCBAmbiente = function (THREE, deps) {
     raiz.updateMatrixWorld(true);
     raiz.traverse((o) => {
       if (!o.isMesh || !o.userData.rgb || !o.material) return;
-      // material próprio para poder animar cada LED
-      const base = o.material;
-      const m = base.clone();
-      m.userData = { rgbClone: true };
-      o.material = m;
+      // material próprio para poder animar cada LED. Peças reaproveitadas entre
+      // montagens já têm um clone: parte sempre do material original (senão a cor
+      // e o brilho "de fábrica" virariam os do último efeito aplicado)
+      const base = o.userData.rgbBase || o.material;
+      let m = o.material;
+      if (m !== base && m.userData.rgbClone) {
+        // reaproveita o clone (material novo a cada montagem forçaria recompilar a cena)
+        m.color.copy(base.color);
+        if (m.emissive && base.emissive) m.emissive.copy(base.emissive);
+        m.emissiveIntensity = base.emissiveIntensity;
+      } else {
+        m = base.clone();
+        m.userData = { rgbClone: true };
+        o.material = m;
+        o.userData.rgbBase = base;
+      }
       caixa.setFromObject(o);
       caixa.getCenter(centro);
       const e = { mesh: o, mat: m, cor: base.color.clone(), intensidade: base.emissiveIntensity, temMapa: !!base.emissiveMap, pos: centro.clone(), tmp: new THREE.Color() };

@@ -158,9 +158,57 @@ window.PCBMontagem = function (THREE, M) {
     return c;
   }
 
+  /* ---------- cache de peças entre montagens ----------
+     Cada ajuste (slider da GPU, troca de um fan…) montava tudo de novo:
+     geometria, fusão de malhas e envio para a placa de vídeo. Agora cada peça
+     fica guardada pela sua "receita" (tudo que muda o desenho dela) e é
+     reaproveitada se a receita não mudou; só a posição é refeita. Peças que
+     não entram na montagem nova são descartadas no fim. */
+  const cachePecas = new Map();
+  let geracao = 0;
+  const idsFoto = new WeakMap();
+  let proxFoto = 1;
+  function idFoto(f) {
+    if (!f) return 0;
+    if (typeof f !== 'object') return String(f);
+    if (!idsFoto.has(f)) idsFoto.set(f, proxFoto++);
+    return idsFoto.get(f);
+  }
+  const receita = (...v) => JSON.stringify(v);
+  // receita com números arredondados (pontos de caminhos: evita ruído de ponto flutuante)
+  const receitaR = (...v) => JSON.stringify(v, (k, x) => (typeof x === 'number' ? Math.round(x * 100) / 100 : x));
+  function daCache(usar, chave, criar) {
+    if (!usar) return criar();
+    const e = cachePecas.get(chave);
+    if (e) {
+      e.geracao = geracao;
+      for (const o of e.objs) limparAnexos(o);
+      return e.valor;
+    }
+    const valor = criar();
+    const objs = valor && valor.isObject3D ? [valor] : [valor.grupo, valor.caixaFonte].filter(Boolean);
+    for (const o of objs) o.userData.daCache = true;
+    cachePecas.set(chave, { valor, objs, geracao });
+    return valor;
+  }
+  // pedaços de outras peças presos nesta (ex.: ponta do riser na placa-mãe) saem antes de reusar
+  function limparAnexos(obj) {
+    for (const c of obj.children.slice()) if (c.userData.anexo) { obj.remove(c); descartar(c, true); }
+  }
+  function despejarCache() {
+    for (const [k, e] of cachePecas) {
+      if (e.geracao === geracao) continue;
+      for (const o of e.objs) { if (o.parent) o.parent.remove(o); descartar(o, true); }
+      cachePecas.delete(k);
+    }
+  }
+
   /* ======================= MONTAR ======================= */
   function montar(build, cat, opts = {}) {
     const rgb = opts.rgb || '#7cc8ff';
+    // cache só na montagem "normal" (testes podem pedir sem fusão de malhas)
+    const usarCache = opts.cache !== false && opts.fundir !== false;
+    geracao++;
     const R = resolver(build, cat);
     const avisos = R.avisos.slice();
     const G = R.gabinete;
@@ -189,7 +237,8 @@ window.PCBMontagem = function (THREE, M) {
     const bandejaX = Q.X(G.bandeja.x);
     const faceX = Q.X(G.bandeja.x + G.placaMae.standoff + MB.espessura);
     const topoY = G.placaMae.topoY;
-    const mb = M.placaMae(MB, { foto: fotoDe('mb-topo', R.ids.placaMae) });
+    const fotoMB = fotoDe('mb-topo', R.ids.placaMae);
+    const mb = daCache(usarCache, 'mb|' + receita(MB, idFoto(fotoMB)), () => M.placaMae(MB, { foto: fotoMB }));
     orientar(mb, vdir('frente'), vdir('cima'), vdir('esquerda'), new THREE.Vector3(faceX, topoY, Q.Z(G.placaMae.traseira)));
     const mbPonto = (x, y, z) => mb.localToWorld(new THREE.Vector3(x, -y, z));
     registrar('placaMae', MB.nome, 'Placa-mãe', mb, {
@@ -209,7 +258,8 @@ window.PCBMontagem = function (THREE, M) {
     else slotsUsados = q === 1 ? [0] : [0, 1].slice(0, nSlots);
     if (q > nSlots) avisos.push('A placa-mãe tem ' + nSlots + ' slots de memória; mostrei só ' + nSlots + ' pentes.');
     slotsUsados.forEach((si, n) => {
-      const mod = M.memoria(RAM, rgb, fotoDe('memoria-lado', R.ids.memoria));
+      const fotoRam = fotoDe('memoria-lado', R.ids.memoria);
+      const mod = daCache(usarCache, 'ram|' + n + '|' + receita(RAM, rgb, idFoto(fotoRam)), () => M.memoria(RAM, rgb, fotoRam));
       orientar(mod, vdir('frente'), vdir('esquerda'), vdir('baixo'), mbPonto(MB.dimm.x[si], MB.dimm.y, 1.5));
       registrar('memoria-' + n, RAM.nome + ' (slot ' + ['A1', 'A2', 'B1', 'B2'][si] + ')', 'Memória', mod, {
         ignora: ['placaMae'],
@@ -230,7 +280,8 @@ window.PCBMontagem = function (THREE, M) {
     const zonaRadId = cfgC.local;
     const zonaRad = G.montagens[zonaRadId];
     const bombaPos = mbPonto(MB.soquete.x, MB.soquete.y, 9);
-    const bomba = M.bomba(CL.bomba, CL.cor, rgb, CL.estilo, fotoDe('bomba-topo', R.ids.cooler));
+    const fotoBomba = fotoDe('bomba-topo', R.ids.cooler);
+    const bomba = daCache(usarCache, 'bomba|' + receita(CL.bomba, CL.cor, rgb, CL.estilo, idFoto(fotoBomba)), () => M.bomba(CL.bomba, CL.cor, rgb, CL.estilo, fotoBomba));
     orientar(bomba, vdir('frente'), vdir('cima'), vdir('esquerda'), bombaPos, 'y');
     const massaCL = CL.massa || {};
     const clEst = !CL.massa || (CL.estimado || []).includes('massa');
@@ -254,7 +305,7 @@ window.PCBMontagem = function (THREE, M) {
       const Tr = CL.radiador.espessura, Tf = R.coolerFan.espessura;
       const naFrente = cfgC.fansPosicao === 'painel';
       const radOff = naFrente ? Tf : 0, fanOff = naFrente ? 0 : Tr;
-      const rad = M.radiador(CL.radiador, CL.cor, R.coolerFan.tamanho, CL.estilo);
+      const rad = daCache(usarCache, 'rad|' + receita(CL.radiador, CL.cor, R.coolerFan.tamanho, CL.estilo), () => M.radiador(CL.radiador, CL.cor, R.coolerFan.tamanho, CL.estilo));
       const sentido = (Number(cfgC.tubos) || 1) >= 0 ? 1 : -1;
       const radX = a.clone().multiplyScalar(sentido);
       orientar(rad, radX, new THREE.Vector3().crossVectors(k, radX), k, c.clone().addScaledVector(k, radOff + Tr / 2), 'y');
@@ -270,7 +321,8 @@ window.PCBMontagem = function (THREE, M) {
       const saida = cfgC.fluxo !== 'entrada';
       const ar = n.clone().multiplyScalar(saida ? 1 : -1);
       for (let i = 0; i < CL.fans.quantidade; i++) {
-        const f = M.fan(R.coolerFan, { rgb, setaCor: saida ? COR_SAIDA : COR_ENTRADA, fotoCubo: fotoDe('fan-cubo', R.ids.coolerFan) });
+        const fotoCuboRad = fotoDe('fan-cubo', R.ids.coolerFan), setaRad = saida ? COR_SAIDA : COR_ENTRADA;
+        const f = daCache(usarCache, 'fanRad|' + i + '|' + receita(R.coolerFan, rgb, setaRad, idFoto(fotoCuboRad)), () => M.fan(R.coolerFan, { rgb, setaCor: setaRad, fotoCubo: fotoCuboRad }));
         const centro = c.clone().addScaledVector(a, (i - (CL.fans.quantidade - 1) / 2) * R.coolerFan.tamanho);
         posicionarFan(f, centro, k, fanOff, Tf, ar, a);
         registrar('fanRad-' + i, R.coolerFan.nome + ' (radiador ' + (i + 1) + ')', 'Watercooler', f, {
@@ -296,7 +348,7 @@ window.PCBMontagem = function (THREE, M) {
         const meio = p1.clone().lerp(p3, 0.5);
         meio.x = Math.min(meio.x, faceX - 60 - i * 14);
         const pts = [A.pos, p1, meio, p3, B.pos];
-        const mTubo = M.tubo(pts, 6.2, CL.cor, null, CL.cor);
+        const mTubo = daCache(usarCache, 'tubo|' + i + '|' + receitaR(pts, CL.cor), () => M.tubo(pts, 6.2, CL.cor, null, CL.cor));
         tubos.add(mTubo);
         // na física a mangueira vira uma corda: segura a bomba e se redesenha entre as conexões
         ligacoes.push({
@@ -324,7 +376,8 @@ window.PCBMontagem = function (THREE, M) {
     /* ---------- fonte ---------- */
     const PSU = R.fonte;
     const F = G.fonte;
-    const fonte = M.fonte(PSU, fotoDe('fonte-lado', R.ids.fonte));
+    const fotoFonte = fotoDe('fonte-lado', R.ids.fonte);
+    const fonte = daCache(usarCache, 'fonte|' + receita(PSU, idFoto(fotoFonte)), () => M.fonte(PSU, fotoFonte));
     orientar(fonte, vdir(F.larguraPara), vdir(F.ventoinhaPara), vdir(F.comprimentoPara), Q.p(F.ancora.x, F.ancora.y, F.ancora.z));
     registrar('fonte', PSU.nome, 'Fonte', fonte, {
       ignora: ['caixaFonte'],
@@ -360,9 +413,8 @@ window.PCBMontagem = function (THREE, M) {
     f0.quantidade = Math.max(0, Math.min(3, Math.round(Number(f0.quantidade)) || 0));
     f0.espacamento = Math.max(0, Math.min(60, Number(f0.espacamento) || 0));
     f0.deslocamento = Math.max(-120, Math.min(120, Number(f0.deslocamento) || 0));
-    const gpu = M.placaDeVideo(GPU, cfgGpu, R.gpuFan, rgb, {
-      frente: fotoDe('gpu-frente', R.ids.gpu), borda: fotoDe('gpu-borda', R.ids.gpu), backplate: fotoDe('gpu-backplate', R.ids.gpu), cubo: fotoDe('fan-cubo', R.ids.gpuFan)
-    });
+    const fotosGpu = { frente: fotoDe('gpu-frente', R.ids.gpu), borda: fotoDe('gpu-borda', R.ids.gpu), backplate: fotoDe('gpu-backplate', R.ids.gpu), cubo: fotoDe('fan-cubo', R.ids.gpuFan) };
+    const gpu = daCache(usarCache, 'gpu|' + receita(GPU, cfgGpu, R.gpuFan, rgb, Object.values(fotosGpu).map(idFoto)), () => M.placaDeVideo(GPU, cfgGpu, R.gpuFan, rgb, fotosGpu));
     const slotY = topoY - slot0.y;
     const gv = G.gpuVertical;
     const num = (v) => (v == null || v === '' ? NaN : Number(v));
@@ -427,6 +479,7 @@ window.PCBMontagem = function (THREE, M) {
       raiz.add(conMB);
       conMB.updateMatrixWorld(true);
       mb.attach(conMB);
+      conMB.userData.anexo = true; // sai da placa-mãe guardada no cache antes da próxima montagem
       conMB.traverse((o) => { o.userData.parteId = 'placaMae'; });
       const nMBr = mb.localToWorld(new THREE.Vector3(0, 0, 1)).sub(mb.localToWorld(new THREE.Vector3(0, 0, 0))).normalize();
       const baixoGpu = gpu.localToWorld(new THREE.Vector3(0, -1, 0)).sub(gpu.localToWorld(new THREE.Vector3(0, 0, 0))).normalize();
@@ -458,6 +511,10 @@ window.PCBMontagem = function (THREE, M) {
         if (cabos) registrar('cabos', 'Cabos da fonte', 'Fonte', cabos, { colide: false, massa: MASSA_CABOS[modoCabos] || 600, massaEstimada: true, info: { notas: 'Traçado ilustrativo: 24 pinos, 2× EPS de 8 pinos e 12V-2x6 da placa de vídeo. Os cabos passam por trás da bandeja pelos recortes de borracha.' } });
       } catch (e) { avisos.push('Não consegui desenhar os cabos: ' + e.message); }
     }
+    // chicotes que não mudaram (ex.: 24 pinos quando só a GPU se mexe) são reaproveitados
+    function chicote(pts, cfg) {
+      return daCache(usarCache, 'cabo|' + receitaR(pts, cfg), () => CABOS.chicote(pts, cfg));
+    }
     function montarCabos() {
       const g = new THREE.Group();
       raiz.updateMatrixWorld(true);
@@ -477,7 +534,7 @@ window.PCBMontagem = function (THREE, M) {
       // 24 pinos: da fonte direto ao conector na borda da frente da placa
       const t24 = tomada(0, 2);
       const c24 = mbPonto(MB.largura - 6, MB.altura * 0.3 + 26, 16);
-      g.add(CABOS.chicote([
+      g.add(chicote([
         t24.pos.clone().addScaledVector(t24.dir, 11), t24.pos.clone().addScaledVector(t24.dir, 42),
         c24.clone().addScaledVector(nMB, 48).addScaledVector(zMB, 14), c24.clone().addScaledVector(nMB, 13)
       ], Object.assign({}, cfgBase, { fileiras: 2, fios: 12, largIni: t24.larg, largFim: V(0, 1, 0) })));
@@ -489,7 +546,7 @@ window.PCBMontagem = function (THREE, M) {
         const ce = mbPonto(xb, 7.5, 13);
         const zT = ce.z + 22;
         const yG = topoY - 45 - k * 18;
-        g.add(CABOS.chicote([
+        g.add(chicote([
           t.pos.clone().addScaledVector(t.dir, 11), t.pos.clone().addScaledVector(t.dir, 34),
           V(dentroX(bandejaX - 16), yG, zG), V(dentroX(bandejaX + 14), yG, zG - 8),
           V(dentroX(bandejaX + 16 + k * 9), yTopo - 16, (zG + zT) / 2), V(dentroX(bandejaX + 14), yTopo, zT + 12),
@@ -504,7 +561,7 @@ window.PCBMontagem = function (THREE, M) {
         const larg = gpu.localToWorld(V(1, 0, 0)).sub(gpu.localToWorld(V(0, 0, 0))).normalize();
         const t = tomada(2, 1);
         const pa = pos.clone().addScaledVector(dir, 34);
-        g.add(CABOS.chicote([
+        g.add(chicote([
           t.pos.clone().addScaledVector(t.dir, 11), t.pos.clone().addScaledVector(t.dir, 40),
           V(dentroX(Math.min(pa.x, faceX - 40)), (pa.y + t.pos.y) / 2 + 20, (pa.z + t.pos.z) / 2),
           pa, pos.clone().addScaledVector(dir, 12)
@@ -544,7 +601,8 @@ window.PCBMontagem = function (THREE, M) {
         if (!fid) continue;
         const fs = cat.fans[fid];
         if (!fs) { avisos.push('Fan “' + fid + '” não existe no catálogo.'); continue; }
-        const f = M.fan(fs, { rgb, setaCor: saida ? COR_SAIDA : COR_ENTRADA, fotoCubo: fotoDe('fan-cubo', fid) });
+        const fotoCubo = fotoDe('fan-cubo', fid), setaFan = saida ? COR_SAIDA : COR_ENTRADA;
+        const f = daCache(usarCache, 'fan|' + zid + ':' + i + '|' + receita(fs, rgb, setaFan, idFoto(fotoCubo)), () => M.fan(fs, { rgb, setaCor: setaFan, fotoCubo }));
         const centro = c.clone().addScaledVector(a, (i - (nV - 1) / 2) * tam);
         posicionarFan(f, centro, k, 0, fs.espessura, ar, a);
         const id = 'fan:' + zid + ':' + i;
@@ -652,11 +710,13 @@ window.PCBMontagem = function (THREE, M) {
       const zc = Q.Z(zl.centro.z);
       suporteLateral = { x: Q.X(zl.centro.x), z0: Math.max(Q.Z(G.bandeja.ateZ) + 2, zc - 88), z1: Math.min(interior.max.z - 2, zc + 88), y0: interior.min.y + 2, y1: Math.min(caixaFonte.min.y - 2, zl.centro.y + 92) };
     }
-    const caso = M.gabinete(G, Q, (build.gabinete && build.gabinete.cor) || G.cor, {
+    const corGab = (build.gabinete && build.gabinete.cor) || G.cor;
+    const extrasGab = {
       furosTraseira, tampasSlot, tampasVerticais, furosBandeja, traseiraGrade, suporteLateral,
       bandejaMundoX: bandejaX, bandejaAteZ: bandejaAte,
       caixaFonte: { box: caixaFonte, faces: facesFonte }
-    });
+    };
+    const caso = daCache(usarCache, 'gab|' + receita(G, corGab, extrasGab), () => M.gabinete(G, Q, corGab, extrasGab));
     const pCaixa = partes.find((p) => p.id === 'caixaFonte');
     if (pCaixa && caso.caixaFonte) {
       pCaixa.obj = caso.caixaFonte;
@@ -689,8 +749,9 @@ window.PCBMontagem = function (THREE, M) {
     /* ---------- menos chamadas de desenho ---------- */
     if (opts.fundir !== false) {
       for (const p of caso.paineis) p.obj.userData.naoFundir = true;
-      for (const p of partes) if (p.obj) fundirMalhas(p.obj);
+      for (const p of partes) if (p.obj && !p.obj.userData.fundido) { fundirMalhas(p.obj); if (p.obj.userData.daCache) p.obj.userData.fundido = true; }
     }
+    if (usarCache) despejarCache();
 
     /* ---------- vagas de fan (para o site mostrar onde dá para colocar) ---------- */
     const vagas = [];
@@ -886,14 +947,18 @@ window.PCBMontagem = function (THREE, M) {
   }
 
   /* Libera a memória da GPU ocupada por uma montagem antiga. */
-  function descartar(obj) {
-    obj.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
+  function descartar(obj, forcar) {
+    (function rec(o) {
+      if (!forcar && o.userData.daCache) return; // continua guardada no cache (pode ser reusada)
+      if (o.geometry && !o.geometry.userData.compartilhado) o.geometry.dispose();
       if (o.isInstancedMesh) o.dispose();
       const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
       for (const m of ms) if (!m.userData.cacheado) m.dispose();
-    });
+      for (const c of o.children) rec(c);
+    })(obj);
   }
+  // esvazia o cache (ex.: trocar a qualidade das texturas)
+  function limparCache() { geracao++; despejarCache(); }
 
-  return { montar, resolver, quadro, cfmDe, lerCaminho, gravarCaminho, vagasDaZona, tamanhosDaZona, descartar, CORES: { entrada: COR_ENTRADA, saida: COR_SAIDA } };
+  return { montar, resolver, quadro, cfmDe, lerCaminho, gravarCaminho, vagasDaZona, tamanhosDaZona, descartar, limparCache, CORES: { entrada: COR_ENTRADA, saida: COR_SAIDA } };
 };
