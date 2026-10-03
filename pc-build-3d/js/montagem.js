@@ -245,6 +245,25 @@ window.PCBMontagem = function (THREE, M) {
 
     /* ---------- placa-mãe ---------- */
     const MB = R.placaMae;
+    const RAM = R.memoria;
+    const q = Math.max(1, Math.min(4, (build.memoria && build.memoria.quantidade) | 0 || 2));
+    const nSlots = MB.dimm.x.length;
+    let slotsUsados;
+    if (nSlots >= 4) slotsUsados = q === 1 ? [1] : q === 2 ? [1, 3] : q === 3 ? [0, 1, 3] : [0, 1, 2, 3];
+    else slotsUsados = q === 1 ? [0] : [0, 1].slice(0, nSlots);
+    // vão medido na máquina entre a lateral da bomba e o 1º pente: corrige a posição dos
+    // slots (estimada no catálogo) em relação ao soquete, antes de desenhar a placa
+    const vaoBomba = Number(build.memoria && build.memoria.vaoBomba);
+    let vaoBombaInfo = null;
+    if (vaoBomba > 0 && R.cooler && R.cooler.bomba && MB.soquete) {
+      const s0 = Math.min(...slotsUsados);
+      const atualVao = MB.dimm.x[s0] - (RAM.espessura || 7) / 2 - (MB.soquete.x + R.cooler.bomba.largura / 2);
+      let d = vaoBomba - atualVao;
+      const limite = MB.largura - 8 - Math.max(...MB.dimm.x);
+      if (d > limite) { avisos.push('Com ' + fmt(vaoBomba) + ' mm entre a bomba e o 1º pente, os slots passariam da borda da placa; usei o máximo que cabe.'); d = limite; }
+      MB.dimm = Object.assign({}, MB.dimm, { x: MB.dimm.x.map((x) => x + d) });
+      vaoBombaInfo = { medido: vaoBomba, estimado: atualVao, ajuste: d };
+    }
     const bandejaX = Q.X(G.bandeja.x);
     const faceX = Q.X(G.bandeja.x + G.placaMae.standoff + MB.espessura);
     const topoY = G.placaMae.topoY;
@@ -261,12 +280,6 @@ window.PCBMontagem = function (THREE, M) {
     });
 
     /* ---------- memórias ---------- */
-    const RAM = R.memoria;
-    const q = Math.max(1, Math.min(4, (build.memoria && build.memoria.quantidade) | 0 || 2));
-    const nSlots = MB.dimm.x.length;
-    let slotsUsados;
-    if (nSlots >= 4) slotsUsados = q === 1 ? [1] : q === 2 ? [1, 3] : q === 3 ? [0, 1, 3] : [0, 1, 2, 3];
-    else slotsUsados = q === 1 ? [0] : [0, 1].slice(0, nSlots);
     if (q > nSlots) avisos.push('A placa-mãe tem ' + nSlots + ' slots de memória; mostrei só ' + nSlots + ' pentes.');
     slotsUsados.forEach((si, n) => {
       const fotoRam = fotoDe('memoria-lado', R.ids.memoria);
@@ -334,7 +347,8 @@ window.PCBMontagem = function (THREE, M) {
     const zonaRad = G.montagens[zonaRadId];
     const bombaPos = mbPonto(MB.soquete.x, MB.soquete.y, 9);
     const fotoBomba = fotoDe('bomba-topo', R.ids.cooler);
-    const bomba = daCache(usarCache, 'bomba|' + receita(CL.bomba, CL.cor, rgb, CL.estilo, idFoto(fotoBomba)), () => M.bomba(CL.bomba, CL.cor, rgb, CL.estilo, fotoBomba));
+    const saidaBomba = ['frente', 'cima', 'tras', 'baixo'].includes(cfgC.saidaBomba) ? cfgC.saidaBomba : 'frente';
+    const bomba = daCache(usarCache, 'bomba|' + receita(CL.bomba, CL.cor, rgb, CL.estilo, idFoto(fotoBomba), saidaBomba), () => M.bomba(CL.bomba, CL.cor, rgb, CL.estilo, fotoBomba, saidaBomba));
     orientar(bomba, vdir('frente'), vdir('cima'), vdir('esquerda'), bombaPos, 'y');
     const massaCL = CL.massa || {};
     const clEst = !CL.massa || (CL.estimado || []).includes('massa');
@@ -918,8 +932,23 @@ window.PCBMontagem = function (THREE, M) {
       }
       if (!dentro.isEmpty()) {
         const pen = Math.min(dentro.max.x - dentro.min.x, dentro.max.y - dentro.min.y, dentro.max.z - dentro.min.z);
-        folgas.push({ nome: 'Mangueiras do watercooler passam onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'tubos'], regiao: dentro,
+        folgas.push({ nome: 'Mangueiras do watercooler passam onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'tubos'], regiao: dentro, rotulo: 'Mangueira × cooler da memória',
           dica: 'No app as mangueiras saem da bomba por cima dos pentes (traçado ilustrativo). Com o cooler elas precisam desviar: girar as conexões da bomba para cima ou para trás, ou passar as mangueiras por fora do cooler.' });
+      }
+      // cabos da fonte (24 pinos sai do lado dos pentes): flexíveis, mas precisam de caminho
+      const pCabos = partes.find((p) => p.id === 'cabos');
+      if (pCabos && pCabos.obj) {
+        const noCooler = new THREE.Box3();
+        pCabos.obj.traverse((o) => {
+          if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+          const pos = o.geometry.attributes.position;
+          for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); if (bCR.containsPoint(v)) noCooler.expandByPoint(v); }
+        });
+        if (!noCooler.isEmpty()) {
+          const pen = Math.min(noCooler.max.x - noCooler.min.x, noCooler.max.y - noCooler.min.y, noCooler.max.z - noCooler.min.z);
+          folgas.push({ nome: 'O cabo de 24 pinos passa onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'cabos'], regiao: noCooler, rotulo: 'Cabo 24 pinos × cooler da memória',
+            dica: 'O 24 pinos sai da placa logo ao lado dos pentes e sobe na altura do cooler. É flexível: dá para dobrar o cabo para longe, ou usar um adaptador de 24 pinos em 90° (sai rente à placa).' });
+        }
       }
     }
     if (radInfo) {
@@ -999,7 +1028,8 @@ window.PCBMontagem = function (THREE, M) {
       raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo, massas, ligacoes,
       radInfo, riserInfo, vertical, distancia, altura, vagas,
       contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, fansMemoria: coolerRam ? (CM.fans.quantidade || 2) : 0, pentes: slotsUsados.length },
-      coolerRam: infoCoolerRam
+      coolerRam: infoCoolerRam,
+      vaoBomba: vaoBombaInfo
     };
   }
 

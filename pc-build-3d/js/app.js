@@ -89,7 +89,7 @@ window.PCBApp = (function () {
     if (b.fans && typeof b.fans === 'object' && !Array.isArray(b.fans)) out.fans = b.fans;
     if (b.medidas && typeof b.medidas === 'object') out.medidas = b.medidas;
     // números inválidos (texto, vazio, null) voltam ao valor padrão
-    for (const c of ['memoria.quantidade', 'memoria.cooler.deslocamento', 'refrigeracao.tubos', 'refrigeracao.deslocamento', 'gpu.distanciaBandeja', 'gpu.alturaDoChao', 'gpu.fans.quantidade', 'gpu.fans.espacamento', 'gpu.fans.deslocamento']) {
+    for (const c of ['memoria.quantidade', 'memoria.vaoBomba', 'memoria.cooler.deslocamento', 'refrigeracao.tubos', 'refrigeracao.deslocamento', 'gpu.distanciaBandeja', 'gpu.alturaDoChao', 'gpu.fans.quantidade', 'gpu.fans.espacamento', 'gpu.fans.deslocamento']) {
       const v = ler(out, c);
       gravar(out, c, v !== null && v !== '' && isFinite(Number(v)) ? Number(v) : ler(PADRAO, c));
     }
@@ -1654,6 +1654,9 @@ window.PCBApp = (function () {
       cartaoPeca(S.memoria, q + '× ' + R.memoria.nome, R.memoria.capacidade * q + ' GB · ' + fmt(R.memoria.altura) + ' mm de altura', est.memoria, itens.memoria, [
         campoSelect('s-ram', 'memoria.modelo', 'Modelo', opcoes(CAT.memorias, b.memoria.modelo)),
         campoSeg('Quantidade de pentes', seg('memoria.quantidade', b.memoria.quantidade, [[1, '1'], [2, '2'], [4, '4']], 'Quantidade de pentes', true)),
+        slider('r-ram-vao', 'memoria.vaoBomba', Number(b.memoria.vaoBomba) || 0, 0, 40, 0.5, 'Vão medido: lateral da bomba → 1º pente (0 = estimado)'),
+        '<p class="nota">Meça com régua, na altura do topo dos pentes, da lateral da bomba até a face do pente mais perto dela. ' +
+          (atual && atual.vaoBomba ? 'Pelo layout estimado da placa daria ' + fmt(atual.vaoBomba.estimado, 1) + ' mm; os slots foram movidos ' + fmt(Math.abs(atual.vaoBomba.ajuste), 1) + ' mm.' : 'Em 0, vale a posição estimada dos slots.') + '</p>',
         camposCoolerRam('s-ramc', 'r-ramc-desl'),
         blocoFotos('memoria'),
         blocoMedidas('memoria', R.ids.memoria)
@@ -1666,6 +1669,7 @@ window.PCBApp = (function () {
         campoSeg('Fluxo dos fans do radiador', seg('refrigeracao.fluxo', b.refrigeracao.fluxo, [['saida', 'Saída (exaustão)'], ['entrada', 'Entrada']], 'Fluxo dos fans do radiador')),
         campoSeg('Fans do radiador', seg('refrigeracao.fansPosicao', b.refrigeracao.fansPosicao, [['dentro', 'Entre radiador e placa'], ['painel', 'Colados no painel']], 'Posição dos fans do radiador')),
         campoSeg('Mangueiras saem', seg('refrigeracao.tubos', b.refrigeracao.tubos, tubosItens, 'Lado das mangueiras', true)),
+        campoSeg('Conexões na bomba apontam', seg('refrigeracao.saidaBomba', b.refrigeracao.saidaBomba || 'frente', [['cima', 'Para cima'], ['frente', 'Para a RAM'], ['tras', 'Para trás'], ['baixo', 'Para baixo']], 'Lado da bomba de onde saem as mangueiras')),
         slider('r-aio-desl', 'refrigeracao.deslocamento', Math.max(-lim, Math.min(lim, b.refrigeracao.deslocamento || 0)), -lim, lim, 1, 'Deslocar o radiador ao longo da posição'),
         blocoFotos('cooler'),
         blocoMedidas('cooler', R.ids.cooler)
@@ -2086,6 +2090,7 @@ window.PCBApp = (function () {
       'refrigeracao.fluxo': () => 'Fans do radiador em ' + (v === 'saida' ? 'saída' : 'entrada'),
       'refrigeracao.fansPosicao': () => v === 'painel' ? 'Fans do radiador colados no painel' : 'Fans do radiador entre radiador e placa',
       'refrigeracao.tubos': () => 'Lado das mangueiras invertido',
+      'refrigeracao.saidaBomba': () => 'Conexões da bomba ' + ({ cima: 'para cima', frente: 'para a RAM', tras: 'para trás', baixo: 'para baixo' }[v] || v),
       'fonte.modelo': () => 'Fonte: ' + nomeEm('fontes', v),
       'fonte.cabos': () => 'Cabos: ' + ((OPCOES_CABOS.find((o) => o[0] === v) || [0, v])[1]).toLowerCase(),
       'gpu.modelo': () => 'Placa de vídeo: ' + nomeEm('gpus', v),

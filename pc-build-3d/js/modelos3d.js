@@ -566,7 +566,8 @@ window.PCBModelos = function (THREE) {
 
   /* ---------------- BOMBA (bloco do watercooler) ----------------
    * Local: centrada em XY sobre a CPU; Z sobe a partir do topo da CPU.  */
-  function bomba(spec, cor, rgb, estilo, fotoTopo) {
+  // saida: lado de onde saem as mangueiras — 'frente' (para os pentes), 'cima', 'tras' ou 'baixo'
+  function bomba(spec, cor, rgb, estilo, fotoTopo, saida = 'frente') {
     const w = spec.largura, d = spec.profundidade, h = spec.altura;
     const g = new THREE.Group();
     const aorus = estilo === 'aorus-waterforce';
@@ -626,25 +627,33 @@ window.PCBModelos = function (THREE) {
       logo.position.z = h + 0.3;
       g.add(logo);
     }
-    // conexões giratórias de 90° (cotovelos) saindo pela lateral
+    // conexões giratórias de 90° (cotovelos) saindo por uma lateral: desenhadas no lado +x
+    // e giradas em volta do eixo da bomba para o lado escolhido
+    const ang = { frente: 0, cima: Math.PI / 2, tras: Math.PI, baixo: -Math.PI / 2 }[saida] || 0;
+    const giro = new THREE.Matrix4().makeRotationZ(ang);
+    const lado = new THREE.Group();
+    lado.rotation.z = ang;
+    // a bomba é quadrada (largura = profundidade); num lado ±y a distância é d/2
+    const meio = Math.abs(Math.sin(ang)) > 0.5 ? d / 2 : w / 2;
     const portas = [];
     for (const y of [-12, 12]) {
       const base = cilindro(5.6, 6, corpoMat, 24);
       base.rotation.z = Math.PI / 2;
-      base.position.set(w / 2 + 2, y, h * 0.62);
-      g.add(base);
+      base.position.set(meio + 2, y, h * 0.62);
+      lado.add(base);
       const aro = new THREE.Mesh(new THREE.TorusGeometry(5.5, 0.7, 8, 24), cromo);
       aro.rotation.y = Math.PI / 2;
-      aro.position.set(w / 2 + 5, y, h * 0.62);
-      g.add(aro);
+      aro.position.set(meio + 5, y, h * 0.62);
+      lado.add(aro);
       const p = cilindro(5, 9, corpoMat, 20);
       p.rotation.z = Math.PI / 2;
-      p.position.set(w / 2 + 9, y, h * 0.62);
-      g.add(p);
-      portas.push({ pos: new THREE.Vector3(w / 2 + 13, y, h * 0.62), dir: new THREE.Vector3(1, 0, 0) });
+      p.position.set(meio + 9, y, h * 0.62);
+      lado.add(p);
+      portas.push({ pos: new THREE.Vector3(meio + 13, y, h * 0.62).applyMatrix4(giro), dir: new THREE.Vector3(1, 0, 0).applyMatrix4(giro) });
     }
+    g.add(lado);
     g.userData.portas = portas;
-    g.userData.colisores = [box3(-w / 2, w / 2, -d / 2, d / 2, 0, h), box3(w / 2, w / 2 + 12, -18, 18, h * 0.62 - 6, h * 0.62 + 6)];
+    g.userData.colisores = [box3(-w / 2, w / 2, -d / 2, d / 2, 0, h), box3(meio, meio + 12, -18, 18, h * 0.62 - 6, h * 0.62 + 6).applyMatrix4(giro)];
     return g;
   }
 

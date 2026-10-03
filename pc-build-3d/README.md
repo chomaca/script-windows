@@ -46,10 +46,19 @@ para escolher a fixação (clipes, suporte, ou suporte com adaptador 6-32, que s
 deslocar o cooler atravessando os slots e desligar o RGB (cabo ARGB de 3 pinos solto; os
 fans seguem no cabo de 4 pinos). Escolha **Nenhum** para tirar.
 
-Na build padrão ele **encosta na bomba do AORUS** (~12 mm: o cooler tem 60 mm de largura e
-sobra ~15 mm para o lado do processador, na mesma altura da bomba) e as mangueiras passam
-onde ele fica. A posição do soquete e dos slots da placa é estimada: confira na máquina a
-distância entre a lateral da bomba e o primeiro slot de memória — com menos de ~15 mm, bate.
+Centrado nos 4 slots, ele avança **22,5 mm além da face do 1º pente** na direção da bomba
+(tem 60 mm de largura e fica de 38 a 63 mm acima da placa, a mesma altura da bomba). Então:
+
+- **Vão medido (lateral da bomba → 1º pente)**, na seção Memória: meça com régua na sua
+  máquina e ajuste — o app reposiciona os slots (o layout da placa é estimado). O padrão
+  é 16 mm, estimado pela foto da build: com isso o cooler centrado **encosta ~6,5 mm** na
+  bomba; deslocado ~8 mm para longe do processador fica com ~1,5 mm de folga (se os clipes
+  deixarem). Com um vão de 23 mm ou mais ele cabe centrado.
+- **Conexões na bomba** (seção Watercooler): para cima, para a RAM, para trás ou para baixo.
+  Na foto o lado da bomba virado para os pentes é liso, então o padrão é "para cima", com as
+  conexões do radiador na ponta de trás.
+- O **cabo de 24 pinos** sai ao lado dos pentes e passa na altura do cooler: é flexível, mas
+  precisa ser dobrado para longe (ou usar um adaptador de 24 pinos em 90°).
 
 ### Atenção com a fonte
 
