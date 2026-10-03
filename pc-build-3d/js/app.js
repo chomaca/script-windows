@@ -1222,9 +1222,10 @@ window.PCBApp = (function () {
       fundo = true;
     }
     if (fis.ativo && fis.sim) {
-      // peças em movimento contam como interação: AO e resolução cedem até tudo assentar
-      if (fis.sim.passo(dt)) { atualizarVisuaisFisica(); sujarSombra(); interagindo(); pedido = true; }
-      else if (fis.ponteiro != null) interagindo();
+      // queda, batida e peça na mão contam como interação (AO e resolução cedem); peça só
+      // assentando redesenha sem apagar o AO (senão ele piscaria a cada tremidinha)
+      if (fis.sim.passo(dt)) { atualizarVisuaisFisica(); sujarSombra(); pedido = true; if (fis.sim.agitado()) interagindo(); }
+      if (fis.ponteiro != null) interagindo();
       if (agora - fis.ultimoTexto > 250) { fis.ultimoTexto = agora; textoFisica(); }
     }
     // simulação do ar: o tempo acumula e ela só anda nos quadros que vão ser desenhados

@@ -216,10 +216,13 @@ window.PCBFisica = function (THREE, CANNON) {
     }
     const wA = new CANNON.Vec3(), wB = new CANNON.Vec3(), dAB = new CANNON.Vec3(), rA = new CANNON.Vec3(), rB = new CANNON.Vec3();
     const vPA = new CANNON.Vec3(), vPB = new CANNON.Vec3(), forca = new CANNON.Vec3();
+    const acordado = (b) => b.type === DINAMICO && b.sleepState !== CANNON.Body.SLEEPING;
     function puxarCordas() {
       for (const k of cordas) {
         const A = k.ca.body, B = k.cb.body;
-        if (A.type !== DINAMICO && B.type !== DINAMICO) continue;
+        // sem ponta acordada a corda não puxa (applyForce acordaria a peça já assentada,
+        // pendurada na mangueira, e ela nunca mais dormia)
+        if (!acordado(A) && !acordado(B)) continue;
         A.pointToWorldFrame(k.pa, wA);
         B.pointToWorldFrame(k.pb, wB);
         wB.vsub(wA, dAB);
@@ -417,7 +420,7 @@ window.PCBFisica = function (THREE, CANNON) {
     }
 
     /* ---------- passo ---------- */
-    let acumulado = 0, nPasso = 0;
+    let acumulado = 0, nPasso = 0, agitado = false;
     const contatos = [];
     const tmpC = new CANNON.Vec3();
     function passo(dt) {
@@ -429,6 +432,7 @@ window.PCBFisica = function (THREE, CANNON) {
         moverMao(PASSO);
         puxarCordas();
         world.step(PASSO);
+        assentar();
         acumulado -= PASSO;
         n++;
         if (arrasto) limitar(arrasto.c.body, 2, 5);
@@ -439,8 +443,27 @@ window.PCBFisica = function (THREE, CANNON) {
       acumulado = Math.min(acumulado, PASSO * 2); // PC lento: a simulação fica mais lenta, sem acumular atraso
       sincronizar();
       redesenharCordas();
-      return mexeu || corpos.some((c) => c.solto && c.body.sleepState !== CANNON.Body.SLEEPING) || !!arrasto;
+      // "agitado": movimento de verdade (queda, batida, gabinete mexendo, peça na mão) — o
+      // app baixa a qualidade enquanto dura; o resto (assentando, tremidinha) só redesenha
+      agitado = mexeu || !!arrasto || corpos.some((c) => c.solto && (c.body.velocity.lengthSquared() > 0.05 * 0.05 || c.body.angularVelocity.lengthSquared() > 0.6 * 0.6));
+      return mexeu || corpos.some((c) => c.solto && !parado(c)) || !!arrasto;
     }
+    // Peça quase parada (< 3 cm/s e < 0,25 rad/s) perde o resto da velocidade em ~0,2 s:
+    // tira o tremor do solver (pente leve encostado em peça pesada, peça pendurada na
+    // mangueira) e deixa ela dormir. Queda, batida e escorregão não são afetados.
+    const REPOUSO = { v: 0.03, w: 0.25, fv: 0.94, fw: 0.9 };
+    function assentar() {
+      for (const c of corpos) {
+        const b = c.body;
+        if (!c.solto || b.sleepState === CANNON.Body.SLEEPING || (arrasto && arrasto.c === c)) continue;
+        if (b.velocity.lengthSquared() < REPOUSO.v * REPOUSO.v && b.angularVelocity.lengthSquared() < REPOUSO.w * REPOUSO.w) {
+          b.velocity.scale(REPOUSO.fv, b.velocity);
+          b.angularVelocity.scale(REPOUSO.fw, b.angularVelocity);
+        }
+      }
+    }
+    // parada para o olho: dormindo, ou tão lenta que não muda nada na tela (< 4 mm/s, < 0,04 rad/s)
+    const parado = (c) => c.body.sleepState === CANNON.Body.SLEEPING || (c.body.velocity.lengthSquared() < 0.004 * 0.004 && c.body.angularVelocity.lengthSquared() < 0.04 * 0.04);
     // teto de velocidade (m/s) e rotação (rad/s) da peça na mão
     function limitar(b, vMax, wMax) {
       const v = b.velocity.length(), w = b.angularVelocity.length();
@@ -525,7 +548,7 @@ window.PCBFisica = function (THREE, CANNON) {
       const soltos = corpos.filter((c) => c.solto);
       return {
         soltos: soltos.length,
-        parados: soltos.filter((c) => c.body.sleepState === CANNON.Body.SLEEPING).length,
+        parados: soltos.filter(parado).length,
         pecas: corpos.filter((c) => !c.fixo).length,
         contatos: contatos.length,
         maiorImpacto,
@@ -535,7 +558,7 @@ window.PCBFisica = function (THREE, CANNON) {
     }
 
     return {
-      passo, soltar: (id) => soltar(corpos.find((c) => c.id === idDe(id))), soltarTudo, pegar: (id, p) => pegar(idDe(id), p), mover, largar, pontoArrasto,
+      passo, agitado: () => agitado, soltar: (id) => soltar(corpos.find((c) => c.id === idDe(id))), soltarTudo, pegar: (id, p) => pegar(idDe(id), p), mover, largar, pontoArrasto,
       chacoalhar, inclinar, remontar, descartar, estado, contatos, batidas, cordas, arrastando: () => !!arrasto, definirParedes, reaplicarOcultos: atualizarDependentes,
       pode: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return !!(c && !c.fixo); },
       nomeDe: (parteId) => { const c = corpos.find((x) => x.id === idDe(parteId)); return c ? c.nome : ''; },
