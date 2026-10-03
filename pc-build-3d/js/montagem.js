@@ -282,6 +282,48 @@ window.PCBMontagem = function (THREE, M) {
       });
     });
 
+    /* ---------- cooler de memória (opcional, por cima dos pentes) ---------- */
+    const cfgCM = (build.memoria && build.memoria.cooler) || {};
+    const CM = cfgCM.modelo ? (cat.coolersMemoria || {})[cfgCM.modelo] : null;
+    if (cfgCM.modelo && !CM) avisos.push('Cooler de memória “' + cfgCM.modelo + '” não está no catálogo.');
+    let coolerRam = null, infoCoolerRam = null;
+    if (CM && slotsUsados.length) {
+      const fix = ['clipes', 'suporte', 'suporte632'].includes(cfgCM.fixacao) ? cfgCM.fixacao : 'clipes';
+      const desl = Math.max(-20, Math.min(30, Number(cfgCM.deslocamento) || 0));
+      const rgbLig = cfgCM.rgb !== 'desligado';
+      // centrado no bloco de slots (cobre os 4 mesmo com 2 pentes) e no comprimento dos pentes;
+      // + desloca atravessando os slots, para longe do processador
+      const xc = (Math.min(...MB.dimm.x) + Math.max(...MB.dimm.x)) / 2 + desl;
+      const topoPentes = 1.5 + RAM.altura;
+      const elev = topoPentes + (CM.folgaPente != null ? CM.folgaPente : 1.5) + (fix === 'suporte632' ? (CM.adaptador632 || 7) : 0);
+      coolerRam = daCache(usarCache, 'coolerRam|' + receita(CM, fix, rgbLig ? rgb : null, RAM.comprimento, fix === 'clipes' ? 0 : elev),
+        () => M.coolerMemoria(CM, { rgb, rgbLigado: rgbLig, fixacao: fix, elevacao: elev, comprimentoPentes: RAM.comprimento }));
+      // eixos da placa no mundo: x da borda traseira para a frente, y para cima, z saindo da placa
+      const eX = new THREE.Vector3(1, 0, 0).transformDirection(mb.matrixWorld);
+      const eY = new THREE.Vector3(0, 1, 0).transformDirection(mb.matrixWorld);
+      const eZ = new THREE.Vector3(0, 0, 1).transformDirection(mb.matrixWorld);
+      orientar(coolerRam, eY.clone().negate(), eX, eZ, mbPonto(xc, MB.dimm.y, elev));
+      const nomeFix = { clipes: 'Clipes nas pontas dos pentes', suporte: 'Suporte com 2 parafusos longos na placa', suporte632: 'Suporte + adaptador 6-32 (+' + (CM.adaptador632 || 7) + ' mm)' }[fix];
+      infoCoolerRam = { fixacao: fix, deslocamento: desl, elevacao: elev, topo: elev + CM.espessura, rgb: rgbLig };
+      registrar('coolerMemoria', CM.nome, 'Memória', coolerRam, {
+        ignora: ['placaMae', 'memoria-*'],
+        massa: CM.massa || 190, massaEstimada: !CM.massa || (CM.estimado || []).includes('massa'),
+        info: {
+          medidas: [
+            ['Tamanho', fmt(CM.comprimento) + ' × ' + fmt(CM.largura) + ' × ' + fmt(CM.espessura) + ' mm'],
+            ['Fixação', nomeFix],
+            ['Altura acima da placa', fmt(elev, 1) + ' a ' + fmt(elev + CM.espessura, 1) + ' mm'],
+            ['Deslocado', desl ? fmt(Math.abs(desl)) + ' mm ' + (desl > 0 ? 'para a frente' : 'para o processador') : 'centrado nos 4 slots'],
+            ['Fans', (CM.fans.quantidade || 2) + '× ' + CM.fans.rpm + ' rpm · ' + String(CM.fans.cfm).replace('.', ',') + ' CFM cada'],
+            ['Ligação', CM.conectores],
+            ['RGB', rgbLig ? 'Ligado' : 'Desligado (cabo ARGB solto)']
+          ],
+          notas: CM.notas, fontes: CM.fontes, estimado: CM.estimado
+        }
+      });
+      if (CM.alturaMaxPente && RAM.altura > CM.alturaMaxPente) avisos.push('Os pentes (' + fmt(RAM.altura, 1) + ' mm) são mais altos que o máximo do ' + CM.nome + ' (' + fmt(CM.alturaMaxPente) + ' mm).');
+    }
+
     // conexões flexíveis (mangueiras, riser): cordas na física
     const ligacoes = [];
 
@@ -839,6 +881,47 @@ window.PCBMontagem = function (THREE, M) {
     });
     const bBomba = uniao((p) => p.id === 'bomba');
     folgas.push({ nome: 'Topo da bomba ↔ vidro lateral', valor: bBomba.min.x - vidroX, minimo: 5, pecas: ['bomba'], regiao: vao(paredeVidro, bBomba, 'x') });
+    // vão entre duas peças quando elas se separam por um único eixo (as que encostam já
+    // aparecem como colisão; as que estão na diagonal estão longe)
+    // vão entre duas peças (cada uma com uma ou mais caixas) quando se separam por um único
+    // eixo; se alguma caixa encosta, quem avisa é a colisão; na diagonal, estão longe
+    const folgaEntre = (nome, as, bs, minimo, pecas, dica) => {
+      let melhor = null;
+      for (const a of as) for (const b of bs) {
+        if (a.isEmpty() || b.isEmpty()) continue;
+        const sep = {};
+        for (const k of ['x', 'y', 'z']) sep[k] = Math.max(b.min[k] - a.max[k], a.min[k] - b.max[k]);
+        const eixos = ['x', 'y', 'z'].filter((k) => sep[k] > 0);
+        if (!eixos.length) return; // encostam
+        if (eixos.length !== 1) continue;
+        const k = eixos[0];
+        if (!melhor || sep[k] < melhor.valor) {
+          const [lo, hi] = a.max[k] <= b.min[k] ? [a, b] : [b, a];
+          melhor = { nome, valor: sep[k], minimo, pecas, regiao: vao(lo, hi, k), dica };
+        }
+      }
+      if (melhor) folgas.push(melhor);
+    };
+    const caixasDe = (id) => { const p = partes.find((x) => x.id === id); return p ? p.caixas : []; };
+    if (coolerRam) {
+      const bCR = uniao((p) => p.id === 'coolerMemoria');
+      folgaEntre('Cooler da memória ↔ bomba do watercooler', caixasDe('coolerMemoria'), caixasDe('bomba'), 3, ['coolerMemoria', 'bomba'], 'Dá para deslocar o cooler para a frente (se os clipes deixarem) ou girar as conexões da bomba.');
+      folgaEntre('Cooler da memória ↔ placa de vídeo', caixasDe('coolerMemoria'), caixasDe('gpu'), 3, ['coolerMemoria', 'gpu']);
+      folgaEntre('Cooler da memória ↔ vidro lateral', [paredeVidro], [bCR], 5, ['coolerMemoria']);
+      // mangueiras (traçado ilustrativo, não entram na colisão): passam por dentro do cooler?
+      raiz.updateMatrixWorld(true);
+      const dentro = new THREE.Box3(), v = new THREE.Vector3();
+      for (const l of ligacoes) {
+        if (l.tipo !== 'mangueira' || !l.obj || !l.obj.geometry) continue;
+        const pos = l.obj.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(l.obj.matrixWorld); if (bCR.containsPoint(v)) dentro.expandByPoint(v); }
+      }
+      if (!dentro.isEmpty()) {
+        const pen = Math.min(dentro.max.x - dentro.min.x, dentro.max.y - dentro.min.y, dentro.max.z - dentro.min.z);
+        folgas.push({ nome: 'Mangueiras do watercooler passam onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'tubos'], regiao: dentro,
+          dica: 'No app as mangueiras saem da bomba por cima dos pentes (traçado ilustrativo). Com o cooler elas precisam desviar: girar as conexões da bomba para cima ou para trás, ou passar as mangueiras por fora do cooler.' });
+      }
+    }
     if (radInfo) {
       const bRad = uniao((p) => p.grupo === 'aio');
       if (G.montagens[radInfo.zona].normal === 'cima') {
@@ -915,7 +998,8 @@ window.PCBMontagem = function (THREE, M) {
     return {
       raiz, partes, paineis: caso.paineis, Q, R, G, avisos, interior, folgas, fluxo, massas, ligacoes,
       radInfo, riserInfo, vertical, distancia, altura, vagas,
-      contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, pentes: slotsUsados.length }
+      contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, fansMemoria: coolerRam ? (CM.fans.quantidade || 2) : 0, pentes: slotsUsados.length },
+      coolerRam: infoCoolerRam
     };
   }
 

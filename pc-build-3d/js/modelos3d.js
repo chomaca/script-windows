@@ -931,6 +931,161 @@ window.PCBModelos = function (THREE) {
     return g;
   }
 
+  /* ---------------- COOLER DE MEMÓRIA (ex.: Thermalright MC-2 ARGB) ----------------
+   * Local: x ao longo dos pentes (comprimento), y atravessando os slots (largura) e
+   * z = espessura: z = 0 é a face de baixo, encostada no topo dos pentes; os fans
+   * puxam o ar do lado do vidro (+z) e sopram nos pentes (−z).
+   * elevacao: altura (mm) da face de baixo acima da placa-mãe — até onde descem os
+   * parafusos do suporte. comprimentoPentes: onde os clipes abraçam as pontas. */
+  function coolerMemoria(spec, { rgb = '#7cc8ff', rgbLigado = true, fixacao = 'clipes', elevacao = 38, comprimentoPentes = 133.35 } = {}) {
+    const C = spec.comprimento, Lg = spec.largura, E = spec.espessura;
+    const g = new THREE.Group();
+    const claro = new THREE.Color(spec.cor || '#16171a').getHSL({ h: 0, s: 0, l: 0 }).l > 0.5;
+    const matCorpo = plastico(spec.cor || '#16171a', 0.58);
+    const matInterno = plastico(claro ? '#cdd0d5' : '#0b0c0e', 0.75);
+    const matPas = plastico(spec.corFans || (claro ? '#f1f2f4' : '#121315'), 0.42, { side: THREE.DoubleSide });
+    const nF = (spec.fans && spec.fans.quantidade) || 2;
+    const rBoca = ((spec.fans && spec.fans.diametro) || 48) / 2;
+    const passo = Math.min(C / nF, rBoca * 2 + 4);
+    const centros = Array.from({ length: nF }, (_, i) => (i - (nF - 1) / 2) * passo);
+    const col = [box3(-C / 2, C / 2, -Lg / 2, Lg / 2, 0, E)];
+
+    // carcaça: bloco 120 × 60 × 25 de cantos arredondados, com as bocas dos fans atravessando
+    // (o chanfro de 0,6 mm fica para dentro: a medida externa é exatamente a do catálogo)
+    const bv = 0.6;
+    const forma = retArredondado(C - 2 * bv, Lg - 2 * bv, 4.5 - bv);
+    for (const cx of centros) forma.holes.push(furoCirculo(cx, 0, rBoca + bv));
+    const casca = extrudar(forma, E - 2 * bv, matCorpo, bv);
+    casca.position.z = bv;
+    g.add(casca);
+
+    // fans: suporte do motor (3 braços) do lado dos pentes e rotor de 7 pás no meio da espessura
+    for (const cx of centros) {
+      const base = cilindro(9.5, 2.4, matInterno, 32);
+      base.rotation.x = Math.PI / 2;
+      base.position.set(cx, 0, 1.6);
+      g.add(base);
+      for (let i = 0; i < 3; i++) {
+        const a = Math.PI / 2 + i * 2 * Math.PI / 3;
+        const braco = caixa(-1.1, 1.1, 9, rBoca + 0.4, 0.4, 2.8, matInterno);
+        const piv = new THREE.Group();
+        piv.position.set(cx, 0, 0);
+        piv.rotation.z = a - Math.PI / 2;
+        piv.add(braco);
+        g.add(piv);
+      }
+      const rotor = new THREE.Group();
+      rotor.position.set(cx, 0, E * 0.52);
+      const cubo = cilindro(8.6, 10, matPas, 40);
+      cubo.rotation.x = Math.PI / 2;
+      rotor.add(cubo);
+      const adesivo = new THREE.Mesh(new THREE.CircleGeometry(7.8, 40), std(claro ? '#d8d3c4' : '#e3d9b0', 0.45, 0.05));
+      adesivo.position.z = 5.05;
+      rotor.add(adesivo);
+      const anelAd = new THREE.Mesh(new THREE.RingGeometry(2.2, 3.1, 32), std('#9c9278', 0.5, 0.1));
+      anelAd.position.z = 5.1;
+      rotor.add(anelAd);
+      for (let i = 0; i < 7; i++) {
+        const pa = new THREE.Mesh(geometriaPa(7.6, rBoca - 1.3, 7, 11, null), matPas);
+        pa.rotation.z = i * 2 * Math.PI / 7;
+        pa.castShadow = true;
+        rotor.add(pa);
+      }
+      rotor.userData.rotor = rotor;
+      g.add(rotor);
+    }
+
+    // luz ARGB: contorno em volta dos dois fans na face de cima, com "cintura" entre eles
+    // (onde fica o logo), e um filete em cada lateral comprida
+    const contorno = (d, alvo) => {
+      const a = C / 2 - 3.5 - d, b = Lg / 2 - 3.5 - d, c = 9 - d * 0.4, w = 5.5, m = 3.5 + d * 0.4, n = 8 - d * 0.4;
+      const pts = [[-a + c, -b], [-n, -b], [-m, -b + w], [m, -b + w], [n, -b], [a - c, -b], [a, -b + c], [a, b - c], [a - c, b], [n, b], [m, b - w], [-m, b - w], [-n, b], [-a + c, b], [-a, b - c], [-a, -b + c]];
+      alvo.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) alvo.lineTo(pts[i][0], pts[i][1]);
+      alvo.closePath();
+      return alvo;
+    };
+    const matLuz = rgbLigado ? luz(rgb, 6) : std(claro ? '#d9dbdf' : '#26272b', 0.4, 0);
+    const faixa = contorno(0, new THREE.Shape());
+    faixa.holes.push(contorno(1.3, new THREE.Path()));
+    const luzTopo = extrudar(faixa, 0.5, matLuz);
+    luzTopo.position.z = E - 0.05;
+    luzTopo.castShadow = false;
+    g.add(luzTopo);
+    const luzes = [luzTopo];
+    for (const sy of [-1, 1]) {
+      const filete = caixa(-C / 2 + 9, C / 2 - 9, sy * (Lg / 2 - 0.2), sy * (Lg / 2 + 0.35), E - 3.6, E - 2.4, matLuz);
+      filete.castShadow = false;
+      g.add(filete);
+      luzes.push(filete);
+    }
+    if (rgbLigado) for (const l of luzes) l.userData.rgb = true;
+
+    // frisos de ventilação nas laterais compridas
+    const nFr = Math.floor((C - 16) / 4.4);
+    const geoFr = new THREE.BoxGeometry(1.1, 0.6, 3.6);
+    const frisos = new THREE.InstancedMesh(geoFr, matInterno, nFr * 2);
+    const mtx = new THREE.Matrix4();
+    let k = 0;
+    for (const sy of [-1, 1]) for (let i = 0; i < nFr; i++) frisos.setMatrixAt(k++, mtx.makeTranslation(-C / 2 + 8 + i * 4.4 + 2.2, sy * (Lg / 2 + 0.02), E * 0.42));
+    g.add(frisos);
+
+    // logo THERMALRIGHT entre os fans, lido de quem olha pelo vidro
+    const texLogo = canvasTex('logoThermalright|' + (claro ? 'c' : 'e'), 512, 64, (ctx, w, h) => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = claro ? '#5b6b85' : '#4f9dff';
+      ctx.fillRect(14, 16, 26, 32);
+      ctx.clearRect(24, 26, 6, 22);
+      ctx.font = '600 40px "Archivo", "Arial Narrow", Arial, sans-serif';
+      ctx.textBaseline = 'middle';
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
+      ctx.fillText('THERMALRIGHT', 52, 34);
+    }, { cor: true });
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(30, 3.75), materialCache('logoTR|' + texLogo.uuid, () => new THREE.MeshStandardMaterial({ map: texLogo, transparent: true, alphaTest: 0.3, roughness: 0.4, metalness: 0.2 })));
+    logo.rotation.z = Math.PI / 2;
+    logo.position.set(0, 0, E + 0.06);
+    g.add(logo);
+
+    if (fixacao === 'clipes') {
+      // clipes nas duas pontas: aba por cima e perna que desce abraçando a ponta dos pentes
+      const ponta = comprimentoPentes / 2;
+      for (const sx of [-1, 1]) {
+        g.add(caixa(sx * (C / 2 - 5), sx * (ponta + 2.2), -11, 11, -0.2, 1.4, matCorpo));
+        g.add(caixa(sx * (ponta + 0.6), sx * (ponta + 2.2), -11, 11, -13, 1.4, matCorpo));
+        g.add(caixa(sx * (ponta - 1.2), sx * (ponta + 0.6), -11, 11, -13, -11.6, matCorpo));
+        col.push(box3(sx * (C / 2 - 5), sx * (ponta + 2.2), -11, 11, -13, 1.4));
+      }
+    } else {
+      // suporte: chapa plana com as bocas dos fans, presa embaixo do cooler (no vão até os
+      // pentes, a luz de cima continua à mostra), com uma aba até 2 parafusos longos que
+      // descem até a placa-mãe
+      const matSup = std(claro ? '#e4e6e9' : '#1b1c1f', 0.45, 0.6);
+      const placa = retArredondado(C + 2, Lg + 2, 5);
+      for (const cx of centros) placa.holes.push(furoCirculo(cx, 0, rBoca + 1));
+      const chapa = extrudar(placa, 1.5, matSup);
+      chapa.position.z = -1.5;
+      g.add(chapa);
+      g.add(caixa(-C / 2 - 1, -C / 2 - 22, -16, 16, -1.5, 0, matSup));
+      const metal = std('#2a2c30', 0.35, 0.8);
+      for (const py of [-10, 10]) {
+        const x = -C / 2 - 14;
+        const poste = cilindro(3, elevacao, metal, 20);
+        poste.rotation.x = Math.PI / 2;
+        poste.position.set(x, py, -elevacao / 2);
+        g.add(poste);
+        const cabeca = cilindro(5.2, 3.6, metal, 24);
+        cabeca.rotation.x = Math.PI / 2;
+        cabeca.position.set(x, py, 1.8);
+        g.add(cabeca);
+      }
+      col.push(box3(-C / 2 - 1, C / 2 + 1, -Lg / 2 - 1, Lg / 2 + 1, -1.5, 0));
+      col.push(box3(-C / 2 - 22, -C / 2 - 1, -16, 16, -elevacao, 3.6));
+    }
+    g.userData.colisores = col;
+    g.userData.medidas = { comprimento: C, largura: Lg, espessura: E };
+    return g;
+  }
+
   /* ---------------- FONTE ----------------
    * Local: X = largura (centrada), Y = altura (centrada, ventoinha em +Y),
    * Z = comprimento (z=0 é a face da tomada AC; z=L é a face modular).  */
@@ -1873,7 +2028,7 @@ window.PCBModelos = function (THREE) {
 
   return {
     std, luz, vidro, tela, caixa, caixaR, geoCaixaR, box3, cilindro, extrudar, retArredondado, seta, materialCache, plastico, liberarFoto,
-    fan, radiador, bomba, placaMae, memoria, fonte, placaDeVideo, placaDeVideoCorpo, placaDeVideoFans, posicionarFansGpu, acoplarFansGpu, riser, riserGeo, tubo, gabinete,
+    fan, radiador, bomba, placaMae, memoria, coolerMemoria, fonte, placaDeVideo, placaDeVideoCorpo, placaDeVideoFans, posicionarFansGpu, acoplarFansGpu, riser, riserGeo, tubo, gabinete,
     layoutPlacaMae, texturas: T
   };
 };

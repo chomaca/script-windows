@@ -147,6 +147,12 @@ window.PCBVerificacao = function () {
 
     // folgas pequenas
     for (const f of res.folgas) {
+      if (f.cruza) {
+        // peça sem colisão (ex.: mangueira) passando por dentro de outra
+        add('aviso', f.nome, (f.dica ? f.dica + ' ' : '') + 'No 3D, o trecho aparece em vermelho.', f.pecas, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.pen }], pen: f.pen } : null);
+        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.pen, tipo: 'colisao', rotulo: 'Mangueira × cooler da memória', pecas: f.pecas });
+        continue;
+      }
       if (f.valor < 0) continue;
       if (f.valor < f.minimo) {
         add('aviso', 'Folga apertada: ' + f.nome, 'Só ' + fmt(f.valor, 1) + ' mm (mínimo recomendado ' + fmt(f.minimo) + ' mm). ' + (f.dica ? f.dica + ' ' : '') + 'No 3D, o vão aparece em amarelo. Confira com a peça em mãos.', f.pecas, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.valor }] } : null);
@@ -156,7 +162,7 @@ window.PCBVerificacao = function () {
 
     // energia
     const cpuPico = Math.round(R.cpu.tdp * 1.35);
-    const resto = 45 + 6 * res.contagem.pentes + 3 * (res.contagem.fansCaso + res.contagem.fansAio + res.contagem.fansGpu) + 10 + 15;
+    const resto = 45 + 6 * res.contagem.pentes + 3 * (res.contagem.fansCaso + res.contagem.fansAio + res.contagem.fansGpu + (res.contagem.fansMemoria || 0)) + 10 + 15;
     const total = cpuPico + GPU.tgp + resto;
     const carga = total / PSU.potencia;
     const detalheEnergia = 'CPU ~' + cpuPico + ' W (PPT) + GPU ' + GPU.tgp + ' W + placa-mãe, memórias, fans e SSD ~' + resto + ' W. A RTX 5090 tem picos rápidos acima do TGP; a NVIDIA recomenda fonte de 1000 W.';

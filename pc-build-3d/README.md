@@ -21,6 +21,7 @@ Não precisa instalar nada.
 | Gabinete | Geometric Future Model 5 Vent | 505 × 242 × 440 (P × L × A) |
 | Placa-mãe | MAXSUN MS-Terminator B850M PRO WIFI (branca) | 245 × 245 (mATX) |
 | Memória | 2× Kingston FURY Beast DDR5 32 GB | 133,35 × 34,9 |
+| Cooler da memória (em teste) | Thermalright MC-2 ARGB (preto), com clipes | 120 × 60 × 25 (2 fans de 3200 rpm) |
 | Watercooler | GIGABYTE AORUS WATERFORCE II 360 ICE, no topo | radiador 394 × 119 × 27; bomba 72,8 × 72,8 × 65,1 |
 | Fonte | Corsair RM1200e | 150 × 86 × 150 |
 | Placa de vídeo | ZOTAC RTX 5090 AMP Extreme INFINITY, sem shroud, vertical com riser | oficial 332,1 × 137,5 × 69,6 (2,88 kg); sem shroud (estimado) 325 × 132 × 52; com os 2 P14: 325 × 132 × 79 |
@@ -37,6 +38,18 @@ arquivo `data/catalogo.js`.
 - **Estimado:** posições internas do gabinete (bandeja, caixa da fonte, suportes),
   o layout interno da placa-mãe e as medidas do dissipador da 5090 sem o shroud.
   Todas podem ser corrigidas em **Editar medidas** depois de medir com trena.
+
+### Cooler da memória (Thermalright MC-2 ARGB)
+
+Fica por cima dos pentes, centrado nos 4 slots, soprando neles. Na seção **Memória** dá
+para escolher a fixação (clipes, suporte, ou suporte com adaptador 6-32, que sobe 7 mm),
+deslocar o cooler atravessando os slots e desligar o RGB (cabo ARGB de 3 pinos solto; os
+fans seguem no cabo de 4 pinos). Escolha **Nenhum** para tirar.
+
+Na build padrão ele **encosta na bomba do AORUS** (~12 mm: o cooler tem 60 mm de largura e
+sobra ~15 mm para o lado do processador, na mesma altura da bomba) e as mangueiras passam
+onde ele fica. A posição do soquete e dos slots da placa é estimada: confira na máquina a
+distância entre a lateral da bomba e o primeiro slot de memória — com menos de ~15 mm, bate.
 
 ### Atenção com a fonte
 

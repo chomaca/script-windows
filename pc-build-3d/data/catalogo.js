@@ -315,6 +315,51 @@ window.PCB_CATALOGO = {
   },
 
   /* ------------------------------------------------------------------ */
+  /*  COOLERS DE MEMÓRIA (ficam por cima dos pentes, soprando neles)     */
+  /*  comprimento: ao longo do pente · largura: atravessando os slots   */
+  /*  · espessura: da face sobre os pentes até a face de cima.          */
+  /* ------------------------------------------------------------------ */
+  coolersMemoria: {
+    'thermalright-mc2-argb-preto': {
+      nome: 'Thermalright MC-2 ARGB (preto)',
+      comprimento: 120,
+      largura: 60,
+      espessura: 25,
+      cor: '#16171a',
+      fans: { quantidade: 2, diametro: 48, rpm: 3200, cfm: 16.17, pressao: 1.6, rolamento: 'S-FDB V2' },
+      conectores: '4 pinos PWM (fans) + 3 pinos 5V ARGB (luz), cabos separados',
+      alturaMaxPente: 55,
+      folgaPente: 1.5,      // mm entre o topo dos pentes e a face de baixo do cooler
+      adaptador632: 7,      // mm a mais com o adaptador para standoff 6-32 (fixação por suporte)
+      massa: 190,
+      estimado: ['massa', 'diâmetro dos fans', 'folga até os pentes', 'posição dos parafusos do suporte'],
+      notas: 'Cooler ativo para memória: 120 × 60 × 25 mm (oficial), 2 fans de 3200 rpm (±10%), 16,17 CFM e 1,6 mmH₂O cada, rolamento S-FDB V2. Prende nos pentes com clipes nas pontas, ou com o suporte plano e 2 parafusos longos no lugar de 2 parafusos da placa-mãe (com standoff 6-32 entra um adaptador que sobe tudo 7 mm). Aceita pentes de até 55 mm. RGB: o cabo ARGB de 3 pinos é separado do cabo dos fans — deixando ele desligado, os fans funcionam e a luz fica apagada. Nunca ligue o ARGB 5V num conector RGB de 12 V.',
+      fontes: [
+        { rotulo: 'Thermalright MC-2 ARGB — Amazon (medidas e conectores)', url: 'https://www.amazon.com/clp/B0GSPVXCQR' },
+        { rotulo: 'Thermalright MC-2 ARGB Black — Newegg', url: 'https://www.newegg.com/thermalright-mc-2-argb-black-fan-heatsinks/p/2KY-007Y-00002' },
+        { rotulo: 'Manual do MC-2 ARGB (instalação com suporte)', url: 'https://manuals.plus/ae/1005011905017935' }
+      ]
+    },
+    'thermalright-mc2-argb-branco': {
+      nome: 'Thermalright MC-2 ARGB (branco)',
+      comprimento: 120,
+      largura: 60,
+      espessura: 25,
+      cor: '#e9ebee',
+      corFans: '#f2f3f5',
+      fans: { quantidade: 2, diametro: 48, rpm: 3200, cfm: 16.17, pressao: 1.6, rolamento: 'S-FDB V2' },
+      conectores: '4 pinos PWM (fans) + 3 pinos 5V ARGB (luz), cabos separados',
+      alturaMaxPente: 55,
+      folgaPente: 1.5,
+      adaptador632: 7,
+      massa: 190,
+      estimado: ['massa', 'diâmetro dos fans', 'folga até os pentes', 'posição dos parafusos do suporte'],
+      notas: 'Mesmo cooler na versão branca: 120 × 60 × 25 mm, 2 fans de 3200 rpm, ARGB 5V de 3 pinos separado do cabo dos fans.',
+      fontes: [{ rotulo: 'Thermalright MC-2 ARGB White — Amazon', url: 'https://www.amazon.com/Thermalright-MC-2-ARGB-White-3200RPM/dp/B0GWN3Q88W' }]
+    }
+  },
+
+  /* ------------------------------------------------------------------ */
   /*  WATERCOOLERS (AIO)                                                 */
   /* ------------------------------------------------------------------ */
   coolers: {

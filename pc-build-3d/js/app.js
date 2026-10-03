@@ -84,10 +84,12 @@ window.PCBApp = (function () {
       if (b[k] && typeof b[k] === 'object') out[k] = Object.assign({}, out[k], b[k]);
     }
     if (b.gpu && b.gpu.fans) out.gpu.fans = Object.assign({}, PADRAO.gpu.fans, b.gpu.fans);
+    if (b.memoria && b.memoria.cooler && typeof b.memoria.cooler === 'object') out.memoria.cooler = Object.assign({}, PADRAO.memoria.cooler, b.memoria.cooler);
+    else out.memoria.cooler = Object.assign({}, PADRAO.memoria.cooler || { modelo: '' });
     if (b.fans && typeof b.fans === 'object' && !Array.isArray(b.fans)) out.fans = b.fans;
     if (b.medidas && typeof b.medidas === 'object') out.medidas = b.medidas;
     // números inválidos (texto, vazio, null) voltam ao valor padrão
-    for (const c of ['memoria.quantidade', 'refrigeracao.tubos', 'refrigeracao.deslocamento', 'gpu.distanciaBandeja', 'gpu.alturaDoChao', 'gpu.fans.quantidade', 'gpu.fans.espacamento', 'gpu.fans.deslocamento']) {
+    for (const c of ['memoria.quantidade', 'memoria.cooler.deslocamento', 'refrigeracao.tubos', 'refrigeracao.deslocamento', 'gpu.distanciaBandeja', 'gpu.alturaDoChao', 'gpu.fans.quantidade', 'gpu.fans.espacamento', 'gpu.fans.deslocamento']) {
       const v = ler(out, c);
       gravar(out, c, v !== null && v !== '' && isFinite(Number(v)) ? Number(v) : ler(PADRAO, c));
     }
@@ -1174,7 +1176,7 @@ window.PCBApp = (function () {
     const tam = caixa.getSize(new THREE.Vector3()).length();
     const PREF = { placaMae: [-1, 0.14, 0.18], gpu: [-0.86, 0.3, 0.4], radiador: [-0.7, -0.45, 0.55], fonte: [-0.75, 0.3, 0.6], cabos: [-0.85, 0.25, 0.45] };
     const dir = camera.position.clone().sub(controles.target).normalize();
-    if (p.id.startsWith('memoria-')) dir.set(-0.72, 0.28, 0.62);
+    if (p.id.startsWith('memoria-') || p.id === 'coolerMemoria') dir.set(-0.72, 0.28, 0.62);
     else if (PREF[p.id]) dir.set(...PREF[p.id]);
     else if (dir.x > -0.25) dir.set(-0.82, 0.36, 0.45);
     dir.normalize();
@@ -1431,6 +1433,24 @@ window.PCBApp = (function () {
 
 
   /* ============================== interface ============================== */
+  // cooler por cima dos pentes (ex.: Thermalright MC-2 ARGB): modelo, fixação, posição e RGB
+  function coolerRamSpec() {
+    const m = E.build && E.build.memoria && E.build.memoria.cooler && E.build.memoria.cooler.modelo;
+    return m ? (CAT.coolersMemoria || {})[m] || null : null;
+  }
+  function camposCoolerRam(idSel, idDesl) {
+    const c = (E.build.memoria && E.build.memoria.cooler) || {};
+    const spec = coolerRamSpec();
+    let html = campoSelect(idSel, 'memoria.cooler.modelo', 'Cooler por cima dos pentes',
+      '<option value=""' + (!c.modelo ? ' selected' : '') + '>Nenhum</option>' + opcoes(CAT.coolersMemoria || {}, c.modelo));
+    if (!spec) return html;
+    html += campoSeg('Fixação (+7 mm = suporte com adaptador 6-32)', seg('memoria.cooler.fixacao', c.fixacao || 'clipes', [['clipes', 'Clipes'], ['suporte', 'Suporte'], ['suporte632', '+7 mm']], 'Fixação do cooler da memória'));
+    html += slider(idDesl, 'memoria.cooler.deslocamento', Number(c.deslocamento) || 0, -20, 30, 1, 'Deslocar atravessando os slots (+ frente, − processador)');
+    html += campoSeg('RGB do cooler', seg('memoria.cooler.rgb', c.rgb === 'desligado' ? 'desligado' : 'ligado', [['ligado', 'Ligado'], ['desligado', 'Desligado']], 'RGB do cooler da memória'));
+    const info = atual && atual.coolerRam;
+    if (info) html += '<p class="nota">' + esc(fmt(spec.comprimento) + ' × ' + fmt(spec.largura) + ' × ' + fmt(spec.espessura) + ' mm, de ' + fmt(info.elevacao, 1) + ' a ' + fmt(info.topo, 1) + ' mm acima da placa. RGB desligado = cabo ARGB de 3 pinos solto (os fans seguem no cabo de 4 pinos).') + '</p>';
+    return html;
+  }
   function opcoes(colecao, sel, filtro) {
     return Object.entries(colecao)
       .filter(([id, s]) => !filtro || filtro(s, id))
@@ -1537,7 +1557,7 @@ window.PCBApp = (function () {
     if (!id) return null;
     if (id === 'gabinete' || id === 'caixaFonte' || id === 'bandeja') return 'gabinete';
     if (id === 'placaMae') return 'placaMae';
-    if (id.startsWith('memoria-')) return 'memoria';
+    if (id.startsWith('memoria-') || id === 'coolerMemoria') return 'memoria';
     if (id === 'bomba' || id === 'radiador' || id === 'tubos' || id.startsWith('fanRad-')) return 'cooler';
     if (id === 'gpu' || id === 'riser' || id === 'conectorRiser') return 'gpu';
     if (id === 'fonte' || id === 'cabos') return 'fonte';
@@ -1634,6 +1654,7 @@ window.PCBApp = (function () {
       cartaoPeca(S.memoria, q + '× ' + R.memoria.nome, R.memoria.capacidade * q + ' GB · ' + fmt(R.memoria.altura) + ' mm de altura', est.memoria, itens.memoria, [
         campoSelect('s-ram', 'memoria.modelo', 'Modelo', opcoes(CAT.memorias, b.memoria.modelo)),
         campoSeg('Quantidade de pentes', seg('memoria.quantidade', b.memoria.quantidade, [[1, '1'], [2, '2'], [4, '4']], 'Quantidade de pentes', true)),
+        camposCoolerRam('s-ramc', 'r-ramc-desl'),
         blocoFotos('memoria'),
         blocoMedidas('memoria', R.ids.memoria)
       ].join('')),
@@ -1830,6 +1851,7 @@ window.PCBApp = (function () {
       linhaMedida(G.nome, G.medidas.profundidade + ' × ' + G.medidas.largura + ' × ' + G.medidas.altura, 'Externas oficiais; internas estimadas', G.fontes),
       linhaMedida(R.placaMae.nome, R.placaMae.largura + ' × ' + R.placaMae.altura, R.placaMae.estimado && R.placaMae.estimado.length ? 'Tamanho oficial; layout estimado' : '', R.placaMae.fontes),
       linhaMedida(R.memoria.nome, fmt(R.memoria.comprimento, 2) + ' × ' + fmt(R.memoria.altura, 2), 'Espessura estimada', R.memoria.fontes),
+      coolerRamSpec() ? linhaMedida(coolerRamSpec().nome, coolerRamSpec().comprimento + ' × ' + coolerRamSpec().largura + ' × ' + coolerRamSpec().espessura, '', coolerRamSpec().fontes) : '',
       linhaMedida(R.cooler.nome + ' — radiador', R.cooler.radiador.comprimento + ' × ' + R.cooler.radiador.largura + ' × ' + R.cooler.radiador.espessura, (R.cooler.estimado || []).filter((x) => x !== 'mangueira' && x !== 'massa').length ? 'Estimado' : '', R.cooler.fontes),
       linhaMedida(R.cooler.nome + ' — bomba', fmt(R.cooler.bomba.largura) + ' × ' + fmt(R.cooler.bomba.profundidade) + ' × ' + fmt(R.cooler.bomba.altura), (R.cooler.estimado || []).filter((x) => x !== 'mangueira' && x !== 'massa').length ? 'Estimado' : '', []),
       R.cooler.mangueira ? linhaMedida(R.cooler.nome + ' — mangueiras', R.cooler.mangueira + ' mm', (R.cooler.estimado || []).includes('mangueira') ? 'Estimado' : '', []) : '',
@@ -1935,6 +1957,7 @@ window.PCBApp = (function () {
           '<button type="button" data-fz="' + zid + '" data-fz-campo="fluxo" data-valor="' + v + '" aria-pressed="' + (cfg.fluxo === v) + '">' + r + '</button>').join('') + '</div>') +
         '<div class="acoes"><button type="button" class="botao botao-perigo" data-remover-fan="' + esc(id) + '">Remover este fan</button></div></div>';
     }
+    if (id === 'coolerMemoria') return '<div class="trocar">' + camposCoolerRam('f-ramc', 'f-ramc-desl') + '</div>';
     const sec = secaoDaParte(id);
     const blocos = {
       gabinete: () => campoSelect('f-gab', 'gabinete.modelo', 'Trocar o gabinete', opcoes(CAT.gabinetes, b.gabinete.modelo)),
@@ -2069,6 +2092,9 @@ window.PCBApp = (function () {
       'gpu.modo': () => v === 'original' ? 'Placa de vídeo com o cooler original' : 'Placa de vídeo sem shroud',
       'gpu.orientacao': () => 'Placa de vídeo na ' + (v === 'horizontal' ? 'horizontal' : 'vertical'),
       'gpu.fans.modelo': () => 'Fans da placa de vídeo: ' + nomeEm('fans', v),
+      'memoria.cooler.modelo': () => v ? 'Cooler da memória: ' + nomeEm('coolersMemoria', v) : 'Sem cooler na memória',
+      'memoria.cooler.fixacao': () => 'Cooler da memória: ' + ({ clipes: 'preso com clipes', suporte: 'preso com o suporte', suporte632: 'suporte com adaptador (+7 mm)' }[v] || v),
+      'memoria.cooler.rgb': () => 'RGB do cooler da memória ' + (v === 'desligado' ? 'desligado' : 'ligado'),
       'gpu.fans.quantidade': () => v + (Number(v) > 1 ? ' fans' : ' fan') + ' na placa de vídeo'
     };
     return T[caminho] ? T[caminho]() : 'Alteração';

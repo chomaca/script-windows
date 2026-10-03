@@ -11,7 +11,13 @@ window.PCB_BUILD_PADRAO = {
   gabinete: { modelo: 'gf-model5-vent', cor: '#1c1e21' },
   placaMae: { modelo: 'maxsun-b850m-pro-wifi-branca' },
   cpu: { modelo: 'am5-a-definir' },
-  memoria: { modelo: 'kingston-fury-beast-ddr5-32', quantidade: 2 },
+  memoria: {
+    modelo: 'kingston-fury-beast-ddr5-32',
+    quantidade: 2,
+    // cooler por cima dos pentes ('' = sem cooler). fixacao: 'clipes', 'suporte' ou 'suporte632' (+7 mm);
+    // deslocamento: mm atravessando os slots (+ = para a frente, longe do processador); rgb: 'ligado' ou 'desligado'
+    cooler: { modelo: 'thermalright-mc2-argb-preto', fixacao: 'clipes', deslocamento: 0, rgb: 'ligado' }
+  },
   refrigeracao: {
     modelo: 'aorus-waterforce-ii-360-ice',
     local: 'topo',          // montagem do gabinete onde vai o radiador
