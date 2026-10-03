@@ -1258,7 +1258,8 @@ window.PCBModelos = function (THREE) {
     const Tc = deshroud ? spec.deshroud.espessura : spec.espessura;
     const y0 = 9;
     const dx = cfg.dedosX;
-    const pcbL = Math.min(L * 0.7, 235);
+    // conector 12V-2x6: centro a spec.conector12v mm do suporte (medido), senão perto do fim do PCB
+    const pcbL = Math.max(Math.min(L * 0.7, 235), (spec.conector12v || 0) + 12);
     const corPCB = spec.corPCB || '#0f1113';
 
     // backplate de metal fundido (face externa texturizada, com passagem de ar no fim)
@@ -1358,7 +1359,8 @@ window.PCBModelos = function (THREE) {
     }
     col.push(box3(-1.6, 0, 2, 121, zS0, zS1));
     // conector 12V-2x6 (16 pinos: 12 de força + 4 de sinal) na borda de cima, trava para fora
-    const xc0 = pcbL - 34, xc1 = pcbL - 12;
+    const xcC = spec.conector12v || pcbL - 23;
+    const xc0 = xcC - 11, xc1 = xcC + 11;
     {
       const pret = std('#0d0e10', 0.6, 0);
       g.add(caixaR(xc0, xc1, Hc - 18, Hc + 5, 4.1, 13.5, 0.8, pret, 2));

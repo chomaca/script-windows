@@ -482,6 +482,8 @@ window.PCB_CATALOGO = {
       massaShroud: 390,     // g do shroud + 3 fans de 100 mm + espelho (estimado)
       heatpipes: 9,         // heatpipes compostos de cobre (Overclocking.com)
       pcb: { comprimento: 228 },
+      // centro do conector 12V-2x6 a ~217 mm do suporte (65% dos 332 mm), medido na foto da build com a placa na horizontal
+      conector12v: 217,
       estilo: 'zotac-amp-extreme',
       cor: '#2a2d31',
       corPCB: '#0f1113',
@@ -489,7 +491,7 @@ window.PCB_CATALOGO = {
       // sem shroud: 332,1 − ~7 mm de shroud na ponta; 137,5 − ~5,5 mm de borda do shroud;
       // 69,6 − ~15 mm dos fans de 100 mm − ~2,6 mm da tampa com espelho
       deshroud: { comprimento: 325, altura: 132, espessura: 52 },
-      estimado: ['deshroud', 'massaShroud', 'pcb'],
+      estimado: ['deshroud', 'massaShroud', 'pcb', 'conector12v'],
       notas: 'Medidas com shroud (332,1 × 137,5 × 69,6 mm, 2,88 kg) são oficiais. Por dentro: câmara de vapor 34% maior, dissipador de alumínio com 9 heatpipes compostos de cobre, aletas mais longas que o PCB (o terceiro fan sopra direto através delas), estrutura intermediária reforçada e backplate de metal fundido com 7 pads térmicos. O mesmo PCB da versão SOLID (329,7 × 137,8 × 67,8 mm). As medidas sem shroud são estimadas a partir das oficiais: meça a sua e ajuste em “Editar medidas”.',
       fontes: [
         { rotulo: 'ZOTAC — página do produto', url: 'https://www.zotac.com/us/product/graphics_card/zotac-gaming-geforce-rtx-5090-amp-extreme-infinity' },

@@ -61,11 +61,10 @@ Centrado nos 4 slots, o MC-2 (120 × 60 × 25 mm, de 38 a 63 mm acima da placa):
 - **Placa de vídeo:** ~6,7 mm entre a ponta de baixo do cooler e a borda de cima da 5090.
 - **24 pinos:** o conector fica 1,4 mm ao lado do cooler; o cabo sobe ali e precisa dobrar
   para a frente logo na saída (ou adaptador de 24 pinos em 90°).
-- **Plugue 12V-2x6 da 5090:** no modelo ele fica **embaixo da ponta do cooler**, com 11,4 mm
-  de espaço; o plugue com o cabo reto pede ~35 mm. A posição do conector na placa é estimada
-  (o PCB é mais curto que o dissipador): confira na máquina onde o cabo da placa de vídeo
-  sobe. Se for embaixo dos pentes, este é o ponto que impede o cooler — só um cabo 12V-2x6
-  com plugue em 90° (de preferência nativo da fonte) ou outra posição da GPU resolvem.
+- **Plugue 12V-2x6 da 5090:** fica a ~217 mm do suporte da placa (65% dos 332 mm, medido na
+  foto da build com a placa na horizontal), ou seja, **embaixo da ponta do cooler**, com
+  11,4 mm de espaço; o plugue com o cabo reto pede ~35 mm. É o ponto que impede o MC-2 com a
+  GPU vertical nessa altura — nem um plugue em 90° (~13–15 mm de altura) passa folgado.
 - **Vão medido (lateral da bomba → 1º pente)**, na seção Memória: se a régua discordar do
   layout (17,9 mm até o pente do 1º slot), ajuste — o app move os slots.
 
