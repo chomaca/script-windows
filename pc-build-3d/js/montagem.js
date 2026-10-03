@@ -906,7 +906,7 @@ window.PCBMontagem = function (THREE, M) {
     // aparecem como colisão; as que estão na diagonal estão longe)
     // vão entre duas peças (cada uma com uma ou mais caixas) quando se separam por um único
     // eixo; se alguma caixa encosta, quem avisa é a colisão; na diagonal, estão longe
-    const folgaEntre = (nome, as, bs, minimo, pecas, dica) => {
+    const folgaEntre = (nome, as, bs, minimo, pecas, dica, rotulo) => {
       let melhor = null;
       for (const a of as) for (const b of bs) {
         if (a.isEmpty() || b.isEmpty()) continue;
@@ -918,7 +918,7 @@ window.PCBMontagem = function (THREE, M) {
         const k = eixos[0];
         if (!melhor || sep[k] < melhor.valor) {
           const [lo, hi] = a.max[k] <= b.min[k] ? [a, b] : [b, a];
-          melhor = { nome, valor: sep[k], minimo, pecas, regiao: vao(lo, hi, k), dica };
+          melhor = { nome, valor: sep[k], minimo, pecas, regiao: vao(lo, hi, k), dica, rotulo };
         }
       }
       if (melhor) folgas.push(melhor);
@@ -926,13 +926,13 @@ window.PCBMontagem = function (THREE, M) {
     const caixasDe = (id) => { const p = partes.find((x) => x.id === id); return p ? p.caixas : []; };
     if (coolerRam) {
       const bCR = uniao((p) => p.id === 'coolerMemoria');
-      folgaEntre('Cooler da memória ↔ bomba do watercooler', caixasDe('coolerMemoria'), caixasDe('bomba'), 3, ['coolerMemoria', 'bomba'], 'Dá para deslocar o cooler para a frente (se os clipes deixarem) ou girar as conexões da bomba.');
+      folgaEntre('Cooler da memória ↔ bomba do watercooler', caixasDe('coolerMemoria'), caixasDe('bomba'), 3, ['coolerMemoria', 'bomba'], 'Dá para deslocar o cooler para a frente (se os clipes deixarem) ou girar as conexões da bomba.', 'Cooler × bomba');
       folgaEntre('Cooler da memória ↔ placa de vídeo', caixasDe('coolerMemoria'), caixasDe('gpu'), 3, ['coolerMemoria', 'gpu']);
       folgaEntre('Cooler da memória ↔ vidro lateral', [paredeVidro], [bCR], 5, ['coolerMemoria']);
       // o 24 pinos sai da placa logo ao lado dos pentes: o cabo sobe ali até a altura do cooler antes de dobrar
       const col24 = new THREE.Box3().setFromPoints([mbPonto(a24.x0, a24.y0, 0), mbPonto(a24.x1, a24.y1, infoCoolerRam.topo)]);
       folgaEntre('Cooler da memória ↔ saída do cabo de 24 pinos', caixasDe('coolerMemoria'), [col24], 3, ['coolerMemoria', 'cabos'],
-        'O cabo sobe rente à lateral do cooler: dobre-o para a frente (longe dos pentes) logo na saída, ou use um adaptador de 24 pinos em 90° (sai rente à placa).');
+        'O cabo sobe rente à lateral do cooler: dobre-o para a frente (longe dos pentes) logo na saída, ou use um adaptador de 24 pinos em 90° (sai rente à placa).', 'Cooler × cabo 24 pinos');
       // mangueiras (traçado ilustrativo, não entram na colisão): passam por dentro do cooler?
       raiz.updateMatrixWorld(true);
       const dentro = new THREE.Box3(), v = new THREE.Vector3();

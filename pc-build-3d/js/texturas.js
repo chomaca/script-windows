@@ -14,6 +14,9 @@ window.PCBTexturas = function (THREE) {
   'use strict';
 
   const cache = new Map();
+  // resolução das texturas (1 = cheia). No celular o app usa 0,5: ¼ da memória de canvas e de GPU,
+  // que no Safari do iPhone tem limite e derruba a página quando passa
+  const RES = Math.min(1, Math.max(0.25, Number(window.PCB_RES_TEXTURA) || 1));
   const F_PESADA = '"Arial Black", "Arial Bold", "Helvetica Neue", Arial, sans-serif';
   const F_TEXTO = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
 
@@ -289,7 +292,7 @@ window.PCBTexturas = function (THREE) {
     return memo(key, () => {
       ARM = paletaArmadura(spec);
       const W = spec.largura, H = spec.altura;
-      const S = 2048 / Math.max(W, H);
+      const S = 2048 * RES / Math.max(W, H);
       const c = criar(W * S, H * S);
       const g = c.getContext('2d');
       const cm = criar(c.width, c.height);
@@ -379,7 +382,7 @@ window.PCBTexturas = function (THREE) {
   /* Painel traseiro de conectores (face voltada para trás). */
   function placaMaeIO(alturaMM, larguraMM) {
     return memo('mbIO|' + alturaMM + '|' + larguraMM, () => {
-      const S = 8;
+      const S = 8 * RES;
       const c = criar(larguraMM * S, alturaMM * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, '#34373c', 0.05, true, 9);
@@ -419,7 +422,7 @@ window.PCBTexturas = function (THREE) {
     const key = 'ram|' + spec.nome + '|' + spec.altura + '|' + spec.cor;
     return memo(key, () => {
       const L = spec.comprimento, H = spec.altura;
-      const S = 1024 / L;
+      const S = 1024 * RES / L;
       const c = criar(L * S, H * S);
       const g = c.getContext('2d');
       const bump = criar(c.width, c.height);
@@ -501,7 +504,7 @@ window.PCBTexturas = function (THREE) {
      esquerda do canvas e o lado do suporte à direita. X() espelha a posição. */
   function gpuBackplate(L, H, fluxoX) {
     return memo('bp|' + L + '|' + H + '|' + fluxoX, () => {
-      const S = 1400 / L;
+      const S = 1400 * RES / L;
       const X = (xm) => L - xm;
       const c = criar(L * S, H * S);
       const g = c.getContext('2d');
@@ -531,7 +534,7 @@ window.PCBTexturas = function (THREE) {
 
   function gpuSuporte(larguraMM, alturaMM) {
     return memo('supGPU|' + larguraMM + '|' + alturaMM, () => {
-      const S = 8;
+      const S = 8 * RES;
       const c = criar(larguraMM * S, alturaMM * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, '#c7cbd0', 0.06, false, 51);
@@ -562,7 +565,7 @@ window.PCBTexturas = function (THREE) {
      Canvas: x = 0 no lado do suporte; y de cima (junto ao PCB) para baixo (borda). */
   function gpuDedos(comp, alt) {
     return memo('dedos|' + comp + '|' + alt, () => {
-      const S = 14;
+      const S = 14 * RES;
       const c = criar(Math.round(comp * S), Math.round(alt * S));
       const a = criar(c.width, c.height);
       const g = c.getContext('2d'), ga = a.getContext('2d');
@@ -586,7 +589,7 @@ window.PCBTexturas = function (THREE) {
      chave quase no meio. Canvas: x = 0 na ponta esquerda (olhando a face). */
   function dedosDIMM(comp, alt, chave) {
     return memo('dimm|' + comp + '|' + alt + '|' + chave, () => {
-      const S = 16;
+      const S = 16 * RES;
       const c = criar(Math.round(comp * S), Math.round(alt * S));
       const a = criar(c.width, c.height);
       const g = c.getContext('2d'), ga = a.getContext('2d');
@@ -629,7 +632,7 @@ window.PCBTexturas = function (THREE) {
    * da face vista de fora). textos: [{s,x,y,tam}] gravados nas partes sólidas. */
   function painelPerfurado(chave, w, h, cor, { passo = 5, furo = 3.4, borda = 6, solidos = [], textos = [] } = {}) {
     return memo('painel|' + chave + '|' + w + '|' + h + '|' + cor, () => {
-      const S = 2048 / Math.max(w, h);
+      const S = 2048 * RES / Math.max(w, h);
       const c = criar(w * S, h * S);
       const a = criar(c.width, c.height);
       const g = c.getContext('2d');
@@ -662,7 +665,7 @@ window.PCBTexturas = function (THREE) {
   /* Chapa com grade de furos quadrados (traseira do Model 5 Vent). solidos/furos em mm. */
   function gradeQuadrada(chave, w, h, cor, { passo = 11, furo = 8.5, borda = 8, solidos = [], raio = 1.2 } = {}) {
     return memo('gradeQ|' + chave + '|' + w + '|' + h + '|' + cor, () => {
-      const S = 2048 / Math.max(w, h);
+      const S = 2048 * RES / Math.max(w, h);
       const c = criar(w * S, h * S), a = criar(c.width, c.height);
       const g = c.getContext('2d'), ga = a.getContext('2d');
       g.fillStyle = cor; g.fillRect(0, 0, c.width, c.height);
@@ -725,7 +728,7 @@ window.PCBTexturas = function (THREE) {
 
   function aorusTanque(w, h) {
     return memo('aorusTanque|' + w + '|' + h, () => {
-      const S = 12, c = criar(w * S, h * S), b = criar(w * S, h * S);
+      const S = 12 * RES, c = criar(w * S, h * S), b = criar(w * S, h * S);
       const g = c.getContext('2d'), gb = b.getContext('2d');
       g.fillStyle = '#eef0f2'; g.fillRect(0, 0, c.width, c.height);
       granular(c, 7, 29);
@@ -780,7 +783,7 @@ window.PCBTexturas = function (THREE) {
   function memoriaEtiqueta(spec) {
     const branca = /eef|f2f|fff/i.test(spec.cor);
     return memo('ramEtq|' + spec.nome + spec.altura + spec.cor, () => {
-      const L = spec.comprimento, H = spec.altura, S = 1024 / L;
+      const L = spec.comprimento, H = spec.altura, S = 1024 * RES / L;
       const c = criar(L * S, H * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, branca ? '#e9ebee' : '#141416', 0.035, true, 37);
@@ -804,7 +807,7 @@ window.PCBTexturas = function (THREE) {
   // Topo: grade com o padrão triangular/"Y" da Corsair, ventoinha aparecendo por baixo e logo no centro.
   function corsairGrade(w, l) {
     return memo('corsairGrade|' + w + '|' + l, () => {
-      const S = 1024 / Math.max(w, l), c = criar(w * S, l * S);
+      const S = 1024 * RES / Math.max(w, l), c = criar(w * S, l * S);
       const g = c.getContext('2d');
       const cx = c.width / 2, cy = c.height / 2, R = Math.min(w, l) * 0.45 * S;
       escovar(g, 0, 0, c.width, c.height, '#161719', 0.03, true, 43);
@@ -850,7 +853,7 @@ window.PCBTexturas = function (THREE) {
 
   function corsairLateral(w, h, spec) {
     return memo('corsairLat|' + w + '|' + h + spec.nome, () => {
-      const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
+      const S = 1024 * RES / Math.max(w, h), c = criar(w * S, h * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, '#151618', 0.025, true, 53);
       granular(c, 9, 59);
@@ -865,7 +868,7 @@ window.PCBTexturas = function (THREE) {
 
   function corsairEspecificacao(w, h, spec) {
     return memo('corsairEsp|' + w + '|' + h + spec.nome, () => {
-      const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
+      const S = 1024 * RES / Math.max(w, h), c = criar(w * S, h * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, '#151618', 0.025, true, 61);
       const ex = w * 0.08, ey = h * 0.12, ew = w * 0.84, eh = h * 0.76;
@@ -901,7 +904,7 @@ window.PCBTexturas = function (THREE) {
 
   function corsairModular(w, h) {
     return memo('corsairMod|' + w + '|' + h, () => {
-      const S = 1024 / Math.max(w, h), c = criar(w * S, h * S);
+      const S = 1024 * RES / Math.max(w, h), c = criar(w * S, h * S);
       const g = c.getContext('2d');
       escovar(g, 0, 0, c.width, c.height, '#131416', 0.025, true, 67);
       granular(c, 7, 71);
@@ -924,7 +927,7 @@ window.PCBTexturas = function (THREE) {
   // Grade da ventoinha da fonte: onde a chapa é vazada (preto) — para alphaMap.
   function corsairGradeAlfa(w, l) {
     return memo('corsairGradeA|' + w + '|' + l, () => {
-      const S = 1024 / Math.max(w, l), c = criar(w * S, l * S);
+      const S = 1024 * RES / Math.max(w, l), c = criar(w * S, l * S);
       const g = c.getContext('2d');
       const cx = c.width / 2, cy = c.height / 2, R = Math.min(w, l) * 0.45 * S;
       g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);

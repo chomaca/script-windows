@@ -11,6 +11,13 @@ window.PCBApp = (function () {
   const CAT = window.PCB_CATALOGO;
   const PADRAO = window.PCB_BUILD_PADRAO;
   const TOQUE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  // celular/tablet ou pouca memória: texturas na metade da resolução (¼ da memória). O Safari do
+  // iPhone fecha a página quando canvas + GPU passam do limite. ?texturas=1 força a resolução cheia.
+  if (window.PCB_RES_TEXTURA == null) {
+    let res = TOQUE || (navigator.deviceMemory && navigator.deviceMemory <= 4) ? 0.5 : 1;
+    try { const q = new URLSearchParams(location.search).get('texturas'); if (q) res = Number(q) || res; } catch (e) { /* sem query */ }
+    window.PCB_RES_TEXTURA = res;
+  }
   const VIS_PADRAO = {
     paineis: true, vidro: true, fluxo: false, ar: false, cotas: true, girar: true, vagas: false, grade: true, soGabinete: false, contatos: true,
     rgb: '#7cc8ff', rgbModo: 'fixo', qualidade: TOQUE ? 'leve' : 'alta'
@@ -142,6 +149,11 @@ window.PCBApp = (function () {
     // consultas ao driver esperam a fila da GPU esvaziar: feita agora (fila vazia) ela não
     // trava depois, no meio do envio das texturas
     renderer.capabilities.getMaxAnisotropy();
+    // celular sem memória pode tirar a GPU da página: avisa em vez de ficar com a tela preta
+    renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      mostrarFalha('O navegador liberou a memória do 3D (comum no celular com muitas abas abertas). Feche outras abas e recarregue.', true);
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     let tom = null;
@@ -2550,12 +2562,18 @@ window.PCBApp = (function () {
     $('#modal-imagem-msg').textContent = await salvarArquivo('bancada-3d.png', imagemAtual);
   }
 
-  function mostrarFalha(msg) {
+  function mostrarFalha(msg, recarregar) {
     const c = $('#carregando');
     c.hidden = false;
     c.classList.remove('sai');
     c.classList.add('falhou');
     $('#carregando-texto').textContent = msg;
+    if (recarregar && !c.querySelector('.recarregar')) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'botao recarregar'; b.textContent = 'Recarregar';
+      b.addEventListener('click', () => location.reload());
+      c.appendChild(b);
+    }
   }
 
   /* ============================== início ============================== */
@@ -2703,7 +2721,7 @@ window.PCBApp = (function () {
 
   function falha(err) {
     console.error(err);
-    mostrarFalha('Não consegui carregar o Three.js. Esta página precisa de internet para baixar o motor 3D (cdn.jsdelivr.net). Detalhe: ' + (err && err.message ? err.message : err));
+    mostrarFalha('Não consegui carregar o Three.js. Esta página precisa de internet para baixar o motor 3D (cdn.jsdelivr.net). Detalhe: ' + (err && err.message ? err.message : err), true);
   }
 
   setTimeout(() => {
