@@ -249,15 +249,18 @@ window.PCBMontagem = function (THREE, M) {
     const q = Math.max(1, Math.min(4, (build.memoria && build.memoria.quantidade) | 0 || 2));
     const nSlots = MB.dimm.x.length;
     let slotsUsados;
-    if (nSlots >= 4) slotsUsados = q === 1 ? [1] : q === 2 ? [1, 3] : q === 3 ? [0, 1, 3] : [0, 1, 2, 3];
+    // 2 pentes: no 2º e 4º slot contando do processador (A2/B2, o recomendado na maioria das
+    // placas) ou no 1º e 3º (memoria.slots = '1-3')
+    const slots13 = build.memoria && build.memoria.slots === '1-3';
+    if (nSlots >= 4) slotsUsados = q === 1 ? [slots13 ? 0 : 1] : q === 2 ? (slots13 ? [0, 2] : [1, 3]) : q === 3 ? [0, 1, 3] : [0, 1, 2, 3];
     else slotsUsados = q === 1 ? [0] : [0, 1].slice(0, nSlots);
     // vão medido na máquina entre a lateral da bomba e o 1º pente: corrige a posição dos
     // slots (estimada no catálogo) em relação ao soquete, antes de desenhar a placa
     const vaoBomba = Number(build.memoria && build.memoria.vaoBomba);
     let vaoBombaInfo = null;
-    if (vaoBomba > 0 && R.cooler && R.cooler.bomba && MB.soquete) {
-      const s0 = Math.min(...slotsUsados);
-      const atualVao = MB.dimm.x[s0] - (RAM.espessura || 7) / 2 - (MB.soquete.x + R.cooler.bomba.largura / 2);
+    const vaoBombaLayout = R.cooler && R.cooler.bomba && MB.soquete ? MB.dimm.x[Math.min(...slotsUsados)] - (RAM.espessura || 7) / 2 - (MB.soquete.x + R.cooler.bomba.largura / 2) : null;
+    if (vaoBomba > 0 && vaoBombaLayout != null) {
+      const atualVao = vaoBombaLayout;
       let d = vaoBomba - atualVao;
       const limite = MB.largura - 8 - Math.max(...MB.dimm.x);
       if (d > limite) { avisos.push('Com ' + fmt(vaoBomba) + ' mm entre a bomba e o 1º pente, os slots passariam da borda da placa; usei o máximo que cabe.'); d = limite; }
@@ -285,12 +288,12 @@ window.PCBMontagem = function (THREE, M) {
       const fotoRam = fotoDe('memoria-lado', R.ids.memoria);
       const mod = daCache(usarCache, 'ram|' + n + '|' + receita(RAM, rgb, idFoto(fotoRam)), () => M.memoria(RAM, rgb, fotoRam));
       orientar(mod, vdir('frente'), vdir('esquerda'), vdir('baixo'), mbPonto(MB.dimm.x[si], MB.dimm.y, 1.5));
-      registrar('memoria-' + n, RAM.nome + ' (slot ' + ['A1', 'A2', 'B1', 'B2'][si] + ')', 'Memória', mod, {
+      registrar('memoria-' + n, RAM.nome + ' (' + (si + 1) + 'º slot, ' + ['A1', 'A2', 'B1', 'B2'][si] + ')', 'Memória', mod, {
         ignora: ['placaMae'],
         massa: RAM.massa || 40, massaEstimada: !RAM.massa,
         info: {
           medidas: [['Altura', fmt(RAM.altura) + ' mm'], ['Comprimento', fmt(RAM.comprimento) + ' mm'], ['Capacidade', RAM.capacidade + ' GB']],
-          notas: 'Pentes nos slots A2 e B2 (recomendado para 2 pentes).', fontes: RAM.fontes, estimado: RAM.estimado
+          notas: slots13 ? 'Pentes no 1º e no 3º slot (contando do processador). Na maioria das placas o recomendado para 2 pentes é o 2º e o 4º (A2/B2) — confira no manual.' : 'Pentes no 2º e no 4º slot (A2 e B2, o recomendado para 2 pentes).', fontes: RAM.fontes, estimado: RAM.estimado
         }
       });
     });
@@ -582,6 +585,7 @@ window.PCBMontagem = function (THREE, M) {
 
     /* ---------- cabos da fonte (24 pinos, 2× EPS 8 pinos, 12V-2x6) ---------- */
     const modoCabos = (build.fonte && build.fonte.cabos) || 'originais';
+    const a24 = MB.atx24 || { x0: MB.largura - 11, x1: MB.largura - 1, y0: MB.altura * 0.3, y1: MB.altura * 0.3 + 52 };
     const estiloCabo = ESTILOS_CABO[modoCabos];
     // cabos modulares (24 pinos, 2× EPS, 12V-2x6): ~620 g; extensões trançadas somam ~200 g (estimado)
     const MASSA_CABOS = { originais: 620, brancos: 820, pretos: 820 };
@@ -611,13 +615,16 @@ window.PCBMontagem = function (THREE, M) {
       };
       const cfgBase = Object.assign({ raio: 1.55, passo: 3.5 }, estiloCabo);
       const dentroX = (x) => Math.max(interior.min.x + 8, Math.min(interior.max.x - 6, x));
-      // 24 pinos: da fonte direto ao conector na borda da frente da placa
+      // 24 pinos: da fonte direto ao conector na borda da frente da placa. Sai reto (~30 mm) e só
+      // então dobra para a frente, para longe dos pentes (sem isso a curva voltava por cima deles)
       const t24 = tomada(0, 2);
-      const c24 = mbPonto(MB.largura - 6, MB.altura * 0.3 + 26, 16);
-      g.add(chicote([
+      const c24 = mbPonto((a24.x0 + a24.x1) / 2 + 1, (a24.y0 + a24.y1) / 2, 16);
+      const tipo = (o, t) => { o.userData.cabo = t; return o; };
+      g.add(tipo(chicote([
         t24.pos.clone().addScaledVector(t24.dir, 11), t24.pos.clone().addScaledVector(t24.dir, 42),
-        c24.clone().addScaledVector(nMB, 48).addScaledVector(zMB, 14), c24.clone().addScaledVector(nMB, 13)
-      ], Object.assign({}, cfgBase, { fileiras: 2, fios: 12, largIni: t24.larg, largFim: V(0, 1, 0) })));
+        c24.clone().addScaledVector(nMB, 50).addScaledVector(zMB, 26), c24.clone().addScaledVector(nMB, 30).addScaledVector(zMB, 2),
+        c24.clone().addScaledVector(nMB, 13)
+      ], Object.assign({}, cfgBase, { fileiras: 2, fios: 12, largIni: t24.larg, largFim: V(0, 1, 0) })), 'atx24'));
       // EPS: passa por trás da bandeja e volta pelo recorte de cima
       const zG = Q.Z(G.placaMae.traseira + MB.largura + 19);
       const yTopo = topoY + 8.5;
@@ -626,12 +633,12 @@ window.PCBMontagem = function (THREE, M) {
         const ce = mbPonto(xb, 7.5, 13);
         const zT = ce.z + 22;
         const yG = topoY - 45 - k * 18;
-        g.add(chicote([
+        g.add(tipo(chicote([
           t.pos.clone().addScaledVector(t.dir, 11), t.pos.clone().addScaledVector(t.dir, 34),
           V(dentroX(bandejaX - 16), yG, zG), V(dentroX(bandejaX + 14), yG, zG - 8),
           V(dentroX(bandejaX + 16 + k * 9), yTopo - 16, (zG + zT) / 2), V(dentroX(bandejaX + 14), yTopo, zT + 12),
           V(dentroX(bandejaX - 16), yTopo, zT), ce.clone().addScaledVector(nMB, 36).add(V(0, 5, 0)), ce.clone().addScaledVector(nMB, 13)
-        ], Object.assign({}, cfgBase, { fileiras: 2, fios: 4, largIni: t.larg, largFim: zMB })));
+        ], Object.assign({}, cfgBase, { fileiras: 2, fios: 4, largIni: t.larg, largFim: zMB })), 'eps'));
       });
       // 12V-2x6 da placa de vídeo
       const c12 = gpu.userData.conector12v;
@@ -641,11 +648,11 @@ window.PCBMontagem = function (THREE, M) {
         const larg = gpu.localToWorld(V(1, 0, 0)).sub(gpu.localToWorld(V(0, 0, 0))).normalize();
         const t = tomada(2, 1);
         const pa = pos.clone().addScaledVector(dir, 34);
-        g.add(chicote([
+        g.add(tipo(chicote([
           t.pos.clone().addScaledVector(t.dir, 11), t.pos.clone().addScaledVector(t.dir, 40),
           V(dentroX(Math.min(pa.x, faceX - 40)), (pa.y + t.pos.y) / 2 + 20, (pa.z + t.pos.z) / 2),
           pa, pos.clone().addScaledVector(dir, 12)
-        ], Object.assign({}, cfgBase, { fileiras: 2, fios: 6, raio: 1.7, passo: 3.8, largIni: t.larg, largFim: larg })));
+        ], Object.assign({}, cfgBase, { fileiras: 2, fios: 6, raio: 1.7, passo: 3.8, largIni: t.larg, largFim: larg })), 'gpu'));
       }
       return g;
     }
@@ -922,6 +929,10 @@ window.PCBMontagem = function (THREE, M) {
       folgaEntre('Cooler da memória ↔ bomba do watercooler', caixasDe('coolerMemoria'), caixasDe('bomba'), 3, ['coolerMemoria', 'bomba'], 'Dá para deslocar o cooler para a frente (se os clipes deixarem) ou girar as conexões da bomba.');
       folgaEntre('Cooler da memória ↔ placa de vídeo', caixasDe('coolerMemoria'), caixasDe('gpu'), 3, ['coolerMemoria', 'gpu']);
       folgaEntre('Cooler da memória ↔ vidro lateral', [paredeVidro], [bCR], 5, ['coolerMemoria']);
+      // o 24 pinos sai da placa logo ao lado dos pentes: o cabo sobe ali até a altura do cooler antes de dobrar
+      const col24 = new THREE.Box3().setFromPoints([mbPonto(a24.x0, a24.y0, 0), mbPonto(a24.x1, a24.y1, infoCoolerRam.topo)]);
+      folgaEntre('Cooler da memória ↔ saída do cabo de 24 pinos', caixasDe('coolerMemoria'), [col24], 3, ['coolerMemoria', 'cabos'],
+        'O cabo sobe rente à lateral do cooler: dobre-o para a frente (longe dos pentes) logo na saída, ou use um adaptador de 24 pinos em 90° (sai rente à placa).');
       // mangueiras (traçado ilustrativo, não entram na colisão): passam por dentro do cooler?
       raiz.updateMatrixWorld(true);
       const dentro = new THREE.Box3(), v = new THREE.Vector3();
@@ -935,19 +946,53 @@ window.PCBMontagem = function (THREE, M) {
         folgas.push({ nome: 'Mangueiras do watercooler passam onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'tubos'], regiao: dentro, rotulo: 'Mangueira × cooler da memória',
           dica: 'No app as mangueiras saem da bomba por cima dos pentes (traçado ilustrativo). Com o cooler elas precisam desviar: girar as conexões da bomba para cima ou para trás, ou passar as mangueiras por fora do cooler.' });
       }
-      // cabos da fonte (24 pinos sai do lado dos pentes): flexíveis, mas precisam de caminho
+      // conector 12V-2x6 da placa de vídeo: o plugue + ~35 mm de cabo reto (recomendação para o
+      // 12V-2x6 não dobrar colado no conector) precisam de espaço; com a GPU vertical ele aponta para os pentes
+      let plugue12v = false;
+      const c12 = gpu.userData.conector12v;
+      if (c12 && c12.x0 != null) {
+        gpu.updateMatrixWorld(true);
+        const RETO = 35;
+        const p0 = gpu.localToWorld(c12.pos.clone());
+        const d = gpu.localToWorld(c12.pos.clone().add(c12.dir)).sub(p0);
+        const k = ['x', 'y', 'z'].reduce((m, e) => (Math.abs(d[e]) > Math.abs(d[m]) ? e : m), 'x');
+        const col = new THREE.Box3().setFromPoints([gpu.localToWorld(new THREE.Vector3(c12.x0, c12.pos.y, c12.z0)), gpu.localToWorld(new THREE.Vector3(c12.x1, c12.pos.y + RETO + 10, c12.z1))]);
+        let livre = Infinity, alvo = null;
+        for (const c of caixasDe('coolerMemoria')) {
+          if (!c.intersectsBox(col)) continue;
+          const dist = d[k] > 0 ? c.min[k] - p0[k] : p0[k] - c.max[k];
+          if (dist < livre) { livre = dist; alvo = c; }
+        }
+        if (alvo && livre < RETO) {
+          plugue12v = true;
+          const regiao = col.clone(); if (d[k] > 0) regiao.max[k] = alvo.min[k] + 2; else regiao.min[k] = alvo.max[k] - 2;
+          folgas.push({ nome: livre < 20 ? 'O plugue 12V-2x6 da placa de vídeo fica embaixo do cooler da memória' : 'Plugue 12V-2x6 da placa de vídeo ↔ cooler da memória', valor: livre, minimo: RETO, cruza: livre < 20, pen: RETO - livre, pecas: ['gpu', 'coolerMemoria'], regiao, rotulo: 'Plugue 12V-2x6 × cooler da memória',
+            textoContato: 'Sobram ' + fmt(Math.max(0, livre)) + ' de ~' + RETO + ' mm',
+            dica: 'O conector de força da placa de vídeo fica logo abaixo da ponta do cooler: sobram ' + fmt(Math.max(0, livre), 1) + ' mm, e o plugue com o cabo reto pede ~' + RETO + ' mm antes de dobrar. Confira na máquina onde o cabo da placa de vídeo sobe; se for embaixo dos pentes, só um cabo 12V-2x6 com plugue em 90° (de preferência nativo da fonte, não adaptador) ou mudar a posição da GPU resolvem.' });
+        }
+      }
+      // cabos da fonte (traçado ilustrativo): flexíveis, mas precisam de caminho
       const pCabos = partes.find((p) => p.id === 'cabos');
+      const CABO_TXT = {
+        atx24: ['O cabo de 24 pinos passa onde fica o cooler da memória', 'Cabo 24 pinos × cooler da memória', 'O 24 pinos sai da placa logo ao lado dos pentes. É flexível: dá para dobrar o cabo para longe, ou usar um adaptador de 24 pinos em 90° (sai rente à placa).'],
+        eps: ['O cabo EPS do processador passa onde fica o cooler da memória', 'Cabo EPS × cooler da memória', 'Passe o cabo EPS por trás da bandeja e pelo recorte de cima, longe dos pentes.'],
+        gpu: ['O cabo 12V-2x6 da placa de vídeo passa onde fica o cooler da memória', 'Cabo 12V-2x6 × cooler da memória', 'O cabo de força da placa de vídeo sobe por onde o cooler fica: passe-o pela frente, longe dos pentes, ou use um cabo com plugue em 90°.']
+      };
       if (pCabos && pCabos.obj) {
-        const noCooler = new THREE.Box3();
-        pCabos.obj.traverse((o) => {
-          if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
-          const pos = o.geometry.attributes.position;
-          for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); if (bCR.containsPoint(v)) noCooler.expandByPoint(v); }
-        });
-        if (!noCooler.isEmpty()) {
+        for (const ch of pCabos.obj.children) {
+          const t = ch.userData.cabo;
+          if (!CABO_TXT[t] || (t === 'gpu' && plugue12v)) continue;
+          const noCooler = new THREE.Box3();
+          ch.traverse((o) => {
+            if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+            const pos = o.geometry.attributes.position;
+            for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); if (bCR.containsPoint(v)) noCooler.expandByPoint(v); }
+          });
+          if (noCooler.isEmpty()) continue;
           const pen = Math.min(noCooler.max.x - noCooler.min.x, noCooler.max.y - noCooler.min.y, noCooler.max.z - noCooler.min.z);
-          folgas.push({ nome: 'O cabo de 24 pinos passa onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'cabos'], regiao: noCooler, rotulo: 'Cabo 24 pinos × cooler da memória',
-            dica: 'O 24 pinos sai da placa logo ao lado dos pentes e sobe na altura do cooler. É flexível: dá para dobrar o cabo para longe, ou usar um adaptador de 24 pinos em 90° (sai rente à placa).' });
+          const [nome, rotulo, dica] = CABO_TXT[t];
+          if (folgas.some((f) => f.nome === nome)) continue; // os 2 EPS contam uma vez
+          folgas.push({ nome, valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'cabos'], regiao: noCooler, rotulo, dica });
         }
       }
     }
@@ -1029,7 +1074,8 @@ window.PCBMontagem = function (THREE, M) {
       radInfo, riserInfo, vertical, distancia, altura, vagas,
       contagem: { fansCaso: fansCaso.length, fansAio: aioFans.length, fansGpu: gpu.userData.fansGPU || 0, fansMemoria: coolerRam ? (CM.fans.quantidade || 2) : 0, pentes: slotsUsados.length },
       coolerRam: infoCoolerRam,
-      vaoBomba: vaoBombaInfo
+      vaoBomba: vaoBombaInfo,
+      vaoBombaLayout
     };
   }
 

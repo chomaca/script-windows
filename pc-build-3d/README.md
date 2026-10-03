@@ -46,19 +46,28 @@ para escolher a fixação (clipes, suporte, ou suporte com adaptador 6-32, que s
 deslocar o cooler atravessando os slots e desligar o RGB (cabo ARGB de 3 pinos solto; os
 fans seguem no cabo de 4 pinos). Escolha **Nenhum** para tirar.
 
-Centrado nos 4 slots, ele avança **22,5 mm além da face do 1º pente** na direção da bomba
-(tem 60 mm de largura e fica de 38 a 63 mm acima da placa, a mesma altura da bomba). Então:
+**Layout medido na foto oficial de cima da placa** (Terminator B850M PRO, mesmo PCB; a
+placa tem 245 mm = 1122 px, conferido pelos furos de 54 × 90 mm do AM5): soquete a 57,8 mm
+do 1º slot, slots a cada ~9,6 mm, 24 pinos logo depois do 4º slot. Pela foto da build os
+pentes estão no **1º e no 3º slot** (contando do processador; o manual da maioria das placas
+pede o 2º e o 4º — confira no da sua). Com a GPU vertical na altura padrão, a borda de cima
+da 5090 fica na altura da ponta de baixo dos pentes, como na foto: a placa-mãe subiu 11,4 mm
+no gabinete (e a placa de slots e o recorte de I/O junto, que são presos a ela).
 
-- **Vão medido (lateral da bomba → 1º pente)**, na seção Memória: meça com régua na sua
-  máquina e ajuste — o app reposiciona os slots (o layout da placa é estimado). O padrão
-  é 16 mm, estimado pela foto da build: com isso o cooler centrado **encosta ~6,5 mm** na
-  bomba; deslocado ~8 mm para longe do processador fica com ~1,5 mm de folga (se os clipes
-  deixarem). Com um vão de 23 mm ou mais ele cabe centrado.
-- **Conexões na bomba** (seção Watercooler): para cima, para a RAM, para trás ou para baixo.
-  Na foto o lado da bomba virado para os pentes é liso, então o padrão é "para cima", com as
-  conexões do radiador na ponta de trás.
-- O **cabo de 24 pinos** sai ao lado dos pentes e passa na altura do cooler: é flexível, mas
-  precisa ser dobrado para longe (ou usar um adaptador de 24 pinos em 90°).
+Centrado nos 4 slots, o MC-2 (120 × 60 × 25 mm, de 38 a 63 mm acima da placa):
+
+- **Bomba:** 5,8 mm de folga (cabe). Centrado só nos pentes 1 e 3, 0,8 mm (apertado).
+  As **conexões da bomba** (seção Watercooler) não podem apontar para a RAM: aí encosta.
+- **Placa de vídeo:** ~6,7 mm entre a ponta de baixo do cooler e a borda de cima da 5090.
+- **24 pinos:** o conector fica 1,4 mm ao lado do cooler; o cabo sobe ali e precisa dobrar
+  para a frente logo na saída (ou adaptador de 24 pinos em 90°).
+- **Plugue 12V-2x6 da 5090:** no modelo ele fica **embaixo da ponta do cooler**, com 11,4 mm
+  de espaço; o plugue com o cabo reto pede ~35 mm. A posição do conector na placa é estimada
+  (o PCB é mais curto que o dissipador): confira na máquina onde o cabo da placa de vídeo
+  sobe. Se for embaixo dos pentes, este é o ponto que impede o cooler — só um cabo 12V-2x6
+  com plugue em 90° (de preferência nativo da fonte) ou outra posição da GPU resolvem.
+- **Vão medido (lateral da bomba → 1º pente)**, na seção Memória: se a régua discordar do
+  layout (17,9 mm até o pente do 1º slot), ajuste — o app move os slots.
 
 ### Atenção com a fonte
 

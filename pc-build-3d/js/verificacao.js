@@ -150,7 +150,7 @@ window.PCBVerificacao = function () {
       if (f.cruza) {
         // peça sem colisão (ex.: mangueira) passando por dentro de outra
         add('aviso', f.nome, (f.dica ? f.dica + ' ' : '') + 'No 3D, o trecho aparece em vermelho.', f.pecas, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.pen }], pen: f.pen } : null);
-        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.pen, tipo: 'colisao', rotulo: f.rotulo || f.nome, pecas: f.pecas });
+        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.pen, tipo: 'colisao', rotulo: f.rotulo || f.nome, pecas: f.pecas, texto: f.textoContato });
         continue;
       }
       if (f.valor < 0) continue;

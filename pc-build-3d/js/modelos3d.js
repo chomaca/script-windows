@@ -696,7 +696,8 @@ window.PCBModelos = function (THREE) {
     }
     add({ tipo: 'caixa', desenho: 'conector', pinos: [4, 2], x0: 11, x1: 27, y0: 3, y1: 12, z0: 0, z1: 13, mat: 'plastico' });
     add({ tipo: 'caixa', desenho: 'conector', pinos: [4, 2], x0: 28.5, x1: 44.5, y0: 3, y1: 12, z0: 0, z1: 13, mat: 'plastico' });
-    add({ tipo: 'caixa', desenho: 'conector', pinos: [2, 12], x0: W - 11, x1: W - 1, y0: H * 0.3, y1: H * 0.3 + 52, z0: 0, z1: 16, mat: 'plastico' });
+    const a24 = spec.atx24 || { x0: W - 11, x1: W - 1, y0: H * 0.3, y1: H * 0.3 + 52 };
+    add({ tipo: 'caixa', desenho: 'conector', pinos: [2, 12], x0: a24.x0, x1: a24.x1, y0: a24.y0, y1: a24.y1, z0: 0, z1: 16, mat: 'plastico' });
     add({ tipo: 'caixa', desenho: 'header', x0: W - 50, x1: W - 40, y0: 3, y1: 8, z0: 0, z1: 7, mat: 'plastico' });
     pc.forEach((p) => {
       add({ tipo: 'caixa', desenho: p.reforcado ? 'pcie-metal' : 'pcie', x0: p.x, x1: p.x + 89, y0: p.y - 3.8, y1: p.y + 3.8, z0: 0, z1: 11, mat: p.reforcado ? 'metal' : 'plastico' });
@@ -1367,7 +1368,8 @@ window.PCBModelos = function (THREE) {
       for (let i = 0; i < 4; i++) g.add(caixa(xc0 + 4 + i * 4, xc0 + 5.4 + i * 4, Hc + 5, Hc + 5.05, 12.2, 13.1, furo));
     }
     col.push(box3(xc0, xc1, Hc - 18, Hc + 7, 4.1, 13.5));
-    g.userData.conector12v = { pos: new THREE.Vector3((xc0 + xc1) / 2, Hc + 5, 8.8), dir: new THREE.Vector3(0, 1, 0) };
+    // pegada do plugue (x ao longo da placa, z na espessura) para medir o espaço acima dele
+    g.userData.conector12v = { pos: new THREE.Vector3((xc0 + xc1) / 2, Hc + 5, 8.8), dir: new THREE.Vector3(0, 1, 0), x0: xc0, x1: xc1, z0: 4.1, z1: 13.5 };
     // parafusos do backplate: 4 da trava do chip (com mola) e os da borda
     {
       const xcore = pcbL * 0.26 + 51, ycore = (y0 + 18 + Hc - 16) / 2;

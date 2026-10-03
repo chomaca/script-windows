@@ -51,7 +51,9 @@ window.PCB_CATALOGO = {
       // bandeja a 34 mm da lateral direita (medido pela foto traseira: I/O a 40–83 mm da lateral);
       // ela vai da traseira até os 2 recortes de cabo na frente da placa (z ≈ 318)
       bandeja: { x: 34, ateZ: 318 },
-      placaMae: { traseira: 14, topoY: 351, standoff: 6.35 },
+      // topoY calibrado pela foto da build: com a GPU vertical na altura padrão, a borda de cima
+      // da 5090 fica na altura da ponta de baixo dos pentes (antes: 351, estimado)
+      placaMae: { traseira: 14, topoY: 362.4, standoff: 6.35 },
       // fonte no canto frontal superior, baia de 200 mm de profundidade (TweakTown), ventoinha virada para a lateral direita
       fonte: {
         caixa: { x: [8, 100], y: [214, 372], z: [291, 491] },
@@ -62,16 +64,18 @@ window.PCB_CATALOGO = {
         entradaAC: { x: 53, y: 393, lado: 28 }
       },
       // traseira em grade de furos quadrados; placa de 7 slots removível que gira para a GPU vertical
+      // a placa de slots e o recorte de I/O ficam presos à posição da placa-mãe (padrão ATX):
+      // subiram junto com o topoY calibrado (+11,4 mm)
       traseira: {
         slots: 7,
-        slot1Y: 187,
+        slot1Y: 198.4,
         rearIO: true,
         grade: { passo: 14, furo: 11 },
-        placaSlots: { x: [30, 170], y: [48, 196] },
+        placaSlots: { x: [30, 170], y: [59.4, 207.4] },
         ioTopoAcima: 3
       },
       // suporte vertical (incluso): o suporte da placa (3,5 slots) precisa caber na placa de slots girada
-      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaMax: 84, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
+      gpuVertical: { suporteZ: 4, alturaMin: 66, alturaMax: 95, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
       montagens: {
         topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         frente: { nome: 'Frente', centro: { x: 163, y: 225, z: 490 }, normal: 'frente', eixo: 'cima', vagas: { 120: 3, 140: 2 }, radiador: 360 },
@@ -117,7 +121,7 @@ window.PCB_CATALOGO = {
       },
       // mesmo chassi do Model 5 Vent, com a frente de vidro (25 mm mais raso)
       bandeja: { x: 34, ateZ: 306 },
-      placaMae: { traseira: 14, topoY: 351, standoff: 6.35 },
+      placaMae: { traseira: 14, topoY: 362.4, standoff: 6.35 },
       fonte: {
         caixa: { x: [8, 100], y: [214, 372], z: [270, 470] },
         ancora: { x: 54, y: 293, z: 467 },
@@ -126,8 +130,8 @@ window.PCB_CATALOGO = {
         ventoinhaPara: 'direita',
         entradaAC: { x: 53, y: 393, lado: 28 }
       },
-      traseira: { slots: 7, slot1Y: 187, rearIO: true, grade: { passo: 14, furo: 11 }, placaSlots: { x: [30, 170], y: [48, 196] }, ioTopoAcima: 3 },
-      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaMax: 84, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
+      traseira: { slots: 7, slot1Y: 198.4, rearIO: true, grade: { passo: 14, furo: 11 }, placaSlots: { x: [30, 170], y: [59.4, 207.4] }, ioTopoAcima: 3 },
+      gpuVertical: { suporteZ: 4, alturaMin: 66, alturaMax: 95, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
       montagens: {
         topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         traseira: { nome: 'Traseira', centro: { x: 162, y: 290, z: 2 }, normal: 'traseira', eixo: 'cima', vagas: { 120: 1, 140: 1 }, radiador: 140 },
@@ -204,15 +208,18 @@ window.PCB_CATALOGO = {
       corArmadura: '#e6e7e9',
       corAcento: '#7a1d26',
       corDetalhe: '#b9bdc3',
-      soquete: { x: 110, y: 80 },
-      dimm: { x: [152, 160, 168, 176], y: 78 },
+      // medidos na foto oficial de cima (Terminator B850M PRO DARK, mesmo PCB), na escala da
+      // placa (245 mm = 1122 px) e conferidos pelos 4 parafusos do AM5 (54 × 90 mm)
+      soquete: { x: 128.9, y: 86.9 },
+      dimm: { x: [186.7, 196.3, 205.9, 215.4], y: 87 },
+      atx24: { x0: 232.5, x1: 241.7, y0: 38, y1: 89 },
       // x16 alinhado à 1ª posição de slot do gabinete (passo 20,32 mm); o 2º, três slots abaixo
       pcie: [
         { x: 46, y: 164, nome: 'PCIe 5.0 x16', reforcado: true },
         { x: 46, y: 225, nome: 'PCIe 4.0 x4 (físico x16)', reforcado: false }
       ],
-      estimado: ['soquete', 'dimm', 'pcie', 'massa'],
-      notas: 'Formato Micro-ATX 245 × 245 mm (oficial). PCB preto com armadura prata-branca jateada e escovada e linhas vermelho-escuras; 4 slots DDR5, 3 M.2, 2 PCIe x16, 2 SATA e 2 EPS 8 pinos. Posições internas seguem o padrão mATX. Para ficar idêntica ao produto, use a opção de foto do topo.',
+      estimado: ['pcie', 'massa'],
+      notas: 'Formato Micro-ATX 245 × 245 mm (oficial). PCB preto com armadura prata-branca jateada e escovada e linhas vermelho-escuras; 4 slots DDR5, 3 M.2, 2 PCIe x16, 2 SATA e 2 EPS 8 pinos. Soquete, slots de memória e conector de 24 pinos medidos na foto oficial de cima: centro do soquete a 128,9 mm da borda traseira e 86,9 mm do topo; slots a 186,7 / 196,3 / 205,9 / 215,4 mm (passo de ~9,6 mm), 57,8 mm do centro do soquete ao 1º slot. Para ficar idêntica ao produto, use a opção de foto do topo.',
       fontes: [
         { rotulo: 'MAXSUN — Terminator B850M PRO WIFI', url: 'https://www.maxsun.com/products/terminator-b850m-pro-wifi' },
         { rotulo: 'ZOL — fotos da placa (chinês)', url: 'https://diy.zol.com.cn/1011/10111686.html' },

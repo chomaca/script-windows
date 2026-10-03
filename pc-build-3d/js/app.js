@@ -119,6 +119,8 @@ window.PCBApp = (function () {
         // versão 1 → 2: posição da GPU vertical passou a seguir a placa de slots do gabinete
         const g0 = o.build && o.build.gpu;
         if (g0 && (o.build.versao || 1) < 2 && g0.distanciaBandeja === 70 && g0.alturaDoChao === 81) { g0.distanciaBandeja = 56; g0.alturaDoChao = 76; }
+        // versão 2 → 3: layout da MAXSUN medido na foto oficial; o vão de 16 mm estimado antes sai
+        if (o.build && (o.build.versao || 1) < 3 && o.build.memoria && o.build.memoria.vaoBomba === 16) delete o.build.memoria.vaoBomba;
         const vis = Object.assign({}, VIS_PADRAO, o.vis || {});
         if (!AMB.QUALIDADES[vis.qualidade]) vis.qualidade = VIS_PADRAO.qualidade;
         return { build: normalizar(o.build), vis, aba: o.aba || 'pecas', abertas: Array.isArray(o.abertas) ? o.abertas : null };
@@ -934,7 +936,7 @@ window.PCBApp = (function () {
       ar.renderOrder = 36;
       const el = document.createElement('div');
       el.className = 'rotulo-contato' + (c.tipo === 'fora' ? ' fora' : folga ? ' folga' : '');
-      el.innerHTML = (folga ? 'Folga ' : c.tipo === 'fora' ? 'Sai ' : 'Invade ') + esc(fmt(c.pen, 1)) + ' mm<small>' + esc(c.rotulo) + '</small>';
+      el.innerHTML = (c.texto ? esc(c.texto) : (folga ? 'Folga ' : c.tipo === 'fora' ? 'Sai ' : 'Invade ') + esc(fmt(c.pen, 1)) + ' mm') + '<small>' + esc(c.rotulo) + '</small>';
       const rot = new CSS2DObject(el);
       rot.position.copy(centro).add(new THREE.Vector3(0, Math.max(tam.y, 2.5) / 2 + 8, 0));
       grupoContatos.add(vol, ar, rot);
@@ -1654,9 +1656,10 @@ window.PCBApp = (function () {
       cartaoPeca(S.memoria, q + '× ' + R.memoria.nome, R.memoria.capacidade * q + ' GB · ' + fmt(R.memoria.altura) + ' mm de altura', est.memoria, itens.memoria, [
         campoSelect('s-ram', 'memoria.modelo', 'Modelo', opcoes(CAT.memorias, b.memoria.modelo)),
         campoSeg('Quantidade de pentes', seg('memoria.quantidade', b.memoria.quantidade, [[1, '1'], [2, '2'], [4, '4']], 'Quantidade de pentes', true)),
-        slider('r-ram-vao', 'memoria.vaoBomba', Number(b.memoria.vaoBomba) || 0, 0, 40, 0.5, 'Vão medido: lateral da bomba → 1º pente (0 = estimado)'),
+        (q === 2 ? campoSeg('Slots usados (contando do processador)', seg('memoria.slots', b.memoria.slots === '1-3' ? '1-3' : '2-4', [['2-4', '2º e 4º (A2/B2)'], ['1-3', '1º e 3º']], 'Slots usados')) : ''),
+        slider('r-ram-vao', 'memoria.vaoBomba', Number(b.memoria.vaoBomba) || 0, 0, 40, 0.5, 'Vão medido: lateral da bomba → 1º pente (0 = layout da placa)'),
         '<p class="nota">Meça com régua, na altura do topo dos pentes, da lateral da bomba até a face do pente mais perto dela. ' +
-          (atual && atual.vaoBomba ? 'Pelo layout estimado da placa daria ' + fmt(atual.vaoBomba.estimado, 1) + ' mm; os slots foram movidos ' + fmt(Math.abs(atual.vaoBomba.ajuste), 1) + ' mm.' : 'Em 0, vale a posição estimada dos slots.') + '</p>',
+          (atual && atual.vaoBomba ? 'Pelo layout da placa daria ' + fmt(atual.vaoBomba.estimado, 1) + ' mm; os slots foram movidos ' + fmt(Math.abs(atual.vaoBomba.ajuste), 1) + ' mm.' : 'Em 0, vale a posição dos slots do catálogo' + (atual && atual.vaoBombaLayout != null ? ' (dá ' + fmt(atual.vaoBombaLayout, 1) + ' mm até o 1º pente)' : '') + '.') + '</p>',
         camposCoolerRam('s-ramc', 'r-ramc-desl'),
         blocoFotos('memoria'),
         blocoMedidas('memoria', R.ids.memoria)
@@ -2085,6 +2088,7 @@ window.PCBApp = (function () {
       'cpu.modelo': () => 'Processador: ' + nomeEm('cpus', v),
       'memoria.modelo': () => 'Memória: ' + nomeEm('memorias', v),
       'memoria.quantidade': () => v + (Number(v) > 1 ? ' pentes' : ' pente') + ' de memória',
+      'memoria.slots': () => 'Pentes no ' + (v === '1-3' ? '1º e 3º' : '2º e 4º') + ' slot',
       'refrigeracao.modelo': () => 'Watercooler: ' + nomeEm('coolers', v),
       'refrigeracao.local': () => 'Radiador em ' + ((atual && atual.G.montagens[v] && atual.G.montagens[v].nome) || v).toLowerCase(),
       'refrigeracao.fluxo': () => 'Fans do radiador em ' + (v === 'saida' ? 'saída' : 'entrada'),

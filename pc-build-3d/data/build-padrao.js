@@ -7,7 +7,7 @@
  * ficam salvas no navegador e podem ser exportadas em JSON.
  */
 window.PCB_BUILD_PADRAO = {
-  versao: 2,
+  versao: 3,
   gabinete: { modelo: 'gf-model5-vent', cor: '#1c1e21' },
   placaMae: { modelo: 'maxsun-b850m-pro-wifi-branca' },
   cpu: { modelo: 'am5-a-definir' },
@@ -17,9 +17,12 @@ window.PCB_BUILD_PADRAO = {
     // cooler por cima dos pentes ('' = sem cooler). fixacao: 'clipes', 'suporte' ou 'suporte632' (+7 mm);
     // deslocamento: mm atravessando os slots (+ = para a frente, longe do processador); rgb: 'ligado' ou 'desligado'
     cooler: { modelo: 'thermalright-mc2-argb-preto', fixacao: 'clipes', deslocamento: 0, rgb: 'ligado' },
-    // mm entre a lateral da bomba e o 1º pente, medido na máquina (corrige a posição dos slots;
-    // 0 = usar o layout estimado da placa). 16 mm = estimativa pela foto da build.
-    vaoBomba: 16
+    // '1-3' = pentes no 1º e no 3º slot contando do processador (como na foto da build);
+    // sem isso, 2 pentes vão no 2º e no 4º (A2/B2)
+    slots: '1-3',
+    // mm entre a lateral da bomba e o 1º pente, medido na máquina (move os slots; 0 = usar o
+    // layout do catálogo, que para a MAXSUN foi medido na foto oficial de cima)
+    vaoBomba: 0
   },
   refrigeracao: {
     modelo: 'aorus-waterforce-ii-360-ice',
