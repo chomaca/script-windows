@@ -50,21 +50,20 @@ fans seguem no cabo de 4 pinos). Escolha **Nenhum** para tirar.
 placa tem 245 mm = 1122 px, conferido pelos furos de 54 × 90 mm do AM5): soquete a 57,8 mm
 do 1º slot, slots a cada ~9,6 mm, 24 pinos logo depois do 4º slot. Pela foto da build os
 pentes estão no **1º e no 3º slot** (contando do processador; o manual da maioria das placas
-pede o 2º e o 4º — confira no da sua). Com a GPU vertical na altura padrão, a borda de cima
-da 5090 fica na altura da ponta de baixo dos pentes, como na foto: a placa-mãe subiu 11,4 mm
-no gabinete (e a placa de slots e o recorte de I/O junto, que são presos a ela).
+pede o 2º e o 4º — confira no da sua).
 
 Centrado nos 4 slots, o MC-2 (120 × 60 × 25 mm, de 38 a 63 mm acima da placa):
 
 - **Bomba:** 5,8 mm de folga (cabe). Centrado só nos pentes 1 e 3, 0,8 mm (apertado).
   As **conexões da bomba** (seção Watercooler) não podem apontar para a RAM: aí encosta.
-- **Placa de vídeo:** ~6,7 mm entre a ponta de baixo do cooler e a borda de cima da 5090.
 - **24 pinos:** o conector fica 1,4 mm ao lado do cooler; o cabo sobe ali e precisa dobrar
   para a frente logo na saída (ou adaptador de 24 pinos em 90°).
-- **Plugue 12V-2x6 da 5090:** fica a ~217 mm do suporte da placa (65% dos 332 mm, medido na
-  foto da build com a placa na horizontal), ou seja, **embaixo da ponta do cooler**, com
-  11,4 mm de espaço; o plugue com o cabo reto pede ~35 mm. É o ponto que impede o MC-2 com a
-  GPU vertical nessa altura — nem um plugue em 90° (~13–15 mm de altura) passa folgado.
+- **5090 na horizontal (no slot, como na foto da build):** cabe. A ponta de baixo do cooler
+  fica ~4,8 mm acima do backplate, e o conector 12V-2x6 aponta para o vidro, longe dos pentes.
+- **5090 na vertical (riser, a build planejada):** não cabe. O conector 12V-2x6 fica a ~217 mm
+  do suporte da placa (65% dos 332 mm, medido na foto), embaixo da ponta do cooler e
+  apontando para ele; o plugue com o cabo reto pede ~35 mm. Na altura padrão do suporte a
+  borda da placa ainda passa ~5 mm por dentro do cooler.
 - **Vão medido (lateral da bomba → 1º pente)**, na seção Memória: se a régua discordar do
   layout (17,9 mm até o pente do 1º slot), ajuste — o app move os slots.
 

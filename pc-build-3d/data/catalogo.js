@@ -51,9 +51,9 @@ window.PCB_CATALOGO = {
       // bandeja a 34 mm da lateral direita (medido pela foto traseira: I/O a 40–83 mm da lateral);
       // ela vai da traseira até os 2 recortes de cabo na frente da placa (z ≈ 318)
       bandeja: { x: 34, ateZ: 318 },
-      // topoY calibrado pela foto da build: com a GPU vertical na altura padrão, a borda de cima
-      // da 5090 fica na altura da ponta de baixo dos pentes (antes: 351, estimado)
-      placaMae: { traseira: 14, topoY: 362.4, standoff: 6.35 },
+      // topoY estimado pelas fotos do gabinete (a foto da build com a 5090 na ponta dos pentes é
+      // com a placa na horizontal, e aí essa relação vem só do layout da placa-mãe)
+      placaMae: { traseira: 14, topoY: 351, standoff: 6.35 },
       // fonte no canto frontal superior, baia de 200 mm de profundidade (TweakTown), ventoinha virada para a lateral direita
       fonte: {
         caixa: { x: [8, 100], y: [214, 372], z: [291, 491] },
@@ -64,18 +64,17 @@ window.PCB_CATALOGO = {
         entradaAC: { x: 53, y: 393, lado: 28 }
       },
       // traseira em grade de furos quadrados; placa de 7 slots removível que gira para a GPU vertical
-      // a placa de slots e o recorte de I/O ficam presos à posição da placa-mãe (padrão ATX):
-      // subiram junto com o topoY calibrado (+11,4 mm)
+      // a placa de slots e o recorte de I/O ficam presos à posição da placa-mãe (padrão ATX)
       traseira: {
         slots: 7,
-        slot1Y: 198.4,
+        slot1Y: 187,
         rearIO: true,
         grade: { passo: 14, furo: 11 },
-        placaSlots: { x: [30, 170], y: [59.4, 207.4] },
+        placaSlots: { x: [30, 170], y: [48, 196] },
         ioTopoAcima: 3
       },
       // suporte vertical (incluso): o suporte da placa (3,5 slots) precisa caber na placa de slots girada
-      gpuVertical: { suporteZ: 4, alturaMin: 66, alturaMax: 95, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
+      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaMax: 84, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
       montagens: {
         topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         frente: { nome: 'Frente', centro: { x: 163, y: 225, z: 490 }, normal: 'frente', eixo: 'cima', vagas: { 120: 3, 140: 2 }, radiador: 360 },
@@ -121,7 +120,7 @@ window.PCB_CATALOGO = {
       },
       // mesmo chassi do Model 5 Vent, com a frente de vidro (25 mm mais raso)
       bandeja: { x: 34, ateZ: 306 },
-      placaMae: { traseira: 14, topoY: 362.4, standoff: 6.35 },
+      placaMae: { traseira: 14, topoY: 351, standoff: 6.35 },
       fonte: {
         caixa: { x: [8, 100], y: [214, 372], z: [270, 470] },
         ancora: { x: 54, y: 293, z: 467 },
@@ -130,8 +129,8 @@ window.PCB_CATALOGO = {
         ventoinhaPara: 'direita',
         entradaAC: { x: 53, y: 393, lado: 28 }
       },
-      traseira: { slots: 7, slot1Y: 198.4, rearIO: true, grade: { passo: 14, furo: 11 }, placaSlots: { x: [30, 170], y: [59.4, 207.4] }, ioTopoAcima: 3 },
-      gpuVertical: { suporteZ: 4, alturaMin: 66, alturaMax: 95, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
+      traseira: { slots: 7, slot1Y: 187, rearIO: true, grade: { passo: 14, furo: 11 }, placaSlots: { x: [30, 170], y: [48, 196] }, ioTopoAcima: 3 },
+      gpuVertical: { suporteZ: 4, alturaMin: 55, alturaMax: 84, alturaPadrao: 76, distanciaMin: 23, distanciaMax: 66, distanciaPadrao: 56, slotBaseX: 29 },
       montagens: {
         topo: { nome: 'Topo', centro: { x: 140, y: 428, z: 240 }, normal: 'cima', eixo: 'frente', vagas: { 120: 3, 140: 3 }, radiador: 420 },
         traseira: { nome: 'Traseira', centro: { x: 162, y: 290, z: 2 }, normal: 'traseira', eixo: 'cima', vagas: { 120: 1, 140: 1 }, radiador: 140 },

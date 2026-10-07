@@ -16,7 +16,8 @@ window.PCB_BUILD_PADRAO = {
     quantidade: 2,
     // cooler por cima dos pentes ('' = sem cooler). fixacao: 'clipes', 'suporte' ou 'suporte632' (+7 mm);
     // deslocamento: mm atravessando os slots (+ = para a frente, longe do processador); rgb: 'ligado' ou 'desligado'
-    cooler: { modelo: 'thermalright-mc2-argb-preto', fixacao: 'clipes', deslocamento: 0, rgb: 'ligado' },
+    // MC-2 ARGB: cabe com a 5090 na horizontal, mas não na vertical planejada (bate na placa e no plugue 12V-2x6)
+    cooler: { modelo: '', fixacao: 'clipes', deslocamento: 0, rgb: 'ligado' },
     // '1-3' = pentes no 1º e no 3º slot contando do processador (como na foto da build);
     // sem isso, 2 pentes vão no 2º e no 4º (A2/B2)
     slots: '1-3',
