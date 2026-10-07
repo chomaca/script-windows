@@ -1565,7 +1565,9 @@ window.PCBModelos = function (THREE) {
   function medidasFansGpu(spec, fanSpec) {
     const Hc = spec.deshroud.altura, Tc = spec.deshroud.espessura, y0 = 9;
     const s = fanSpec.tamanho, ft = fanSpec.espessura;
-    const cy = (y0 + Hc) / 2;
+    // centrado no dissipador, mas sem passar da borda de baixo dele (lado do slot/riser): um fan
+    // de 140 mm num dissipador de ~123 mm sobra para o lado do vidro, senão bate na placa-mãe
+    const cy = Math.max((y0 + Hc) / 2, y0 + s / 2);
     return { s, ft, Tc, cy, L: spec.deshroud.comprimento, yMin: Math.min(y0, cy - s / 2) - 1.2, yMax: Math.max(Hc + 8, cy + s / 2) + 1.2, zTop: Tc + ft };
   }
   function placaDeVideoFans(spec, cfg, fanSpec, rgb, fotos) {

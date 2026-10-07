@@ -24,7 +24,7 @@ Não precisa instalar nada.
 | Cooler da memória (em teste) | Thermalright MC-2 ARGB (preto), com clipes | 120 × 60 × 25 (2 fans de 3200 rpm) |
 | Watercooler | GIGABYTE AORUS WATERFORCE II 360 ICE, no topo | radiador 394 × 119 × 27; bomba 72,8 × 72,8 × 65,1 |
 | Fonte | Corsair RM1200e | 150 × 86 × 150 |
-| Placa de vídeo | ZOTAC RTX 5090 AMP Extreme INFINITY, sem shroud, vertical com riser | oficial 332,1 × 137,5 × 69,6 (2,88 kg); sem shroud (estimado) 325 × 132 × 52; com os 2 P14: 325 × 132 × 79 |
+| Placa de vídeo | ZOTAC RTX 5090 AMP Extreme INFINITY, sem shroud, horizontal no slot (vertical com riser como opção) | oficial 332,1 × 137,5 × 69,6 (2,88 kg); sem shroud (estimado) 325 × 132 × 52; com os 2 P14: 325 × 132 × 79 |
 | Fans na GPU | 2× ARCTIC P14 Pro (abraçadeira) | 140 × 140 × 27 |
 | Fans do gabinete | 5× Squama 140 mm (1 traseira, 3 fundo, 1 lateral) | 140 × 140 × 25 |
 
@@ -64,6 +64,11 @@ Centrado nos 4 slots, o MC-2 (120 × 60 × 25 mm, de 38 a 63 mm acima da placa):
   do suporte da placa (65% dos 332 mm, medido na foto), embaixo da ponta do cooler e
   apontando para ele; o plugue com o cabo reto pede ~35 mm. Na altura padrão do suporte a
   borda da placa ainda passa ~5 mm por dentro do cooler.
+
+Os P14 Pro presos na placa ficam alinhados com a borda de baixo do dissipador (lado do slot):
+um fan de 140 mm num dissipador de ~123 mm sobra ~17 mm para o lado do vidro. Centrados, eles
+bateriam nos dissipadores do M.2 com a placa no slot. Na vertical, essa sobra sobe e fica justa
+com o compartimento da fonte (estimado).
 - **Vão medido (lateral da bomba → 1º pente)**, na seção Memória: se a régua discordar do
   layout (17,9 mm até o pente do 1º slot), ajuste — o app move os slots.
 

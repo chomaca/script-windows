@@ -38,7 +38,7 @@ window.PCB_BUILD_PADRAO = {
   gpu: {
     modelo: 'zotac-rtx5090-amp-extreme-infinity',
     modo: 'deshroud',            // 'deshroud' ou 'original'
-    orientacao: 'vertical',      // 'vertical' (riser) ou 'horizontal' (no slot)
+    orientacao: 'horizontal',    // 'vertical' (riser) ou 'horizontal' (no slot) — hoje ela está no slot
     distanciaBandeja: 56,        // mm da bandeja até a backplate (vertical; suporte nos 4 últimos slots da placa girada)
     alturaDoChao: 76,            // mm do chão até a borda de baixo da placa (vertical)
     fans: { modelo: 'arctic-p14-pro', quantidade: 2, espacamento: 4, deslocamento: 0 },
