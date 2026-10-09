@@ -926,13 +926,13 @@ window.PCBMontagem = function (THREE, M) {
     const caixasDe = (id) => { const p = partes.find((x) => x.id === id); return p ? p.caixas : []; };
     if (coolerRam) {
       const bCR = uniao((p) => p.id === 'coolerMemoria');
-      folgaEntre('Cooler da memória ↔ bomba do watercooler', caixasDe('coolerMemoria'), caixasDe('bomba'), 3, ['coolerMemoria', 'bomba'], 'Dá para deslocar o cooler para a frente (se os clipes deixarem) ou girar as conexões da bomba.', 'Cooler × bomba');
-      folgaEntre('Cooler da memória ↔ placa de vídeo', caixasDe('coolerMemoria'), caixasDe('gpu'), 3, ['coolerMemoria', 'gpu']);
-      folgaEntre('Cooler da memória ↔ vidro lateral', [paredeVidro], [bCR], 5, ['coolerMemoria']);
+      folgaEntre('Cooler da memória ↔ bomba do watercooler', caixasDe('coolerMemoria'), caixasDe('bomba'), 3, ['coolerMemoria', 'bomba'], 'Dá para deslocar o cooler para a frente (se os clipes deixarem) ou girar as conexões da bomba.', 'Cooler da RAM × Bomba');
+      folgaEntre('Cooler da memória ↔ placa de vídeo', caixasDe('coolerMemoria'), caixasDe('gpu'), 3, ['coolerMemoria', 'gpu'], null, 'Cooler da RAM × Placa de vídeo');
+      folgaEntre('Cooler da memória ↔ vidro lateral', [paredeVidro], [bCR], 5, ['coolerMemoria'], null, 'Cooler da RAM × Vidro');
       // o 24 pinos sai da placa logo ao lado dos pentes: o cabo sobe ali até a altura do cooler antes de dobrar
       const col24 = new THREE.Box3().setFromPoints([mbPonto(a24.x0, a24.y0, 0), mbPonto(a24.x1, a24.y1, infoCoolerRam.topo)]);
       folgaEntre('Cooler da memória ↔ saída do cabo de 24 pinos', caixasDe('coolerMemoria'), [col24], 3, ['coolerMemoria', 'cabos'],
-        'O cabo sobe rente à lateral do cooler: dobre-o para a frente (longe dos pentes) logo na saída, ou use um adaptador de 24 pinos em 90° (sai rente à placa).', 'Cooler × cabo 24 pinos');
+        'O cabo sobe rente à lateral do cooler: dobre-o para a frente (longe dos pentes) logo na saída, ou use um adaptador de 24 pinos em 90° (sai rente à placa).', 'Cooler da RAM × Cabo 24 pinos');
       // mangueiras (traçado ilustrativo, não entram na colisão): passam por dentro do cooler?
       raiz.updateMatrixWorld(true);
       const dentro = new THREE.Box3(), v = new THREE.Vector3();
@@ -943,7 +943,7 @@ window.PCBMontagem = function (THREE, M) {
       }
       if (!dentro.isEmpty()) {
         const pen = Math.min(dentro.max.x - dentro.min.x, dentro.max.y - dentro.min.y, dentro.max.z - dentro.min.z);
-        folgas.push({ nome: 'Mangueiras do watercooler passam onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'tubos'], regiao: dentro, rotulo: 'Mangueira × cooler da memória',
+        folgas.push({ nome: 'Mangueiras do watercooler passam onde fica o cooler da memória', valor: -pen, minimo: 0, cruza: true, pen, pecas: ['coolerMemoria', 'tubos'], regiao: dentro, rotulo: 'Mangueiras × Cooler da RAM',
           dica: 'No app as mangueiras saem da bomba por cima dos pentes (traçado ilustrativo). Com o cooler elas precisam desviar: girar as conexões da bomba para cima ou para trás, ou passar as mangueiras por fora do cooler.' });
       }
       // conector 12V-2x6 da placa de vídeo: o plugue + ~35 mm de cabo reto (recomendação para o
@@ -966,7 +966,7 @@ window.PCBMontagem = function (THREE, M) {
         if (alvo && livre < RETO) {
           plugue12v = true;
           const regiao = col.clone(); if (d[k] > 0) regiao.max[k] = alvo.min[k] + 2; else regiao.min[k] = alvo.max[k] - 2;
-          folgas.push({ nome: livre < 20 ? 'O plugue 12V-2x6 da placa de vídeo fica embaixo do cooler da memória' : 'Plugue 12V-2x6 da placa de vídeo ↔ cooler da memória', valor: livre, minimo: RETO, cruza: livre < 20, pen: RETO - livre, pecas: ['gpu', 'coolerMemoria'], regiao, rotulo: 'Plugue 12V-2x6 × cooler da memória',
+          folgas.push({ nome: livre < 20 ? 'O plugue 12V-2x6 da placa de vídeo fica embaixo do cooler da memória' : 'Plugue 12V-2x6 da placa de vídeo ↔ cooler da memória', valor: livre, minimo: RETO, cruza: livre < 20, pen: RETO - livre, pecas: ['gpu', 'coolerMemoria'], regiao, rotulo: 'Plugue 12V-2x6 × Cooler da RAM',
             textoContato: 'Sobram ' + fmt(Math.max(0, livre)) + ' de ~' + RETO + ' mm',
             dica: 'O conector de força da placa de vídeo fica logo abaixo da ponta do cooler: sobram ' + fmt(Math.max(0, livre), 1) + ' mm, e o plugue com o cabo reto pede ~' + RETO + ' mm antes de dobrar. Confira na máquina onde o cabo da placa de vídeo sobe; se for embaixo dos pentes, só um cabo 12V-2x6 com plugue em 90° (de preferência nativo da fonte, não adaptador) ou mudar a posição da GPU resolvem.' });
         }
@@ -974,9 +974,9 @@ window.PCBMontagem = function (THREE, M) {
       // cabos da fonte (traçado ilustrativo): flexíveis, mas precisam de caminho
       const pCabos = partes.find((p) => p.id === 'cabos');
       const CABO_TXT = {
-        atx24: ['O cabo de 24 pinos passa onde fica o cooler da memória', 'Cabo 24 pinos × cooler da memória', 'O 24 pinos sai da placa logo ao lado dos pentes. É flexível: dá para dobrar o cabo para longe, ou usar um adaptador de 24 pinos em 90° (sai rente à placa).'],
-        eps: ['O cabo EPS do processador passa onde fica o cooler da memória', 'Cabo EPS × cooler da memória', 'Passe o cabo EPS por trás da bandeja e pelo recorte de cima, longe dos pentes.'],
-        gpu: ['O cabo 12V-2x6 da placa de vídeo passa onde fica o cooler da memória', 'Cabo 12V-2x6 × cooler da memória', 'O cabo de força da placa de vídeo sobe por onde o cooler fica: passe-o pela frente, longe dos pentes, ou use um cabo com plugue em 90°.']
+        atx24: ['O cabo de 24 pinos passa onde fica o cooler da memória', 'Cabo 24 pinos × Cooler da RAM', 'O 24 pinos sai da placa logo ao lado dos pentes. É flexível: dá para dobrar o cabo para longe, ou usar um adaptador de 24 pinos em 90° (sai rente à placa).'],
+        eps: ['O cabo EPS do processador passa onde fica o cooler da memória', 'Cabo EPS × Cooler da RAM', 'Passe o cabo EPS por trás da bandeja e pelo recorte de cima, longe dos pentes.'],
+        gpu: ['O cabo 12V-2x6 da placa de vídeo passa onde fica o cooler da memória', 'Cabo 12V-2x6 × Cooler da RAM', 'O cabo de força da placa de vídeo sobe por onde o cooler fica: passe-o pela frente, longe dos pentes, ou use um cabo com plugue em 90°.']
       };
       if (pCabos && pCabos.obj) {
         for (const ch of pCabos.obj.children) {

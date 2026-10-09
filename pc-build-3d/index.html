@@ -46,7 +46,7 @@
             <label class="chk"><input type="checkbox" data-vis="cotas"> Cotas do gabinete <kbd>C</kbd></label>
             <label class="chk"><input type="checkbox" data-vis="vagas"> Vagas livres para fans <kbd>N</kbd></label>
             <label class="chk"><input type="checkbox" data-vis="soGabinete"> Só o gabinete (sem peças) <kbd>O</kbd></label>
-            <label class="chk"><input type="checkbox" data-vis="contatos"> Pontos de contato (onde não cabe) <kbd>K</kbd></label>
+            <label class="chk"><input type="checkbox" data-vis="contatos"> Marcações de onde não cabe <kbd>K</kbd></label>
             <hr>
             <label class="chk"><input type="checkbox" data-vis="ar"> Simular o ar (partículas) <kbd>A</kbd></label>
             <label class="chk"><input type="checkbox" data-vis="fluxo"> Setas de entrada e saída <kbd>F</kbd></label>
@@ -97,6 +97,17 @@
     </div>
     <button type="button" class="botao-flutuante" id="mostrar-tudo" hidden><svg class="ic"><use href="#i-olho"/></svg>Mostrar peças ocultas</button>
     <div class="dica" id="dica">Arraste para girar · role para aproximar · clique numa peça para editar</div>
+    <div class="problemas" id="problemas" hidden>
+      <div class="problemas-lista" id="problemas-lista" role="dialog" aria-label="Problemas na montagem" hidden>
+        <header><strong>Onde não cabe</strong><button type="button" class="fechar" id="problemas-fechar" aria-label="Fechar a lista">×</button></header>
+        <ol class="problemas-itens" id="problemas-itens"></ol>
+        <p class="nota">Toque num item para ver no 3D. Detalhes completos na aba Checagem.</p>
+      </div>
+      <div class="problemas-barra">
+        <button type="button" class="problemas-chip" id="problemas-chip" aria-expanded="false" aria-controls="problemas-lista"><span class="ponto" aria-hidden="true"></span><span id="problemas-resumo"></span><svg class="ic seta" aria-hidden="true"><use href="#i-seta"/></svg></button>
+        <button type="button" class="problemas-olho" id="problemas-olho" aria-pressed="true" title="Esconder as marcações no 3D (K)" aria-label="Marcações no 3D"><svg class="ic"><use href="#i-olho"/></svg></button>
+      </div>
+    </div>
     <div class="barra-medir" id="barra-medir" hidden><span id="medir-texto">Clique no primeiro ponto</span><button type="button" class="botao" id="medir-limpar">Limpar</button><button type="button" class="botao" id="medir-sair">Concluir</button></div>
     <div class="barra-fisica" id="barra-fisica" hidden>
       <p class="fisica-texto" id="fisica-texto" aria-live="polite">Arraste uma peça para tirá-la do lugar.</p>
@@ -176,7 +187,7 @@
           <li><span>Vagas de fan</span><span><kbd>N</kbd></span></li>
           <li><span>Medir</span><span><kbd>M</kbd></span></li>
           <li><span>Física (soltar e arrastar peças)</span><span><kbd>X</kbd></span></li>
-          <li><span>Pontos de contato</span><span><kbd>K</kbd></span></li>
+          <li><span>Marcações de onde não cabe</span><span><kbd>K</kbd></span></li>
           <li><span>Explodir</span><span><kbd>E</kbd></span></li>
           <li><span>Ocultar a peça selecionada</span><span><kbd>H</kbd></span></li>
           <li><span>Mostrar tudo</span><span><kbd>Shift</kbd> <kbd>H</kbd></span></li>

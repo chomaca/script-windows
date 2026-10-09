@@ -206,7 +206,7 @@ Kingston, Corsair). Use fotos retas, de frente. As fotos ficam **só neste naveg
 - **RGB:** fixo, arco-íris, respirar ou desligado, com a cor que quiser.
 - **Física** (tecla X): arraste, solte, chacoalhe e incline as peças — veja “Física e checagens”.
 - Aperte **?** para ver todos os atalhos (1–5 vistas, P painéis, V vidro, A ar, M medir,
-  X física, K pontos de contato, H ocultar a peça selecionada, Delete remove o fan selecionado…).
+  X física, K marcações de onde não cabe, H ocultar a peça selecionada, Delete remove o fan selecionado…).
 
 A montagem, as camadas e a qualidade ficam salvas no navegador automaticamente.
 
@@ -232,11 +232,14 @@ A montagem, as camadas e a qualidade ficam salvas no navegador automaticamente.
   - Com os painéis abertos (**P**) ou sem o vidro (**V**), as peças podem cair para fora.
   - Peças encaixadas (pente no slot, bomba na CPU) só passam a colidir depois de saírem do
     encaixe; peças muito leves usam no mínimo 150 g na simulação para ela não tremer.
-- **Pontos de contato (onde não cabe):** quando duas peças ocupam o mesmo espaço, ou uma
-  peça atravessa o gabinete, o **volume da sobreposição aparece em vermelho** no 3D com a
-  medida (“Invade 3,2 mm”) e o nome das peças; quando duas peças **quase se tocam** (folga
-  abaixo do mínimo), o vão aparece em **amarelo** (“Folga 2,5 mm”). Camadas → Pontos de
-  contato, tecla **K**.
+- **Onde não cabe:** quando duas peças ocupam o mesmo espaço, ou uma peça atravessa o
+  gabinete, o **volume da sobreposição aparece em vermelho** no 3D; quando duas peças **quase
+  se tocam** (folga abaixo do mínimo), o vão aparece em **amarelo**. Cada problema ganha um
+  **pino numerado** pequeno; a medida e as peças (“invade 6,3 mm · Cooler da RAM × Placa de
+  vídeo”) aparecem ao passar o mouse ou tocar no pino. No canto do 3D, o botão
+  **“2 conflitos · 1 atenção”** abre a lista com os mesmos números: clique num item e a câmera
+  vai até ele; a lista fecha no ×, com Esc ou clicando fora, e o **olho** ao lado esconde as
+  marcações (tecla **K**). Os avisos rápidos também têm ×.
 - **Massas e estabilidade:** peso de cada peça e do PC inteiro (~17,6 kg na build padrão),
   altura do centro de massa e o ângulo em que ele tomba (aba **Checagem** e **Medidas**).
   Com a placa de vídeo na horizontal, o site calcula o **torque no slot PCIe** (peso ×

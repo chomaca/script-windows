@@ -481,6 +481,8 @@ window.PCBApp = (function () {
     if (E.vis.ar && !atual.sim) { criarSimulacao(); mudou = true; }
     if (atual.sim) por(atual.sim.objeto, !!E.vis.ar && !fis.ativo);
     por(grupoContatos, !!E.vis.contatos && !fis.ativo);
+    const olho = $('#problemas-olho');
+    if (olho) { olho.setAttribute('aria-pressed', String(!!E.vis.contatos)); olho.title = (E.vis.contatos ? 'Esconder' : 'Mostrar') + ' as marcações no 3D (K)'; }
     if (fis.ativo && fis.sim) { fis.sim.definirParedes(paineisAbertos()); fis.sim.reaplicarOcultos(); mudou = true; }
     $('#legenda-fluxo').hidden = !E.vis.fluxo || E.vis.ar;
     $('#legenda-ar').hidden = !E.vis.ar;
@@ -912,49 +914,169 @@ window.PCBApp = (function () {
   }
 
 
-  /* ---------- pontos de contato: onde as peças não cabem ---------- */
+  /* ---------- pontos de contato: onde as peças não cabem ----------
+     Cada região ganha um volume translúcido; cada problema, um pino numerado (o mesmo número
+     da lista "Problemas" no canto do 3D). O texto do pino só aparece ao passar o mouse, focar
+     ou tocar nele: nada de etiqueta grande tapando a montagem. */
   const MAT_CONTATO = {};
   function matsContato() {
     if (!MAT_CONTATO.vol) {
-      MAT_CONTATO.vol = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, opacity: 0.34, depthTest: false, depthWrite: false, toneMapped: false });
-      MAT_CONTATO.aresta = new THREE.LineBasicMaterial({ color: 0xff5a63, transparent: true, depthTest: false, toneMapped: false });
+      MAT_CONTATO.vol = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, opacity: 0.22, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.aresta = new THREE.LineBasicMaterial({ color: 0xff5a63, transparent: true, opacity: 0.9, depthTest: false, toneMapped: false });
       MAT_CONTATO.ponto = new THREE.MeshBasicMaterial({ color: 0xff2d3a, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
-      MAT_CONTATO.folga = new THREE.MeshBasicMaterial({ color: 0xffc233, transparent: true, opacity: 0.3, depthTest: false, depthWrite: false, toneMapped: false });
-      MAT_CONTATO.arestaFolga = new THREE.LineBasicMaterial({ color: 0xffd25e, transparent: true, depthTest: false, toneMapped: false });
+      MAT_CONTATO.folga = new THREE.MeshBasicMaterial({ color: 0xffc233, transparent: true, opacity: 0.18, depthTest: false, depthWrite: false, toneMapped: false });
+      MAT_CONTATO.arestaFolga = new THREE.LineBasicMaterial({ color: 0xffd25e, transparent: true, opacity: 0.9, depthTest: false, toneMapped: false });
       MAT_CONTATO.cg = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
       MAT_CONTATO.linha = new THREE.LineBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.85, depthTest: false, toneMapped: false });
       for (const m of Object.values(MAT_CONTATO)) m.userData.compartilhado = true;
     }
     return MAT_CONTATO;
   }
-  // volume vermelho (com arestas) em cada região onde duas peças ocupam o mesmo espaço
+  // problemas (conflitos e atenções), na ordem da lista: conflitos primeiro
+  function itensProblema() {
+    if (!checagem) return [];
+    const ordem = { erro: 0, aviso: 1 };
+    return checagem.itens.map((it, idx) => ({ it, idx }))
+      .filter((x) => x.it.nivel in ordem)
+      .sort((a, b) => ordem[a.it.nivel] - ordem[b.it.nivel] || a.idx - b.idx);
+  }
+  const pinos = [];
   function desenharContatos() {
     limparGrupo(grupoContatos);
+    pinos.length = 0;
     const lista = (checagem && checagem.contatos) || [];
     const m = matsContato();
-    for (const c of lista.slice(0, 16)) {
-      const b = c.caixa.clone();
-      const tam = b.getSize(new THREE.Vector3());
-      const centro = b.getCenter(new THREE.Vector3());
-      // regiões finíssimas ganham espessura mínima para aparecer
-      const geo = new THREE.BoxGeometry(Math.max(tam.x, 2.5), Math.max(tam.y, 2.5), Math.max(tam.z, 2.5));
+    const numero = new Map(itensProblema().map((x, i) => [x.idx, i + 1]));
+    const porItem = new Map();
+    lista.forEach((c, i) => {
       const folga = c.tipo === 'folga';
-      const vol = new THREE.Mesh(geo, folga ? m.folga : m.vol);
-      vol.position.copy(centro);
-      vol.renderOrder = 35;
-      vol.userData.semAO = true;
-      const ar = new THREE.LineSegments(new THREE.EdgesGeometry(geo), folga ? m.arestaFolga : m.aresta);
-      ar.position.copy(centro);
-      ar.renderOrder = 36;
-      const el = document.createElement('div');
-      el.className = 'rotulo-contato' + (c.tipo === 'fora' ? ' fora' : folga ? ' folga' : '');
-      el.innerHTML = (c.texto ? esc(c.texto) : (folga ? 'Folga ' : c.tipo === 'fora' ? 'Sai ' : 'Invade ') + esc(fmt(c.pen, 1)) + ' mm') + '<small>' + esc(c.rotulo) + '</small>';
-      const rot = new CSS2DObject(el);
-      rot.position.copy(centro).add(new THREE.Vector3(0, Math.max(tam.y, 2.5) / 2 + 8, 0));
-      grupoContatos.add(vol, ar, rot);
+      if (i < 24) {
+        const tam = c.caixa.getSize(new THREE.Vector3());
+        const centro = c.caixa.getCenter(new THREE.Vector3());
+        // regiões finíssimas ganham espessura mínima para aparecer
+        const geo = new THREE.BoxGeometry(Math.max(tam.x, 2.5), Math.max(tam.y, 2.5), Math.max(tam.z, 2.5));
+        const vol = new THREE.Mesh(geo, folga ? m.folga : m.vol);
+        vol.position.copy(centro);
+        vol.renderOrder = 35;
+        vol.userData.semAO = true;
+        const ar = new THREE.LineSegments(new THREE.EdgesGeometry(geo), folga ? m.arestaFolga : m.aresta);
+        ar.position.copy(centro);
+        ar.renderOrder = 36;
+        grupoContatos.add(vol, ar);
+      }
+      // um pino por problema, na região mais funda dele
+      const k = c.item != null ? c.item : 'r' + i;
+      const pior = porItem.get(k);
+      if (!pior || Math.abs(c.pen || 0) > Math.abs(pior.pen || 0)) porItem.set(k, c);
+    });
+    // conflito sem região (ex.: fonte longa demais): pino em cima da peça
+    for (const { it, idx } of itensProblema()) {
+      if (it.nivel !== 'erro' || porItem.has(idx) || (it.regioes && it.regioes.length)) continue;
+      const parte = atual && (it.pecas || []).map((id) => atual.partes.find((p) => p.id === id && p.caixas.length)).find(Boolean);
+      if (!parte) continue;
+      const cx = new THREE.Box3();
+      for (const c of parte.caixas) cx.union(c);
+      const topo = cx.getCenter(new THREE.Vector3());
+      topo.y = cx.max.y;
+      porItem.set(idx, { caixa: new THREE.Box3(topo, topo.clone()), pen: 0, tipo: 'colisao', rotulo: it.curto || it.titulo });
+    }
+    for (const [k, c] of porItem) {
+      const it = typeof k === 'number' && checagem ? checagem.itens[k] : null;
+      const tipo = c.tipo === 'folga' ? 'folga' : c.tipo === 'fora' ? 'fora' : 'erro';
+      const valor = (it && it.valor) || c.texto || (tipo === 'folga' ? 'folga ' : tipo === 'fora' ? 'sai ' : 'invade ') + fmt(c.pen, 1) + ' mm';
+      const n = numero.get(k) || '!';
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'pino ' + tipo;
+      el.dataset.problema = String(k);
+      el.setAttribute('aria-label', 'Problema ' + n + ': ' + c.rotulo + ', ' + valor);
+      el.innerHTML = '<b aria-hidden="true">' + n + '</b><span class="pino-texto" aria-hidden="true"><strong>' + esc(valor) + '</strong>' + esc(c.rotulo) + '</span>';
+      const obj = new CSS2DObject(el);
+      const tam = c.caixa.getSize(new THREE.Vector3());
+      obj.position.copy(c.caixa.getCenter(new THREE.Vector3())).add(new THREE.Vector3(0, Math.max(tam.y, 2.5) / 2 + 3, 0));
+      grupoContatos.add(obj);
+      pinos.push({ obj, el, k: String(k), t: '', esq: false });
     }
     grupoContatos.visible = !!E.vis.contatos && !fis.ativo;
     precisaRender = true;
+  }
+  // pinos quase no mesmo ponto da tela se afastam (algumas iterações de repulsão, só contas:
+  // nada de ler o layout) e o texto vira para a esquerda perto da borda direita
+  let _pino = null;
+  const _tela = { width: 1, height: 1 };
+  function separarPinos() {
+    if (!pinos.length || !grupoContatos.visible) return;
+    _pino = _pino || new THREE.Vector3();
+    const { width: w, height: h } = rotulos.getSize ? rotulos.getSize() : _tela;
+    const pts = pinos.map((p) => {
+      _pino.setFromMatrixPosition(p.obj.matrixWorld).project(camera);
+      return { p, x: (_pino.x + 1) / 2 * w, y: (1 - _pino.y) / 2 * h, dx: 0, dy: 0 };
+    });
+    const R = 27;
+    for (let it = 0; it < 5; it++) {
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j];
+        let ux = b.x + b.dx - a.x - a.dx, uy = b.y + b.dy - a.y - a.dy;
+        let d = Math.hypot(ux, uy);
+        if (d >= R) continue;
+        if (d < 0.01) { ux = 0; uy = -1; d = 1; }
+        const f = (R - d) / 2 / d;
+        a.dx -= ux * f; a.dy -= uy * f; b.dx += ux * f; b.dy += uy * f;
+      }
+    }
+    for (const q of pts) {
+      const t = Math.round(q.dx) + 'px ' + Math.round(q.dy) + 'px';
+      if (q.p.t !== t) { q.p.el.style.translate = t; q.p.t = t; }
+      // o texto vai para o lado com mais espaço (e quebra linha se faltar)
+      const xp = q.x + q.dx, esq = w - xp < 200 && xp > w - xp;
+      if (q.p.esq !== esq) { q.p.el.classList.toggle('esq', esq); q.p.esq = esq; }
+    }
+  }
+
+  /* ---------- problemas: botão no canto do 3D e lista que abre e fecha ---------- */
+  function renderProblemas() {
+    const box = $('#problemas');
+    if (!box) return;
+    const lista = itensProblema();
+    const ne = checagem ? checagem.erros : 0, na = checagem ? checagem.avisos : 0;
+    const resumo = ne ? ne + (ne > 1 ? ' conflitos' : ' conflito') + (na ? ' · ' + na + ' atenção' : '') : na + ' atenção';
+    const itens = lista.map((x, i) => '<li><button type="button" class="problema ' + x.it.nivel + '" data-problema="' + x.idx + '">' +
+      '<b>' + (i + 1) + '</b><span class="problema-txt">' + esc(x.it.curto || x.it.titulo) + '</span>' +
+      (x.it.valor ? '<span class="problema-valor">' + esc(x.it.valor) + '</span>' : '') + '</button></li>').join('');
+    const html = (ne ? 'erro' : 'aviso') + '|' + resumo + '|' + itens;
+    box.hidden = !lista.length;
+    if (!lista.length) { abrirProblemas(false); renderProblemas.html = ''; return; }
+    if (renderProblemas.html === html) return;
+    renderProblemas.html = html;
+    box.classList.toggle('erro', !!ne);
+    $('#problemas-resumo').textContent = resumo;
+    $('#problemas-itens').innerHTML = itens;
+  }
+  function abrirProblemas(abrir) {
+    const lista = $('#problemas-lista'), chip = $('#problemas-chip');
+    if (!lista) return;
+    const aberto = abrir == null ? lista.hidden : !!abrir;
+    lista.hidden = !aberto;
+    chip.setAttribute('aria-expanded', String(aberto));
+    if (!aberto) for (const p of pinos) p.el.classList.remove('ativo');
+  }
+  // leva a câmera até o problema: as regiões dele (pino aceso) ou a peça
+  function focarProblema(k) {
+    const it = checagem && checagem.itens[Number(k)];
+    // tela estreita: a lista fecha para o 3D aparecer (o pino fica aceso com o texto)
+    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) abrirProblemas(false);
+    for (const p of pinos) p.el.classList.toggle('ativo', p.k === String(k));
+    for (const b of $$('#problemas-itens [data-problema]')) b.classList.toggle('ativo', b.dataset.problema === String(k));
+    if (!it) return;
+    if (it.regioes && it.regioes.length) {
+      if (!E.vis.contatos) alternarVis('contatos', true);
+      const cx = new THREE.Box3();
+      for (const r of it.regioes) cx.union(r.caixa);
+      enquadrarCaixa(cx);
+      return;
+    }
+    const alvo = (it.pecas || []).find((id) => atual && atual.partes.some((p) => p.id === id && (p.obj || p.caixas.length)));
+    if (alvo) { selecionar(alvo); enquadrar(alvo); } else trocarAba('checagem');
   }
 
   /* ---------- modo física ---------- */
@@ -1293,6 +1415,7 @@ window.PCBApp = (function () {
       renderer.info.reset();
       if (composer) composer.render(); else renderer.render(cena, camera);
       rotulos.render(cena, camera);
+      separarPinos();
       medirFps(dtReal, agora);
       ritmo.ultimoDesenho = agora;
       if (movendo) avaliarRitmo(dtReal);
@@ -1603,7 +1726,8 @@ window.PCBApp = (function () {
     const aberto = E.abertas.has(sec.id);
     const sel = secaoDaParte(E.sel) === sec.id;
     const oculta = E.ocultas.has(sec.parte);
-    const al = (alertas || []).slice(0, 3).map((i) => '<p class="peca-alerta ' + i.nivel + '">' + esc(i.titulo) + '</p>').join('');
+    // alerta enxuto no cartão (o texto completo fica na aba Checagem)
+    const al = (alertas || []).slice(0, 3).map((i) => '<p class="peca-alerta ' + i.nivel + '" title="' + esc(i.titulo) + '">' + esc(i.curto ? i.curto + (i.valor ? ' · ' + i.valor : '') : i.titulo) + '</p>').join('');
     return '<details class="peca' + (sel ? ' selecionada' : '') + '" data-secao="' + sec.id + '"' + (aberto ? ' open' : '') + '>' +
       '<summary><span class="peca-status ' + (estado || 'ok') + '" title="' + (estado === 'erro' ? 'Conflito' : estado === 'aviso' ? 'Atenção' : 'Cabe') + '"></span>' +
       '<span class="peca-textos"><span class="peca-cat">' + esc(sec.cat) + '</span><span class="peca-nome">' + esc(nome) + '</span>' + (dim ? '<span class="peca-dim">' + esc(dim) + '</span>' : '') + '</span>' +
@@ -1617,13 +1741,17 @@ window.PCBApp = (function () {
   function resumoBuild() {
     if (!checagem || !atual) return '';
     const nivel = checagem.erros ? 'erro' : checagem.avisos ? 'aviso' : 'ok';
-    const enc = checagem.erros ? checagem.erros + (checagem.erros > 1 ? ' conflitos' : ' conflito') : checagem.avisos ? checagem.avisos + ' atenção' : 'Tudo cabe';
+    // número grande + legenda embaixo (cabe na coluna estreita sem cortar a palavra)
+    const ne = checagem.erros, na = checagem.avisos;
+    const enc = ne ? String(ne) : na ? String(na) : 'Cabe';
+    const encSub = ne ? (ne > 1 ? 'conflitos' : 'conflito')
+      : na ? (na > 1 ? 'pontos de atenção' : 'ponto de atenção') : atual.partes.filter((p) => p.colide).length + ' peças conferidas';
     const en = checagem.energia;
     const nEn = en.carga > 1 ? 'erro' : en.carga > 0.8 ? 'aviso' : 'ok';
     const t = checagem.termico;
     const nT = !t ? 'ok' : t.dT > 16 ? 'erro' : t.dT > 10 ? 'aviso' : 'ok';
     return '<div class="resumo-build">' +
-      '<div class="' + nivel + '" role="button" tabindex="0" data-ir-aba="checagem" title="Abrir a checagem"><span>Encaixe</span><strong>' + esc(enc) + '</strong><small>' + atual.partes.filter((p) => p.colide).length + ' peças conferidas</small></div>' +
+      '<div class="' + nivel + '" role="button" tabindex="0" data-ir-aba="checagem" title="Abrir a checagem"><span>Encaixe</span><strong>' + esc(enc) + '</strong><small>' + esc(encSub) + '</small></div>' +
       '<div class="' + nEn + '" role="button" tabindex="0" data-ir-aba="checagem" title="Consumo estimado em carga"><span>Consumo</span><strong>~' + en.total + ' W</strong><small>' + Math.round(en.carga * 100) + '% da fonte</small></div>' +
       '<div class="' + nT + '" role="button" tabindex="0" data-ir-aba="checagem" title="Aquecimento do ar dentro do gabinete em carga"><span>Ar interno</span><strong>' + (t ? '+' + fmt(t.dT, 1) + ' °C' : '—') + '</strong><small>acima do quarto</small></div>' +
       '</div>';
@@ -1956,6 +2084,7 @@ window.PCBApp = (function () {
     const html = '<button type="button" class="pill ' + nivel + '" data-ir-aba="checagem" style="background:none;cursor:pointer">' + esc(txt) + '</button>';
     const sub = atual.G.nome + ' · escala 1 : 1 em mm';
     if (renderStatus.html !== html) { renderStatus.html = html; $('#status-geral').innerHTML = html; }
+    renderProblemas();
     if (renderStatus.sub !== sub) { renderStatus.sub = sub; $('#sub-gabinete').textContent = sub; }
   }
 
@@ -2037,6 +2166,13 @@ window.PCBApp = (function () {
       b.addEventListener('click', () => { fechar(); opts.aoClicar && opts.aoClicar(); });
       t.appendChild(b);
     }
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'toast-fechar';
+    x.setAttribute('aria-label', 'Fechar aviso');
+    x.textContent = '×';
+    x.addEventListener('click', () => fechar());
+    t.appendChild(x);
     function fechar() { if (!t.isConnected) return; t.classList.add('sai'); setTimeout(() => t.remove(), 220); }
     box.appendChild(t);
     while (box.children.length > 3) box.firstElementChild.remove();
@@ -2070,7 +2206,7 @@ window.PCBApp = (function () {
   function avisoDepois(rotulo, errosAntes) {
     if (checagem && checagem.erros > errosAntes) {
       const novo = checagem.itens.find((i) => i.nivel === 'erro');
-      toast(rotulo + ' — ' + (novo ? novo.titulo : 'conflito'), { tipo: 'erro', acao: 'Desfazer', aoClicar: desfazer, duracao: 7000 });
+      toast(rotulo + ' — não cabe: ' + (novo ? novo.curto || novo.titulo : 'conflito'), { tipo: 'erro', acao: 'Desfazer', aoClicar: desfazer, duracao: 7000 });
     } else if (checagem && checagem.erros < errosAntes && !checagem.erros) {
       toast(rotulo + ' — tudo cabe agora', { acao: 'Desfazer', aoClicar: desfazer });
     } else toast(rotulo, { acao: 'Desfazer', aoClicar: desfazer });
@@ -2391,6 +2527,8 @@ window.PCBApp = (function () {
       if (e.target.closest('#mostrar-tudo')) { E.ocultas.clear(); aplicarVisibilidade(); if (E.aba === 'pecas') renderAba(); }
       if (e.target.closest('[data-fechar-modal]') || e.target.classList.contains('modal')) for (const m of $$('.modal')) m.hidden = true;
       if (!e.target.closest('details.menu')) fecharMenus();
+      // clique fora da lista de problemas (e fora do 3D, para girar a câmera sem fechar) fecha a lista
+      if (!e.target.closest('#problemas') && !e.target.closest('#vista')) abrirProblemas(false);
     });
     document.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][data-ir-aba]')) { e.preventDefault(); trocarAba(e.target.dataset.irAba); }
@@ -2405,6 +2543,21 @@ window.PCBApp = (function () {
     $('#cor-rgb').addEventListener('input', (e) => corRgb(e.target.value));
     for (const b of $$('[data-cor]')) b.addEventListener('click', () => corRgb(b.dataset.cor));
     for (const b of $$('[data-qualidade]')) b.addEventListener('click', () => definirQualidade(b.dataset.qualidade));
+    // problemas: botão abre/fecha a lista, o olho liga/desliga as marcações, item ou pino leva até o ponto
+    $('#problemas-chip').addEventListener('click', () => abrirProblemas());
+    $('#problemas-fechar').addEventListener('click', () => abrirProblemas(false));
+    $('#problemas-olho').addEventListener('click', () => alternarVis('contatos'));
+    $('#problemas-itens').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-problema]');
+      if (b) focarProblema(b.dataset.problema);
+    });
+    rotulos.domElement.addEventListener('click', (e) => {
+      const b = e.target.closest('.pino');
+      if (!b) return;
+      e.stopPropagation();
+      abrirProblemas(true);
+      focarProblema(b.dataset.problema);
+    });
     $('#medir').addEventListener('click', () => modoMedir(!E.medir.ativo));
     $('#fisica').addEventListener('click', () => modoFisica(!fis.ativo));
     $('#barra-fisica').addEventListener('click', (e) => {
@@ -2453,6 +2606,7 @@ window.PCBApp = (function () {
       const aberto = $$('.modal').find((m) => !m.hidden);
       if (aberto) { aberto.hidden = true; return; }
       if ($$('details.menu[open]').length) { fecharMenus(); return; }
+      if ($('#problemas-lista') && !$('#problemas-lista').hidden) { abrirProblemas(false); return; }
       if (E.medir.ativo) { modoMedir(false); return; }
       if (fis.ativo) { encerrarFisica(); return; }
       if (E.sel) selecionar(null);
@@ -2716,7 +2870,7 @@ window.PCBApp = (function () {
     marca('quadros', t);
     tempos.carga.total = Math.round(performance.now());
     revelar();
-    if (primeiraVez) setTimeout(() => toast('Dica: clique numa peça para trocar ou ajustar. Aperte ? para ver os atalhos.', { duracao: 9000 }), 1200);
+    if (primeiraVez) setTimeout(() => toast(TOQUE ? 'Toque numa peça para trocar ou ajustar.' : 'Dica: clique numa peça para trocar ou ajustar. Aperte ? para ver os atalhos.', { duracao: 7000 }), 1200);
   }
 
   function falha(err) {

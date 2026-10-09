@@ -20,8 +20,27 @@ window.PCBVerificacao = function () {
     return ox > TOL && oy > TOL && oz > TOL ? Math.min(ox, oy, oz) : 0;
   }
 
-  // nome curto (antes do travessão) para rótulos no 3D
-  function curto(nome) { return String(nome || '').split(' — ')[0].replace(/\s*\(.*\)$/, ''); }
+  // nome curto (antes do travessão, sem parênteses)
+  function curto(nome) { return String(nome || '').split(' — ')[0].replace(/\s*\([^)]*\)/g, '').trim(); }
+  // nome pelo papel da peça na montagem ("Cooler da RAM × Placa de vídeo"): é o que aparece nas
+  // marcações do 3D, na lista de problemas e nos avisos rápidos; o nome completo fica na checagem
+  const PAPEIS = {
+    placaMae: 'Placa-mãe', gpu: 'Placa de vídeo', coolerMemoria: 'Cooler da RAM', bomba: 'Bomba', radiador: 'Radiador',
+    fonte: 'Fonte', caixaFonte: 'Compartimento da fonte', bandeja: 'Bandeja', riser: 'Riser', conectorRiser: 'Conector do riser',
+    tubos: 'Mangueiras', cabos: 'Cabos', gabinete: 'Gabinete', coolerCpu: 'Cooler do processador'
+  };
+  const ZONAS = { frente: 'da frente', topo: 'do topo', traseira: 'de trás', fundo: 'do fundo', lateral: 'da lateral', atrasBandeja: 'atrás da bandeja' };
+  function papel(p) {
+    if (!p) return '';
+    if (PAPEIS[p.id]) return PAPEIS[p.id];
+    let m = /^memoria-(\d+)$/.exec(p.id);
+    if (m) return 'Pente ' + (Number(m[1]) + 1);
+    m = /^fanRad-(\d+)$/.exec(p.id);
+    if (m) return 'Fan do radiador ' + (Number(m[1]) + 1);
+    m = /^fan:([^:]+):(\d+)$/.exec(p.id);
+    if (m) return 'Fan ' + (ZONAS[m[1]] || m[1]) + ' ' + (Number(m[2]) + 1);
+    return curto(p.nome);
+  }
 
   /* Junta volumes de contato que se tocam num só (menos rótulos no 3D). */
   function juntarRegioes(lista) {
@@ -43,10 +62,12 @@ window.PCBVerificacao = function () {
     'min.x': 'o vidro lateral', 'max.x': 'a lateral direita', 'min.y': 'o fundo',
     'max.y': 'o teto', 'min.z': 'a traseira', 'max.z': 'a frente'
   };
+  const LADOS_CURTOS = { 'min.x': 'vidro', 'max.x': 'lateral direita', 'min.y': 'fundo', 'max.y': 'teto', 'min.z': 'traseira', 'max.z': 'frente' };
 
   function verificar(res, build) {
     const itens = [];
-    const add = (nivel, titulo, detalhe, pecas, extra) => itens.push(Object.assign({ nivel, titulo, detalhe, pecas: pecas || [] }, extra || {}));
+    // curto: título enxuto (lista de problemas, marcações e avisos rápidos); valor: a medida em uma palavra
+    const add = (nivel, titulo, detalhe, pecas, extra) => itens.push(Object.assign({ nivel, titulo, detalhe, pecas: pecas || [] }, extra || {})) - 1;
     // regiões de contato (volumes onde as peças se sobrepõem), para desenhar no 3D
     const contatos = [];
     const { R, G, partes, interior } = res;
@@ -115,8 +136,9 @@ window.PCBVerificacao = function () {
     for (const c of colisoes) {
       const onde = c.regioes[0] && c.regioes[0].caixa;
       const tam = onde ? onde.getSize(onde.min.clone()) : null;
-      add('erro', 'Colisão: ' + c.a.nome + ' × ' + c.b.nome, 'As peças ocupam o mesmo espaço (cerca de ' + fmt(c.pen, 1) + ' mm' + (tam ? '; região de contato ' + fmt(tam.x) + ' × ' + fmt(tam.y) + ' × ' + fmt(tam.z) + ' mm' : '') + '). Ajuste a posição ou troque uma das peças. No 3D, o volume vermelho mostra onde elas se tocam.', [c.a.id, c.b.id], { regioes: c.regioes, pen: c.pen });
-      for (const r of c.regioes) contatos.push({ caixa: r.caixa, pen: r.pen, tipo: 'colisao', rotulo: curto(c.a.nome) + ' × ' + curto(c.b.nome), pecas: [c.a.id, c.b.id] });
+      const curtoCol = papel(c.a) + ' × ' + papel(c.b);
+      const item = add('erro', 'Colisão: ' + c.a.nome + ' × ' + c.b.nome, 'As peças ocupam o mesmo espaço (cerca de ' + fmt(c.pen, 1) + ' mm' + (tam ? '; região de contato ' + fmt(tam.x) + ' × ' + fmt(tam.y) + ' × ' + fmt(tam.z) + ' mm' : '') + '). Ajuste a posição ou troque uma das peças. No 3D, o volume vermelho mostra onde elas se tocam.', [c.a.id, c.b.id], { regioes: c.regioes, pen: c.pen, curto: curtoCol, valor: 'invade ' + fmt(c.pen, 1) + ' mm' });
+      for (const r of c.regioes) contatos.push({ caixa: r.caixa, pen: r.pen, tipo: 'colisao', rotulo: curtoCol, pecas: [c.a.id, c.b.id], item });
     }
     if (!colisoes.length) add('ok', 'Nenhuma peça encosta em outra', lista.length + ' peças conferidas, incluindo o compartimento da fonte e a bandeja.');
 
@@ -137,8 +159,9 @@ window.PCBVerificacao = function () {
           const [lim, eixo] = pior[0].split('.');
           if (lim === 'min') r.max[eixo] = Math.min(r.max[eixo], interior.min[eixo]);
           else r.min[eixo] = Math.max(r.min[eixo], interior.max[eixo]);
-          add('erro', p.nome + ' atravessa ' + LADOS[pior[0]], 'Passa ' + fmt(pior[1], 1) + ' mm para fora do espaço interno.', [p.id], { regioes: [{ caixa: r, pen: pior[1] }], pen: pior[1] });
-          contatos.push({ caixa: r, pen: pior[1], tipo: 'fora', rotulo: curto(p.nome) + ' × ' + LADOS[pior[0]], pecas: [p.id] });
+          const curtoFora = papel(p) + ' sai do gabinete (' + LADOS_CURTOS[pior[0]] + ')';
+          const item = add('erro', p.nome + ' atravessa ' + LADOS[pior[0]], 'Passa ' + fmt(pior[1], 1) + ' mm para fora do espaço interno.', [p.id], { regioes: [{ caixa: r, pen: pior[1] }], pen: pior[1], curto: curtoFora, valor: 'sai ' + fmt(pior[1], 1) + ' mm' });
+          contatos.push({ caixa: r, pen: pior[1], tipo: 'fora', rotulo: curtoFora, pecas: [p.id], item });
           fora++;
           break;
         }
@@ -149,14 +172,15 @@ window.PCBVerificacao = function () {
     for (const f of res.folgas) {
       if (f.cruza) {
         // peça sem colisão (ex.: mangueira) passando por dentro de outra
-        add('aviso', f.nome, (f.dica ? f.dica + ' ' : '') + 'No 3D, o trecho aparece em vermelho.', f.pecas, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.pen }], pen: f.pen } : null);
-        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.pen, tipo: 'colisao', rotulo: f.rotulo || f.nome, pecas: f.pecas, texto: f.textoContato });
+        const valor = f.textoContato ? f.textoContato.toLowerCase() : 'cruza ' + fmt(f.pen, 1) + ' mm';
+        const item = add('aviso', f.nome, (f.dica ? f.dica + ' ' : '') + 'No 3D, o trecho aparece em vermelho.', f.pecas, Object.assign({ curto: f.rotulo || f.nome, valor }, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.pen }], pen: f.pen } : {}));
+        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.pen, tipo: 'colisao', rotulo: f.rotulo || f.nome, pecas: f.pecas, texto: f.textoContato, item });
         continue;
       }
       if (f.valor < 0) continue;
       if (f.valor < f.minimo) {
-        add('aviso', 'Folga apertada: ' + f.nome, 'Só ' + fmt(f.valor, 1) + ' mm (mínimo recomendado ' + fmt(f.minimo) + ' mm). ' + (f.dica ? f.dica + ' ' : '') + 'No 3D, o vão aparece em amarelo. Confira com a peça em mãos.', f.pecas, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.valor }] } : null);
-        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.valor, tipo: 'folga', rotulo: f.rotulo || f.nome, pecas: f.pecas });
+        const item = add('aviso', 'Folga apertada: ' + f.nome, 'Só ' + fmt(f.valor, 1) + ' mm (mínimo recomendado ' + fmt(f.minimo) + ' mm). ' + (f.dica ? f.dica + ' ' : '') + 'No 3D, o vão aparece em amarelo. Confira com a peça em mãos.', f.pecas, Object.assign({ curto: 'Folga: ' + (f.rotulo || f.nome), valor: fmt(f.valor, 1) + ' mm' }, f.regiao ? { regioes: [{ caixa: f.regiao, pen: f.valor }] } : {}));
+        if (f.regiao) contatos.push({ caixa: f.regiao, pen: f.valor, tipo: 'folga', rotulo: f.rotulo || f.nome, pecas: f.pecas, item });
       }
     }
 

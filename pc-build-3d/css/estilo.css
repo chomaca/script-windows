@@ -468,15 +468,69 @@ kbd {
 .fisica-inclinar { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tinta-2); padding: 0 4px; }
 .fisica-inclinar input { width: 120px; }
 .fisica-inclinar output { font: 600 12px var(--f-mono); color: var(--tinta); min-width: 3.2em; font-variant-numeric: tabular-nums; }
-/* rótulo do volume de contato (peças que não cabem) */
-.rotulo-contato {
-  font: 600 11px/1.25 var(--f-mono); color: #fff; background: #d92d3a;
-  padding: 3px 7px 4px; border-radius: 5px; white-space: nowrap; text-align: center;
-  font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); pointer-events: none;
+/* pino numerado de cada problema no 3D: pequeno; o texto só aparece no hover, foco ou toque */
+.pino {
+  --pino: #e5484d;
+  pointer-events: auto; position: relative; display: grid; place-items: center;
+  width: 22px; height: 22px; padding: 0; border: 2px solid #fff; border-radius: 50%;
+  background: var(--pino); color: #fff; font: 700 11px/1 var(--f-mono); font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.45); cursor: pointer;
+  transition: scale 0.12s ease, box-shadow 0.12s ease;
 }
-.rotulo-contato small { display: block; font-weight: 500; font-size: 10px; opacity: 0.85; }
-.rotulo-contato.fora { background: #b3541e; }
-.rotulo-contato.folga { display: block; background: #ffc233; color: #1a1400; } /* .folga da aba Medidas é grid */
+.pino.fora { --pino: #d9622b; }
+.pino.folga { --pino: #f5b922; color: #1a1400; }
+.pino:hover, .pino.ativo { scale: 1.12; box-shadow: 0 0 0 4px color-mix(in srgb, var(--pino) 35%, transparent), 0 1px 6px rgb(0 0 0 / 0.45); }
+.pino:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+/* o CSS2DRenderer põe z-index inline pela distância; o pino aberto fica por cima dos outros */
+.pino:hover, .pino:focus-visible, .pino.ativo { z-index: 100000 !important; }
+.pino-texto {
+  position: absolute; left: calc(100% + 8px); top: 50%; translate: 0 -50%;
+  display: grid; gap: 1px; padding: 5px 9px 6px; border-radius: 8px; text-align: left;
+  width: max-content; max-width: min(230px, 46vw);
+  background: var(--superficie); color: var(--tinta); border: 1px solid var(--linha); box-shadow: var(--sombra);
+  font: 500 11.5px/1.3 var(--f-texto); opacity: 0; pointer-events: none; transition: opacity 0.12s ease;
+}
+.pino-texto strong { font: 700 11px/1.2 var(--f-mono); color: var(--pino); }
+.pino.folga .pino-texto strong { color: color-mix(in srgb, var(--pino) 70%, var(--tinta)); }
+.pino.esq .pino-texto { left: auto; right: calc(100% + 8px); }
+.pino:hover .pino-texto, .pino:focus-visible .pino-texto, .pino.ativo .pino-texto { opacity: 1; }
+/* problemas: botão compacto no canto do 3D; a lista abre por cima dele e fecha no ×, Esc ou fora */
+.problemas { position: absolute; left: 12px; bottom: 12px; z-index: 4; display: grid; justify-items: start; gap: 8px; max-width: calc(100% - 24px); }
+.palco:has(.problemas:not([hidden])) .dica { display: none; }
+.palco:has(.barra-fisica:not([hidden])) .problemas, .palco:has(.barra-medir:not([hidden])) .problemas { display: none; }
+.problemas-barra { display: flex; gap: 6px; }
+.problemas-chip, .problemas-olho {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px;
+  border-radius: 999px; border: 1px solid var(--linha); background: color-mix(in srgb, var(--superficie) 92%, transparent);
+  color: var(--tinta); font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: var(--sombra);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.problemas-olho { position: relative; width: 32px; padding: 0; justify-content: center; color: var(--tinta-2); }
+.problemas-olho[aria-pressed="false"] { color: var(--tinta-3); }
+.problemas-olho[aria-pressed="false"]::after { content: ""; position: absolute; width: 18px; height: 2px; border-radius: 1px; background: currentColor; rotate: -40deg; box-shadow: 0 0 0 1.5px var(--superficie); }
+.problemas-chip .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--aviso); }
+.problemas.erro .problemas-chip .ponto { background: var(--erro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--erro) 25%, transparent); }
+.problemas-chip .seta { width: 14px; height: 14px; rotate: -90deg; transition: rotate 0.15s ease; color: var(--tinta-2); }
+.problemas-chip[aria-expanded="true"] .seta { rotate: 90deg; }
+.problemas-lista {
+  width: min(340px, calc(100vw - 48px)); max-height: min(360px, 55vh); overflow: hidden;
+  padding: 10px; border-radius: 12px; border: 1px solid var(--linha); background: var(--superficie); box-shadow: var(--sombra);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; animation: surge 0.16s var(--ease-saida);
+}
+.problemas-lista header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 0 2px 4px; }
+.problemas-lista header strong { font: 700 13px/1.2 var(--f-display); font-stretch: 112%; }
+.problemas-lista .nota { margin: 2px 4px 0; font-size: 11px; }
+.problemas-itens { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 4px; overflow-y: auto; overscroll-behavior: contain; }
+.problema {
+  width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 7px 8px; border: 1px solid transparent; border-radius: 9px; background: var(--superficie-2);
+  color: var(--tinta); font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.problema:hover, .problema.ativo { border-color: var(--linha); background: color-mix(in srgb, var(--superficie-2) 70%, var(--tinta) 6%); }
+.problema b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--erro); color: #fff; font: 700 10.5px/1 var(--f-mono); }
+.problema.aviso b { background: var(--aviso); color: #1a1400; }
+.problema-txt { line-height: 1.28; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.problema-valor { font: 600 11px var(--f-mono); color: var(--tinta-2); white-space: nowrap; }
 .rotulo-cg {
   font: 600 11px/1.2 var(--f-mono); color: #111; background: #ffd23f; padding: 2px 6px 3px; border-radius: 5px;
   white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums;
@@ -507,6 +561,8 @@ kbd {
 .toast button { border: 0; background: color-mix(in srgb, var(--superficie) 18%, transparent); color: inherit; font-weight: 600; font-size: 12px; padding: 5px 10px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
 .toast button:hover { background: color-mix(in srgb, var(--superficie) 30%, transparent); }
 .toast.sai { opacity: 0; transform: translateY(6px); transition: opacity 0.2s, transform 0.2s; }
+.toast .toast-fechar { background: none; width: 24px; height: 24px; padding: 0; font-size: 17px; line-height: 1; opacity: 0.7; }
+.toast .toast-fechar:hover { opacity: 1; background: color-mix(in srgb, var(--superficie) 18%, transparent); }
 @keyframes toast-entra { from { opacity: 0; transform: translateY(8px); } }
 .rotulo-medida {
   font: 600 12px/1.25 var(--f-mono);
@@ -748,6 +804,12 @@ details.fotos-reais.piscar { animation: piscar 1.5s ease-out; border-radius: 8px
   .bancada { overflow: visible; }
   .conteudo { overflow: visible; }
   .ficha { top: auto; bottom: 12px; max-height: 55%; }
+  .palco:has(.ficha:not([hidden])) .problemas { display: none; }
+  .botao-flutuante { top: 120px; white-space: nowrap; padding: 6px 10px; font-size: 11.5px; }
+  .problemas { left: 8px; bottom: 8px; }
+  .problemas-lista { max-height: 44vh; padding: 8px; }
+  .problema { padding: 6px 7px; font-size: 12px; }
+  .toast { font-size: 12px; padding: 6px 6px 6px 12px; }
   .dica { display: none; }
   .hud-topo { gap: 6px; }
   .grupo-ferramentas { max-width: 100%; }
